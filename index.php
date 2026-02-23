@@ -114,24 +114,62 @@ get_header();
         }
         $heatmap_day_counts[$day_key]++;
     }
-    $heatmap_max_count = !empty($heatmap_day_counts) ? max($heatmap_day_counts) : 0;
+
+    /* 获取 Memos 说说数据，按天统计 */
+    $heatmap_memo_counts = [];
+    if (function_exists('lared_get_memos_stream')) {
+        $heatmap_start_ts = strtotime('-' . ($heatmap_days_total - 1) . ' days', current_time('timestamp'));
+        $heatmap_memos = lared_get_memos_stream([
+            'cache_ttl'  => 300,
+            'page_size'  => 100,
+        ]);
+        if (!empty($heatmap_memos['items']) && is_array($heatmap_memos['items'])) {
+            foreach ($heatmap_memos['items'] as $heatmap_memo) {
+                $memo_ts = (int) ($heatmap_memo['created_timestamp'] ?? 0);
+                if ($memo_ts <= 0 || $memo_ts < $heatmap_start_ts) {
+                    continue;
+                }
+                $memo_day = wp_date('Y-m-d', $memo_ts);
+                if ('' === $memo_day) {
+                    continue;
+                }
+                if (!isset($heatmap_memo_counts[$memo_day])) {
+                    $heatmap_memo_counts[$memo_day] = 0;
+                }
+                $heatmap_memo_counts[$memo_day]++;
+            }
+        }
+    }
+
+    /* 合并文章 + 说说计数，计算热力等级 */
+    $heatmap_combined_counts = [];
+    $heatmap_all_days = array_unique(array_merge(array_keys($heatmap_day_counts), array_keys($heatmap_memo_counts)));
+    foreach ($heatmap_all_days as $heatmap_day) {
+        $heatmap_combined_counts[$heatmap_day] = ($heatmap_day_counts[$heatmap_day] ?? 0) + ($heatmap_memo_counts[$heatmap_day] ?? 0);
+    }
+    $heatmap_max_count = !empty($heatmap_combined_counts) ? max($heatmap_combined_counts) : 0;
+
     $home_heatmap_cells = [];
     for ($i = $heatmap_days_total - 1; $i >= 0; $i--) {
         $cell_ts = strtotime('-' . $i . ' days', current_time('timestamp'));
         if (false === $cell_ts) {
             continue;
         }
-        $cell_date = wp_date('Y-m-d', $cell_ts);
-        $cell_count = (int) ($heatmap_day_counts[$cell_date] ?? 0);
-        $cell_level = 0;
-        if ($cell_count > 0 && $heatmap_max_count > 0) {
-            $cell_level = (int) ceil(($cell_count / $heatmap_max_count) * 4);
-            $cell_level = max(1, min(4, $cell_level));
+        $cell_date       = wp_date('Y-m-d', $cell_ts);
+        $cell_post_count = (int) ($heatmap_day_counts[$cell_date] ?? 0);
+        $cell_memo_count = (int) ($heatmap_memo_counts[$cell_date] ?? 0);
+        $cell_total      = $cell_post_count + $cell_memo_count;
+        $cell_level      = 0;
+        if ($cell_total > 0 && $heatmap_max_count > 0) {
+            $cell_level = (int) ceil(($cell_total / $heatmap_max_count) * 5);
+            $cell_level = max(1, min(5, $cell_level));
         }
         $home_heatmap_cells[] = [
-            'date' => $cell_date,
-            'count' => $cell_count,
-            'level' => $cell_level,
+            'date'       => $cell_date,
+            'count'      => $cell_total,
+            'post_count' => $cell_post_count,
+            'memo_count' => $cell_memo_count,
+            'level'      => $cell_level,
         ];
     }
 
@@ -289,9 +327,21 @@ get_header();
                         <div class="home-main-sidebar-block-body">
                             <div class="home-mini-heatmap" aria-label="<?php esc_attr_e('近60天更新热力图', 'lared'); ?>">
                                 <?php foreach ($home_heatmap_cells as $heatmap_cell) : ?>
+                                    <?php
+                                    $heatmap_title_parts = [$heatmap_cell['date']];
+                                    if ($heatmap_cell['post_count'] > 0) {
+                                        $heatmap_title_parts[] = $heatmap_cell['post_count'] . ' 篇文章';
+                                    }
+                                    if ($heatmap_cell['memo_count'] > 0) {
+                                        $heatmap_title_parts[] = $heatmap_cell['memo_count'] . ' 条说说';
+                                    }
+                                    if ($heatmap_cell['post_count'] === 0 && $heatmap_cell['memo_count'] === 0) {
+                                        $heatmap_title_parts[] = '无更新';
+                                    }
+                                    ?>
                                     <span
-                                        class="home-mini-heatmap-cell tone-green level-<?php echo esc_attr((string) $heatmap_cell['level']); ?>"
-                                        title="<?php echo esc_attr((string) $heatmap_cell['date'] . ' · ' . (int) $heatmap_cell['count'] . ' 篇'); ?>"
+                                        class="home-mini-heatmap-cell tone-red level-<?php echo esc_attr((string) $heatmap_cell['level']); ?>"
+                                        title="<?php echo esc_attr(implode(' · ', $heatmap_title_parts)); ?>"
                                     ></span>
                                 <?php endforeach; ?>
                             </div>
@@ -453,6 +503,8 @@ get_header();
             $post_categories  = wp_get_post_categories($post_id, ['fields' => 'all']);
             $first_category   = !empty($post_categories) ? $post_categories[0] : null;
             $category_label   = $first_category ? $first_category->name : __('未分类', 'lared');
+            $category_link    = $first_category ? get_category_link($first_category->term_id) : '';
+            $category_count   = $first_category ? (int) $first_category->count : 0;
             $category_icon_html = ($first_category && $first_category->term_id > 0)
                 ? lared_get_category_icon_html((int) $first_category->term_id)
                 : '';
@@ -461,9 +513,9 @@ get_header();
             if ($post_timestamp <= 0) {
                 $post_timestamp = time();
             }
-            $post_month_short = wp_date('M', $post_timestamp);
-            $post_day_number  = wp_date('j', $post_timestamp);
-            $post_time_full   = wp_date('Y/m/d H:i', $post_timestamp);
+            $post_month_short = lared_date_en('M', $post_timestamp);
+            $post_day_number  = lared_date_en('j', $post_timestamp);
+            $post_time_full   = lared_date_en('Y/m/d H:i', $post_timestamp);
             $article_image_url = lared_get_post_image_url($post_id, 'large');
             if ('' === $article_image_url) {
                 $article_image_url = 'https://picsum.photos/seed/lared-post-' . $post_id . '/1600/900';
@@ -498,12 +550,16 @@ get_header();
                             </a>
                         </h2>
 
-                        <span class="home-article-head-label">
+                        <a class="home-article-head-label" href="<?php echo esc_url($category_link); ?>" tabindex="0" aria-label="<?php echo esc_attr($category_label); ?>">
                             <?php if ('' !== $category_icon_html) : ?>
                                 <span class="category-icon" aria-hidden="true"><?php echo $category_icon_html; ?></span>
                             <?php endif; ?>
                             <span><?php echo esc_html($category_label); ?></span>
-                        </span>
+                            <span class="home-article-label-tooltip"><?php
+                                /* translators: %d: number of posts in category */
+                                echo esc_html(sprintf(__('%d 篇文章', 'lared'), $category_count));
+                            ?></span>
+                        </a>
                     </div>
 
                     <div class="home-article-featured">

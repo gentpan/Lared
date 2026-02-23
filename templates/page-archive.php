@@ -50,7 +50,7 @@ foreach ($archive_posts as $archive_post) {
 
     if (!isset($archive_tree[$year_key]['months'][$month_key])) {
         $archive_tree[$year_key]['months'][$month_key] = [
-            'label' => wp_date('n月', $timestamp),
+            'label' => lared_date_en('M', $timestamp),
             'count' => 0,
             'posts' => [],
         ];

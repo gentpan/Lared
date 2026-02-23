@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
 <body <?php body_class('theme-body'); ?>>
 <?php wp_body_open(); ?>
 <header class="fixed inset-x-0 top-0 z-[60] border-b border-[#d9d9d9] bg-[#ffffff]">
-    <div class="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between px-[18px] box-border">
+    <div class="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between pl-[18px] pr-0 box-border">
         <a href="<?php echo esc_url(home_url('/')); ?>" class="text-[31px] font-medium leading-none tracking-[0] text-[var(--color-accent)] no-underline" style="font-family: 'Nano Sans', 'Noto Sans SC', sans-serif;"><?php bloginfo('name'); ?></a>
 
         <nav class="nav-wrap" aria-label="Primary Navigation">
@@ -29,11 +29,14 @@ if (!defined('ABSPATH')) {
         <div class="flex items-center gap-[10px]">
             <span class="header-loading" data-header-loading aria-hidden="true"></span>
             
-            <button type="button" class="header-search-trigger" data-search-open aria-label="<?php esc_attr_e('Search', 'lared'); ?>">
-                <i class="fa-solid fa-magnifying-glass header-search-trigger-icon" aria-hidden="true"></i>
-                <span class="header-search-trigger-text"><?php esc_html_e('Search docs', 'lared'); ?></span>
-                <kbd class="header-search-trigger-kbd" data-search-kbd></kbd>
-            </button>
+            <form role="search" method="get" class="header-search-form" action="<?php echo esc_url(home_url('/')); ?>">
+                <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
+                <label class="sr-only" for="header-search-input"><?php esc_html_e('Search for:', 'lared'); ?></label>
+                <input id="header-search-input" type="search" name="s" placeholder="<?php esc_attr_e('搜索文章...', 'lared'); ?>" autocomplete="off" />
+                <button type="submit" class="header-search-submit" aria-label="<?php esc_attr_e('Search', 'lared'); ?>" data-search-kbd-btn>
+                    <kbd data-search-kbd></kbd>
+                </button>
+            </form>
             
         </div>
     </div>

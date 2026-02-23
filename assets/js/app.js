@@ -209,7 +209,7 @@
         startAutoSwitch();
     }
 
-    /* home-article-toc.js */
+    /* home-article-toc.js — removed, scrollbar only */
     function initToc() {
         var sections = Array.prototype.slice.call(document.querySelectorAll('.home-article'));
 
@@ -218,8 +218,6 @@
         }
 
         sections.forEach(function (section) {
-            var links = Array.prototype.slice.call(section.querySelectorAll('[data-toc-link]'));
-            var headings = Array.prototype.slice.call(section.querySelectorAll('.home-article-body h2[id], .home-article-body h3[id]'));
             var content = section.querySelector('[data-article-scroll]');
             var scrollbarThumb = section.querySelector('.home-article-scrollbar-thumb');
 
@@ -249,110 +247,6 @@
                 scrollbarThumb.style.height = thumbHeight + 'px';
                 scrollbarThumb.style.transform = 'translateY(' + offset + 'px)';
             };
-
-            if (links.length && headings.length) {
-                var parentByLink = new Map();
-                var linkById = new Map();
-                var currentParentId = null;
-
-                links.forEach(function (link) {
-                    var href = link.getAttribute('href') || '';
-                    var id = href.startsWith('#') ? href.slice(1) : '';
-                    if (id) {
-                        linkById.set(id, link);
-                    }
-
-                    if (link.classList.contains('level-2')) {
-                        currentParentId = id || null;
-                        parentByLink.set(link, currentParentId);
-                        return;
-                    }
-
-                    parentByLink.set(link, currentParentId);
-                });
-
-                var setExpandedParent = function (parentId) {
-                    links.forEach(function (link) {
-                        if (!link.classList.contains('level-3')) {
-                            return;
-                        }
-
-                        var parent = parentByLink.get(link);
-                        var visible = parentId && parent === parentId;
-                        link.classList.toggle('is-visible', !!visible);
-                    });
-                };
-
-                var activateLink = function (id) {
-                    links.forEach(function (link) {
-                        var isActive = link.getAttribute('href') === '#' + id;
-                        link.classList.toggle('is-active', isActive);
-                    });
-
-                    var activeLink = linkById.get(id);
-                    if (!activeLink) {
-                        setExpandedParent(null);
-                        return;
-                    }
-
-                    if (activeLink.classList.contains('level-2')) {
-                        setExpandedParent(id);
-                        return;
-                    }
-
-                    var parentId = parentByLink.get(activeLink);
-                    setExpandedParent(parentId || null);
-                };
-
-                var firstLevel2 = links.find(function (link) {
-                    return link.classList.contains('level-2');
-                });
-                if (firstLevel2) {
-                    var firstId = (firstLevel2.getAttribute('href') || '').replace('#', '');
-                    setExpandedParent(firstId || null);
-                } else {
-                    setExpandedParent(null);
-                }
-
-                links.forEach(function (link) {
-                    link.addEventListener('click', function (event) {
-                        var href = link.getAttribute('href') || '';
-                        if (!href.startsWith('#')) {
-                            return;
-                        }
-
-                        var targetId = href.slice(1);
-                        var target = document.getElementById(targetId);
-                        if (!target) {
-                            return;
-                        }
-
-                        event.preventDefault();
-                        var top = target.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop - 22;
-                        content.scrollTo({ top: top, behavior: 'smooth' });
-                        activateLink(targetId);
-                    });
-                });
-
-                var observer = new IntersectionObserver(
-                    function (entries) {
-                        entries.forEach(function (entry) {
-                            if (entry.isIntersecting) {
-                                activateLink(entry.target.id);
-                            }
-                        });
-                    },
-                    {
-                        root: content,
-                        rootMargin: '-80px 0px -60% 0px',
-                        threshold: 0.1,
-                    }
-                );
-
-                headings.forEach(function (heading) {
-                    observer.observe(heading);
-                });
-            }
 
             content.addEventListener('scroll', updateScrollbar, { passive: true });
             window.addEventListener('resize', updateScrollbar);
@@ -405,12 +299,27 @@
     function initSingleSideToc() {
         var toc = document.querySelector('.single-side-toc');
         var content = document.querySelector('.single-article-content');
+        var banner = document.querySelector('.single-top-banner');
 
         if (!toc || !content || toc.getAttribute('data-single-toc-ready') === '1') {
             return;
         }
 
         toc.setAttribute('data-single-toc-ready', '1');
+
+        /* ── Banner visibility → show / hide TOC ── */
+        if (banner) {
+            var bannerObserver = new IntersectionObserver(
+                function (entries) {
+                    entries.forEach(function (entry) {
+                        // Banner out of view → show TOC; banner visible → hide TOC
+                        toc.classList.toggle('is-visible', !entry.isIntersecting);
+                    });
+                },
+                { root: null, threshold: 0 }
+            );
+            bannerObserver.observe(banner);
+        }
 
         var links = Array.prototype.slice.call(toc.querySelectorAll('[data-single-toc-link]'));
         var headings = Array.prototype.slice.call(content.querySelectorAll('h2[id], h3[id]'));
@@ -657,21 +566,230 @@
     }
 
     function markNewCommentHint(commentNode) {
-        if (!commentNode || commentNode.querySelector('.lared-comment-new-hint')) {
+        if (!commentNode || commentNode.querySelector('.lared-comment-edit-btn')) {
             return;
         }
 
-        var metaNode = commentNode.querySelector('.comment-meta, .comment-metadata, .comment-author');
+        var metaNode = commentNode.querySelector('.comment-header, .comment-meta, .comment-metadata');
         if (!metaNode) {
             return;
         }
 
-        var hint = document.createElement('span');
-        hint.className = 'lared-comment-new-hint';
-        hint.textContent = ' · 刚刚发布（1 分钟内可编辑）';
-        hint.style.color = '#999';
-        hint.style.fontSize = '12px';
-        metaNode.appendChild(hint);
+        // 编辑按钮 + 倒计时
+        var editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'lared-comment-edit-btn';
+        editBtn.innerHTML = '<i class="fa-regular fa-pen-to-square"></i> 编辑 <span class="lared-edit-countdown">60s</span>';
+        metaNode.appendChild(editBtn);
+
+        var remaining = 60;
+        var countdownSpan = editBtn.querySelector('.lared-edit-countdown');
+        var timer = setInterval(function () {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(timer);
+                editBtn.remove();
+                return;
+            }
+            countdownSpan.textContent = remaining + 's';
+        }, 1000);
+
+        // 保存评论原文用于编辑（还原表情代码 + 处理 HTML 段落）
+        var commentId = commentNode.id ? commentNode.id.replace('comment-', '') : '';
+        var contentNode = commentNode.querySelector('.comment-content');
+        var originalContent = contentNode ? extractEditableContent(contentNode) : '';
+
+        editBtn.addEventListener('click', function () {
+            startEditComment(commentId, originalContent, commentNode, editBtn, timer);
+        });
+    }
+
+    /**
+     * 从渲染后的评论 DOM 中提取可编辑的纯文本。
+     * - <img class="lared-emoji" data-code=":xxx:"> → :xxx:
+     * - <p>...</p> → 段落间用换行分隔
+     * - <br> → 换行
+     * - 其他 HTML 标签去除
+     */
+    function extractEditableContent(node) {
+        var clone = node.cloneNode(true);
+
+        // 1. 将表情 img 替换为其 data-code
+        var emojis = clone.querySelectorAll('img.lared-emoji[data-code]');
+        emojis.forEach(function (img) {
+            var code = img.getAttribute('data-code');
+            img.replaceWith(code);
+        });
+
+        // 2. 在 <p> 结尾插入换行标记
+        var paragraphs = clone.querySelectorAll('p');
+        paragraphs.forEach(function (p) {
+            p.insertAdjacentText('afterend', '\n');
+        });
+
+        // 3. <br> 转为换行
+        var brs = clone.querySelectorAll('br');
+        brs.forEach(function (br) {
+            br.replaceWith('\n');
+        });
+
+        // 4. 获取文本并清理多余空行
+        var text = clone.textContent || '';
+        text = text.replace(/\n{3,}/g, '\n\n').trim();
+        return text;
+    }
+
+    // ====== 评论编辑机制 ======
+    var _editingCommentId = null;
+
+    function startEditComment(commentId, content, commentNode, editBtn, timer) {
+        var form = document.getElementById('commentform');
+        if (!form) return;
+
+        var textarea = form.querySelector('#comment');
+        var submitBtn = form.querySelector('input[type="submit"], button[type="submit"]');
+        if (!textarea || !submitBtn) return;
+
+        // 如果已经在编辑模式，先清理旧的取消按钮
+        var existingCancel = form.querySelector('.lared-comment-cancel-edit');
+        if (existingCancel) existingCancel.remove();
+
+        // 清理旧的编辑高亮
+        var oldEditing = document.querySelector('.lared-comment-editing');
+        if (oldEditing) oldEditing.classList.remove('lared-comment-editing');
+
+        // 标记编辑模式
+        _editingCommentId = commentId;
+        form.setAttribute('data-editing', commentId);
+
+        // 填充内容
+        textarea.value = content;
+        textarea.focus();
+
+        // 修改按钮文字
+        var originalSubmitText = submitBtn.value || submitBtn.textContent;
+        if (submitBtn.tagName === 'INPUT') {
+            submitBtn.value = '更新评论';
+        } else {
+            submitBtn.textContent = '更新评论';
+        }
+
+        // 添加取消编辑按钮
+        var cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'lared-comment-cancel-edit';
+        cancelBtn.textContent = '取消编辑';
+        submitBtn.parentNode.insertBefore(cancelBtn, submitBtn);
+
+        // 高亮正在编辑的评论
+        commentNode.classList.add('lared-comment-editing');
+
+        // 滚动到表单
+        var formRect = form.getBoundingClientRect();
+        var targetY = window.pageYOffset + formRect.top - 100;
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+
+        cancelBtn.addEventListener('click', function () {
+            cancelEditComment(form, submitBtn, originalSubmitText, cancelBtn, commentNode);
+        });
+    }
+
+    function cancelEditComment(form, submitBtn, originalText, cancelBtn, commentNode) {
+        _editingCommentId = null;
+        form.removeAttribute('data-editing');
+
+        var textarea = form.querySelector('#comment');
+        if (textarea) textarea.value = '';
+
+        if (submitBtn.tagName === 'INPUT') {
+            submitBtn.value = originalText;
+        } else {
+            submitBtn.textContent = originalText;
+        }
+
+        cancelBtn.remove();
+        commentNode.classList.remove('lared-comment-editing');
+    }
+
+    function submitEditComment(commentId, newContent, form, submitBtn, originalSubmitText) {
+        if (!window.LaredAjax || !window.LaredAjax.commentEditNonce) return;
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add('is-loading');
+        var savedText = submitBtn.value || submitBtn.textContent;
+        if (submitBtn.tagName === 'INPUT') submitBtn.value = '';
+        else submitBtn.textContent = '';
+
+        var formData = new FormData();
+        formData.append('action', 'lared_edit_comment');
+        formData.append('nonce', window.LaredAjax.commentEditNonce);
+        formData.append('comment_id', commentId);
+        formData.append('comment', newContent);
+
+        // 游客需要附带邮箱用于身份验证
+        var emailField = form.querySelector('#email');
+        if (emailField) {
+            formData.append('author_email', emailField.value);
+        }
+
+        var startTime = Date.now();
+
+        fetch(window.LaredAjax.ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: formData,
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (result) {
+            var elapsed = Date.now() - startTime;
+            var delay = Math.max(0, 800 - elapsed);
+
+            setTimeout(function () {
+                resetSubmitButton(submitBtn, originalSubmitText);
+
+                if (!result || !result.success) {
+                    showToast((result && result.data && result.data.message) || '编辑失败', 'error');
+                    return;
+                }
+
+                showToast('评论已更新', 'success');
+
+                // 替换评论 HTML
+                var commentNode = document.getElementById('comment-' + commentId);
+                if (commentNode && result.data.html) {
+                    var temp = document.createElement('div');
+                    temp.innerHTML = result.data.html;
+                    var newArticle = temp.querySelector('.comment-body');
+                    var oldArticle = commentNode.querySelector('.comment-body');
+                    if (newArticle && oldArticle) {
+                        oldArticle.innerHTML = newArticle.innerHTML;
+                    }
+                    // 重新添加编辑按钮（如果还在60秒内）
+                    markNewCommentHint(commentNode);
+                    initCommentExpand();
+                }
+
+                // 清理编辑状态
+                var cancelBtn = form.querySelector('.lared-comment-cancel-edit');
+                if (cancelBtn) cancelBtn.remove();
+                _editingCommentId = null;
+                form.removeAttribute('data-editing');
+
+                var textarea = form.querySelector('#comment');
+                if (textarea) textarea.value = '';
+
+                if (submitBtn.tagName === 'INPUT') submitBtn.value = originalSubmitText;
+                else submitBtn.textContent = originalSubmitText;
+            }, delay);
+        })
+        .catch(function () {
+            var elapsed = Date.now() - startTime;
+            var delay = Math.max(0, 800 - elapsed);
+            setTimeout(function () {
+                resetSubmitButton(submitBtn, originalSubmitText);
+                showToast('编辑失败，请重试', 'error');
+            }, delay);
+        });
     }
 
     function scrollToNewComment(commentNode) {
@@ -679,12 +797,367 @@
             return;
         }
 
-        commentNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 直接跳转到评论附近，不从页面顶部平滑滚动
+        var rect = commentNode.getBoundingClientRect();
+        var targetY = window.pageYOffset + rect.top - (window.innerHeight / 3);
+        window.scrollTo({ top: targetY, behavior: 'instant' });
 
         commentNode.classList.add('lared-comment-newly-added');
         window.setTimeout(function () {
             commentNode.classList.remove('lared-comment-newly-added');
         }, 1500);
+    }
+
+    // ====== 回复链接安全拦截（防止导航刷新） ======
+    // 使用事件委托，确保动态插入的评论回复链接也能正常工作
+
+    function updateReplyTitleText(text) {
+        var replyTitle = document.getElementById('reply-title');
+        if (!replyTitle) return;
+        var nodes = replyTitle.childNodes;
+        for (var i = 0; i < nodes.length; i++) {
+            if (nodes[i].nodeType === 3 && nodes[i].textContent.trim().length > 0) {
+                nodes[i].textContent = text;
+                return;
+            }
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        // —— 处理回复链接 ——
+        var link = e.target.closest('.comment-reply-link');
+        if (link) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            // 如果正在编辑评论，先取消编辑模式
+            if (_editingCommentId) {
+                var form = document.getElementById('commentform');
+                if (form) {
+                    var submitBtn = form.querySelector('input[type="submit"], button[type="submit"]');
+                    var cancelBtn = form.querySelector('.lared-comment-cancel-edit');
+                    var editingNode = document.querySelector('.lared-comment-editing');
+
+                    _editingCommentId = null;
+                    form.removeAttribute('data-editing');
+                    var textarea = form.querySelector('#comment');
+                    if (textarea) textarea.value = '';
+                    if (submitBtn) {
+                        if (submitBtn.tagName === 'INPUT') submitBtn.value = '提交评论';
+                        else submitBtn.textContent = '提交评论';
+                    }
+                    if (cancelBtn) cancelBtn.remove();
+                    if (editingNode) editingNode.classList.remove('lared-comment-editing');
+                }
+            }
+
+            // 获取被回复评论的昵称
+            var commentBody = link.closest('.comment-body') || link.closest('li[id^="comment-"]');
+            var authorName = '';
+            if (commentBody) {
+                var authorEl = commentBody.querySelector('.comment-author-name');
+                if (authorEl) authorName = authorEl.textContent.trim();
+            }
+
+            // 调用 WordPress 的 moveForm 移动评论表单
+            if (window.addComment && typeof window.addComment.moveForm === 'function') {
+                var commId = link.getAttribute('data-belowelement');
+                var parentId = link.getAttribute('data-commentid');
+                var respondId = link.getAttribute('data-respondelement');
+                var postId = link.getAttribute('data-postid');
+                var replyTo = link.getAttribute('data-replyto') || '';
+
+                if (commId && parentId && respondId && postId) {
+                    window.addComment.moveForm(commId, parentId, respondId, postId, replyTo);
+                }
+            }
+
+            // 更新标题为"回复 昵称"
+            if (authorName) {
+                updateReplyTitleText(' 回复 ' + authorName + ' ');
+            }
+            return;
+        }
+
+        // —— 处理取消回复链接 —— 恢复标题文字
+        var cancelLink = e.target.closest('#cancel-comment-reply-link');
+        if (cancelLink) {
+            updateReplyTitleText(' 发表评论');
+        }
+    }, true); // 捕获阶段，优先于其他 click 处理器
+
+    // ====== 评论内容展开/收起 ======
+
+    function initCommentExpand() {
+        var contents = document.querySelectorAll('.comment-list .comment-content');
+        if (!contents.length) return;
+
+        contents.forEach(function (el) {
+            if (el.getAttribute('data-expand-init') === '1') return;
+            el.setAttribute('data-expand-init', '1');
+
+            // 先加 clamp 测量
+            el.classList.add('is-clamped');
+
+            // 等渲染完再测高度（图片/emoji 可能还没加载）
+            requestAnimationFrame(function () {
+                if (el.scrollHeight <= el.clientHeight + 2) {
+                    // 内容没超出 2 行，取消 clamp
+                    el.classList.remove('is-clamped');
+                    return;
+                }
+
+                // 插入展开按钮
+                var toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'comment-content-toggle';
+                toggle.innerHTML = '展开 <i class="fa-solid fa-chevron-down" style="font-size:11px"></i>';
+                el.parentNode.insertBefore(toggle, el.nextSibling);
+
+                toggle.addEventListener('click', function () {
+                    var clamped = el.classList.contains('is-clamped');
+                    if (clamped) {
+                        el.classList.remove('is-clamped');
+                        toggle.innerHTML = '收起 <i class="fa-solid fa-chevron-up" style="font-size:11px"></i>';
+                    } else {
+                        el.classList.add('is-clamped');
+                        toggle.innerHTML = '展开 <i class="fa-solid fa-chevron-down" style="font-size:11px"></i>';
+                    }
+                });
+            });
+        });
+    }
+
+    // ====== 评论表情面板 ======
+    var _emojiData = null;
+    var _emojiFetching = false;
+    var _emojiCallbacks = [];
+
+    function getEmojiData(callback) {
+        if (_emojiData) {
+            callback(_emojiData);
+            return;
+        }
+        _emojiCallbacks.push(callback);
+        if (_emojiFetching) return;
+        _emojiFetching = true;
+
+        var themeUrl = (window.LaredAjax && window.LaredAjax.themeUrl) || '';
+        if (!themeUrl) {
+            // 回退：从已有 link/script 标签推断主题路径
+            var links = document.querySelectorAll('link[href*="/themes/Lared/"]');
+            if (links.length > 0) {
+                var m = links[0].href.match(/(.*\/themes\/Lared)\//);
+                if (m) themeUrl = m[1];
+            }
+        }
+        if (!themeUrl) {
+            _emojiFetching = false;
+            return;
+        }
+
+        fetch(themeUrl + '/assets/json/bilibili-emojis.json')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                _emojiData = { map: data, themeUrl: themeUrl };
+                _emojiCallbacks.forEach(function (cb) { cb(_emojiData); });
+                _emojiCallbacks = [];
+            })
+            .catch(function () {
+                _emojiFetching = false;
+            });
+    }
+
+    function initEmojiPanel() {
+        var panels = document.querySelectorAll('.lared-emoji-panel');
+        if (!panels.length) return;
+
+        panels.forEach(function (panel) {
+            if (panel.getAttribute('data-emoji-ready') === '1') return;
+            panel.setAttribute('data-emoji-ready', '1');
+
+            var emojiBar = panel.closest('.lared-emoji-bar');
+            var form = panel.closest('form') || panel.closest('.comment-form');
+            if (!form) return;
+
+            var toggle = emojiBar ? emojiBar.querySelector('.lared-emoji-toggle') : null;
+            var textarea = form.querySelector('textarea#comment') || form.querySelector('textarea');
+            if (!toggle || !textarea) return;
+
+            // 点击切换面板
+            toggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                var isOpen = panel.style.display !== 'none';
+                if (isOpen) {
+                    panel.style.display = 'none';
+                    toggle.classList.remove('is-active');
+                    return;
+                }
+
+                // 首次打开时加载表情
+                if (!panel.children.length) {
+                    getEmojiData(function (data) {
+                        buildEmojiGrid(panel, data, textarea);
+                    });
+                }
+
+                panel.style.display = 'grid';
+                toggle.classList.add('is-active');
+            });
+
+            // 点击外部关闭
+            document.addEventListener('click', function (e) {
+                if (!emojiBar.contains(e.target)) {
+                    panel.style.display = 'none';
+                    toggle.classList.remove('is-active');
+                }
+            });
+        });
+    }
+
+    function buildEmojiGrid(panel, data, textarea) {
+        var map = data.map;
+        var themeUrl = data.themeUrl;
+        var fragment = document.createDocumentFragment();
+
+        Object.keys(map).forEach(function (code) {
+            var emoji = map[code];
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'lared-emoji-item';
+            btn.title = emoji.name;
+            btn.innerHTML = '<img src="' + themeUrl + '/assets/images/bilibili/' + emoji.file + '" alt="' + emoji.name + '" loading="lazy">';
+
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                insertAtCursor(textarea, code);
+                // 点击表情后自动关闭面板
+                panel.style.display = 'none';
+                var toggle = panel.closest('.lared-emoji-bar');
+                if (toggle) {
+                    var toggleBtn = toggle.querySelector('.lared-emoji-toggle');
+                    if (toggleBtn) toggleBtn.classList.remove('is-active');
+                }
+            });
+
+            fragment.appendChild(btn);
+        });
+
+        panel.appendChild(fragment);
+    }
+
+    function insertAtCursor(textarea, text) {
+        textarea.focus();
+        var start = textarea.selectionStart;
+        var end = textarea.selectionEnd;
+        var before = textarea.value.substring(0, start);
+        var after = textarea.value.substring(end);
+        textarea.value = before + text + after;
+        var newPos = start + text.length;
+        textarea.setSelectionRange(newPos, newPos);
+
+        // 触发 input 事件以便框架感知变化
+        var evt = new Event('input', { bubbles: true });
+        textarea.dispatchEvent(evt);
+    }
+
+    // ====== Toast 提示 ======
+    var _toastMessages = [
+        '评论成功，恭喜发财！',
+        '评论成功，万事如意！',
+        '发表成功，好运连连！',
+        '评论成功，大吉大利！',
+        '发表成功，心想事成！',
+        '评论成功，笑口常开！',
+        '发表成功，前程似锦！',
+        '评论成功，一帆风顺！',
+        '发表成功，福星高照！',
+        '评论成功，步步高升！',
+    ];
+
+    var _toastErrorMessages = [
+        '提交失败，请稍后重试',
+    ];
+
+    function showToast(message, type) {
+        var existing = document.querySelector('.lared-toast');
+        if (existing) existing.remove();
+
+        var toast = document.createElement('div');
+        toast.className = 'lared-toast lared-toast--' + (type || 'success');
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        // 强制重排后添加动画类
+        toast.offsetHeight;
+        toast.classList.add('is-visible');
+
+        setTimeout(function () {
+            toast.classList.remove('is-visible');
+            toast.classList.add('is-hiding');
+            setTimeout(function () { toast.remove(); }, 400);
+        }, 2500);
+    }
+
+    function getRandomToast(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    // ====== 回头访客编辑信息切换 ======
+    function initEditInfoToggle() {
+        var toggle = document.querySelector('.lared-edit-info-toggle');
+        if (!toggle || toggle.getAttribute('data-edit-info-ready') === '1') return;
+        toggle.setAttribute('data-edit-info-ready', '1');
+
+        toggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            var form = document.querySelector('.comment-form.lared-returning-guest');
+            if (!form) return;
+            form.classList.toggle('lared-show-fields');
+        });
+    }
+
+    // ====== 邮箱输入自动识别头像 ======
+    function md5(s){function f(a,b){var c=(a&65535)+(b&65535);return(((a>>16)+(b>>16)+(c>>16))<<16)|(c&65535)}function g(a,b){return(a<<b)|(a>>>(32-b))}function h(a,b,c,d,e,i,j){return f(g(f(f(b,a),f(e,j)),i),c)}function ff(a,b,c,d,e,i,j){return h((b&c)|((~b)&d),a,b,e,i,j)}function gg(a,b,c,d,e,i,j){return h((b&d)|(c&(~d)),a,b,e,i,j)}function hh(a,b,c,d,e,i,j){return h(b^c^d,a,b,e,i,j)}function ii(a,b,c,d,e,i,j){return h(c^(b|(~d)),a,b,e,i,j)}function md5c(x,l){x[l>>5]|=128<<(l%32);x[(((l+64)>>>9)<<4)+14]=l;var a=1732584193,b=-271733879,c=-1732584194,d=271733878;for(var i=0;i<x.length;i+=16){var o=a,p=b,q=c,r=d;a=ff(a,b,c,d,x[i],7,-680876936);d=ff(d,a,b,c,x[i+1],12,-389564586);c=ff(c,d,a,b,x[i+2],17,606105819);b=ff(b,c,d,a,x[i+3],22,-1044525330);a=ff(a,b,c,d,x[i+4],7,-176418897);d=ff(d,a,b,c,x[i+5],12,1200080426);c=ff(c,d,a,b,x[i+6],17,-1473231341);b=ff(b,c,d,a,x[i+7],22,-45705983);a=ff(a,b,c,d,x[i+8],7,1770035416);d=ff(d,a,b,c,x[i+9],12,-1958414417);c=ff(c,d,a,b,x[i+10],17,-42063);b=ff(b,c,d,a,x[i+11],22,-1990404162);a=ff(a,b,c,d,x[i+12],7,1804603682);d=ff(d,a,b,c,x[i+13],12,-40341101);c=ff(c,d,a,b,x[i+14],17,-1502002290);b=ff(b,c,d,a,x[i+15],22,1236535329);a=gg(a,b,c,d,x[i+1],5,-165796510);d=gg(d,a,b,c,x[i+6],9,-1069501632);c=gg(c,d,a,b,x[i+11],14,643717713);b=gg(b,c,d,a,x[i],20,-373897302);a=gg(a,b,c,d,x[i+5],5,-701558691);d=gg(d,a,b,c,x[i+10],9,38016083);c=gg(c,d,a,b,x[i+15],14,-660478335);b=gg(b,c,d,a,x[i+4],20,-405537848);a=gg(a,b,c,d,x[i+9],5,568446438);d=gg(d,a,b,c,x[i+14],9,-1019803690);c=gg(c,d,a,b,x[i+3],14,-187363961);b=gg(b,c,d,a,x[i+8],20,1163531501);a=gg(a,b,c,d,x[i+13],5,-1444681467);d=gg(d,a,b,c,x[i+2],9,-51403784);c=gg(c,d,a,b,x[i+7],14,1735328473);b=gg(b,c,d,a,x[i+12],20,-1926607734);a=hh(a,b,c,d,x[i+5],4,-378558);d=hh(d,a,b,c,x[i+8],11,-2022574463);c=hh(c,d,a,b,x[i+11],16,1839030562);b=hh(b,c,d,a,x[i+14],23,-35309556);a=hh(a,b,c,d,x[i+1],4,-1530992060);d=hh(d,a,b,c,x[i+4],11,1272893353);c=hh(c,d,a,b,x[i+7],16,-155497632);b=hh(b,c,d,a,x[i+10],23,-1094730640);a=hh(a,b,c,d,x[i+13],4,681279174);d=hh(d,a,b,c,x[i],11,-358537222);c=hh(c,d,a,b,x[i+3],16,-722521979);b=hh(b,c,d,a,x[i+6],23,76029189);a=hh(a,b,c,d,x[i+9],4,-640364487);d=hh(d,a,b,c,x[i+12],11,-421815835);c=hh(c,d,a,b,x[i+15],16,530742520);b=hh(b,c,d,a,x[i+2],23,-995338651);a=ii(a,b,c,d,x[i],6,-198630844);d=ii(d,a,b,c,x[i+7],10,1126891415);c=ii(c,d,a,b,x[i+14],15,-1416354905);b=ii(b,c,d,a,x[i+5],21,-57434055);a=ii(a,b,c,d,x[i+12],6,1700485571);d=ii(d,a,b,c,x[i+3],10,-1894986606);c=ii(c,d,a,b,x[i+10],15,-1051523);b=ii(b,c,d,a,x[i+1],21,-2054922799);a=ii(a,b,c,d,x[i+8],6,1873313359);d=ii(d,a,b,c,x[i+15],10,-30611744);c=ii(c,d,a,b,x[i+6],15,-1560198380);b=ii(b,c,d,a,x[i+13],21,1309151649);a=ii(a,b,c,d,x[i+4],6,-145523070);d=ii(d,a,b,c,x[i+11],10,-1120210379);c=ii(c,d,a,b,x[i+2],15,718787259);b=ii(b,c,d,a,x[i+9],21,-343485551);a=f(a,o);b=f(b,p);c=f(c,q);d=f(d,r)}return[a,b,c,d]}function str2bin(s){var b=[];for(var i=0;i<s.length*8;i+=8)b[i>>5]|=(s.charCodeAt(i/8)&255)<<(i%32);return b}function bin2hex(b){var h='0123456789abcdef',s='';for(var i=0;i<b.length*4;i++)s+=h.charAt((b[i>>2]>>((i%4)*8+4))&15)+h.charAt((b[i>>2]>>((i%4)*8))&15);return s}return bin2hex(md5c(str2bin(s),s.length*8))}
+
+    function initEmailAvatar() {
+        var emailField = document.getElementById('email');
+        var avatarWrap = document.getElementById('lared-title-avatar-wrap');
+        if (!emailField || !avatarWrap) return;
+        if (emailField.getAttribute('data-avatar-ready') === '1') return;
+        emailField.setAttribute('data-avatar-ready', '1');
+
+        var _defaultIcon = '<i class="fa-regular fa-comment-dots" style="color:var(--color-accent,#f53004);font-size:16px;"></i>';
+        var _lastHash = '';
+        // 如果页面加载时已有头像（回头访客 cookie），标记为已有头像状态
+        var _hasInitialAvatar = !!avatarWrap.querySelector('img');
+
+        function updateAvatar() {
+            var email = (emailField.value || '').trim().toLowerCase();
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                // 无效邮箱或已清空：恢复默认图标
+                if (_lastHash !== '' || _hasInitialAvatar) {
+                    _lastHash = '';
+                    _hasInitialAvatar = false;
+                    avatarWrap.innerHTML = _defaultIcon;
+                }
+                return;
+            }
+            var hash = md5(email);
+            if (hash === _lastHash) return;
+            _lastHash = hash;
+            _hasInitialAvatar = false;
+            var baseUrl = (window.LaredAjax && window.LaredAjax.avatarBaseUrl) || 'https://secure.gravatar.com/avatar/';
+            avatarWrap.innerHTML = '<img class="lared-title-avatar" src="' + baseUrl + hash + '?s=48&d=mp" style="width:24px;height:24px;border-radius:2px;object-fit:cover;vertical-align:middle;" alt="">';
+        }
+
+        emailField.addEventListener('input', updateAvatar);
+        emailField.addEventListener('change', updateAvatar);
+        // 初始检查（可能有预填值）
+        if (emailField.value) updateAvatar();
     }
 
     function initAjaxCommentSubmit() {
@@ -693,25 +1166,56 @@
             return;
         }
 
-        if (!window.LaredCommentAjax || !window.LaredCommentAjax.ajaxUrl || !window.LaredCommentAjax.nonce) {
+        if (!window.LaredAjax || !window.LaredAjax.ajaxUrl || !window.LaredAjax.commentSubmitNonce) {
             return;
         }
 
         form.setAttribute('data-ajax-ready', '1');
 
+        var _isSubmitting = false;
+
         form.addEventListener('submit', function (event) {
             event.preventDefault();
 
-            var submitButton = form.querySelector('input[type="submit"], button[type="submit"]');
-            if (submitButton) {
-                submitButton.disabled = true;
+            if (_isSubmitting) return;
+
+            // 阻止事件冒泡，防止 PJAX 拦截表单提交导致页面跳转
+            event.stopPropagation();
+
+            // 编辑模式：拦截提交，走编辑接口
+            var editingId = form.getAttribute('data-editing');
+            if (editingId && _editingCommentId) {
+                _isSubmitting = true;
+                var submitButton = form.querySelector('input[type="submit"], button[type="submit"]');
+                var textarea = form.querySelector('#comment');
+                var originalText = submitButton.value || submitButton.textContent;
+                submitEditComment(editingId, textarea.value, form, submitButton, originalText);
+                _isSubmitting = false;
+                return;
             }
+
+            var submitButton = form.querySelector('input[type="submit"], button[type="submit"]');
+            if (!submitButton || submitButton.disabled) return;
+
+            _isSubmitting = true;
+
+            // 按钮进入 loading 状态
+            submitButton.disabled = true;
+            var originalText = submitButton.value || submitButton.textContent;
+            submitButton.classList.add('is-loading');
+            if (submitButton.tagName === 'INPUT') {
+                submitButton.value = '';
+            } else {
+                submitButton.textContent = '';
+            }
+
+            var startTime = Date.now();
 
             var formData = new FormData(form);
             formData.append('action', 'lared_submit_comment');
-            formData.append('nonce', window.LaredCommentAjax.nonce);
+            formData.append('nonce', window.LaredAjax.commentSubmitNonce);
 
-            fetch(window.LaredCommentAjax.ajaxUrl, {
+            fetch(window.LaredAjax.ajaxUrl, {
                 method: 'POST',
                 credentials: 'same-origin',
                 body: formData,
@@ -720,47 +1224,108 @@
                     return response.json();
                 })
                 .then(function (result) {
-                    var notice = ensureCommentNotice(form);
+                    // 确保至少 1s 的 loading 展示
+                    var elapsed = Date.now() - startTime;
+                    var delay = Math.max(0, 1000 - elapsed);
 
-                    if (!result || !result.success) {
-                        var errorMessage = (result && result.data && result.data.message)
-                            ? result.data.message
-                            : window.LaredCommentAjax.errorMessage;
-                        notice.textContent = errorMessage;
-                        notice.style.color = '#c53030';
-                        return;
-                    }
+                    setTimeout(function () {
+                        // 恢复按钮
+                        _isSubmitting = false;
+                        resetSubmitButton(submitButton, originalText);
 
-                    notice.textContent = result.data.message || window.LaredCommentAjax.successMessage;
-                    notice.style.color = '#2f855a';
+                        if (!result || !result.success) {
+                            var errorMessage = (result && result.data && result.data.message)
+                                ? result.data.message
+                                : '提交失败，请稍后重试';
+                            showToast(errorMessage || getRandomToast(_toastErrorMessages), 'error');
+                            return;
+                        }
 
-                    if (result.data.approved) {
-                        var newCommentNode = insertCommentHtml(result.data);
-                        updateCommentStats(result.data);
-                        markNewCommentHint(newCommentNode);
-                        scrollToNewComment(newCommentNode);
-                    }
+                        // 成功 toast
+                        if (result.data.approved) {
+                            showToast(getRandomToast(_toastMessages), 'success');
+                        } else {
+                            showToast('评论已提交，审核通过后显示', 'success');
+                        }
 
-                    var commentField = form.querySelector('#comment');
-                    if (commentField) {
-                        commentField.value = '';
-                    }
+                        if (result.data.approved) {
+                            var newCommentNode = insertCommentHtml(result.data);
+                            updateCommentStats(result.data);
+                            markNewCommentHint(newCommentNode);
+                            initCommentExpand();
 
-                    if (window.addComment && typeof window.addComment.init === 'function') {
-                        window.addComment.init();
-                    }
+                            // 延迟滚动，让 toast 先展示
+                            setTimeout(function () {
+                                scrollToNewComment(newCommentNode);
+                            }, 500);
+                        }
+
+                        var commentField = form.querySelector('#comment');
+                        if (commentField) {
+                            commentField.value = '';
+                        }
+
+                        // 提交成功后：隐藏信息字段，切换为回头访客状态
+                        var authorField = form.querySelector('#author');
+                        if (authorField && authorField.value) {
+                            form.classList.add('lared-returning-guest');
+                            form.classList.remove('lared-show-fields');
+
+                            var commenterName = (result.data && result.data.commenterName) || authorField.value;
+                            var titleMeta = document.querySelector('.lared-title-meta');
+                            if (titleMeta) {
+                                titleMeta.className = 'lared-title-meta lared-title-meta--returning';
+                                titleMeta.innerHTML = '欢迎回来，<strong>' + commenterName + '</strong>'
+                                    + ' <a href="#" class="lared-edit-info-toggle" onclick="return false;"><i class="fa-regular fa-pen-to-square" style="font-size:11px"></i> 编辑信息</a>';
+                                initEditInfoToggle();
+                            } else {
+                                var replyTitle = document.querySelector('#reply-title');
+                                if (replyTitle) {
+                                    var newMeta = document.createElement('span');
+                                    newMeta.className = 'lared-title-meta lared-title-meta--returning';
+                                    newMeta.innerHTML = '欢迎回来，<strong>' + commenterName + '</strong>'
+                                        + ' <a href="#" class="lared-edit-info-toggle" onclick="return false;"><i class="fa-regular fa-pen-to-square" style="font-size:11px"></i> 编辑信息</a>';
+                                    replyTitle.appendChild(newMeta);
+                                    initEditInfoToggle();
+                                }
+                            }
+                        }
+
+                        // 关闭表情面板
+                        var emojiPanel = form.querySelector('.lared-emoji-panel');
+                        var emojiToggle = form.querySelector('.lared-emoji-toggle');
+                        if (emojiPanel) emojiPanel.style.display = 'none';
+                        if (emojiToggle) emojiToggle.classList.remove('is-active');
+
+                        if (window.addComment && typeof window.addComment.init === 'function') {
+                            // 保存滚动位置，防止 addComment.init() 跳转
+                            var savedScrollY = window.pageYOffset || document.documentElement.scrollTop;
+                            window.addComment.init();
+                            window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+                        }
+                    }, delay);
                 })
                 .catch(function () {
-                    var notice = ensureCommentNotice(form);
-                    notice.textContent = window.LaredCommentAjax.errorMessage;
-                    notice.style.color = '#c53030';
-                })
-                .finally(function () {
-                    if (submitButton) {
-                        submitButton.disabled = false;
-                    }
+                    var elapsed = Date.now() - startTime;
+                    var delay = Math.max(0, 1000 - elapsed);
+
+                    setTimeout(function () {
+                        _isSubmitting = false;
+                        resetSubmitButton(submitButton, originalText);
+                        showToast(getRandomToast(_toastErrorMessages), 'error');
+                    }, delay);
                 });
         });
+    }
+
+    function resetSubmitButton(btn, text) {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+        if (btn.tagName === 'INPUT') {
+            btn.value = text;
+        } else {
+            btn.textContent = text;
+        }
     }
 
     /* prism-enhance.js */
@@ -1427,11 +1992,14 @@
         document.documentElement.setAttribute('data-lared-pjax-ready', '1');
 
         var headerLoading = document.querySelector('[data-header-loading]');
+        var loadingShowTime = 0;
+        var MIN_LOADING_MS = 500;
 
         function loadingShow() {
             if (!headerLoading) {
                 return;
             }
+            loadingShowTime = Date.now();
             headerLoading.classList.add('is-active');
         }
 
@@ -1439,11 +2007,19 @@
             if (!headerLoading) {
                 return;
             }
-            headerLoading.classList.remove('is-active');
+            var elapsed = Date.now() - loadingShowTime;
+            var remaining = MIN_LOADING_MS - elapsed;
+            if (remaining > 0) {
+                setTimeout(function () {
+                    headerLoading.classList.remove('is-active');
+                }, remaining);
+            } else {
+                headerLoading.classList.remove('is-active');
+            }
         }
 
         var pjax = new window.Pjax({
-            elements: 'a[href], form[action]',
+            elements: 'a[href]:not([data-no-pjax]):not(.comment-reply-link):not(#cancel-comment-reply-link), form[action]:not(#commentform):not([data-no-pjax])',
             selectors: ['title', '[data-barba="container"]'],
             cacheBust: false,
             scrollTo: 0,
@@ -1516,6 +2092,10 @@
         initBackToTop();
         initAPlayer();
         initAjaxCommentSubmit();
+        initEmojiPanel();
+        initCommentExpand();
+        initEditInfoToggle();
+        initEmailAvatar();
         initPrismEnhance(document);
         initViewImage();
         initImageLoadAnimation();
@@ -1563,6 +2143,10 @@
         initViewImage();
         initImageLoadAnimation();
         initAjaxCommentSubmit();
+        initEmojiPanel();
+        initCommentExpand();
+        initEditInfoToggle();
+        initEmailAvatar();
         initRssCopyButton();
         initArticleImageLoading();
         initHeaderLogin();
@@ -1570,6 +2154,11 @@
         initSearchModal();
         initMemosPublish();
         initMemosFilter();
+
+        // 重新初始化 WordPress 评论回复表单移动功能（PJAX 替换内容后旧的事件绑定已丢失）
+        if (window.addComment && typeof window.addComment.init === 'function') {
+            window.addComment.init();
+        }
     }
 
     function init() {
@@ -2059,13 +2648,7 @@
             }
         }
 
-        // 触发按钮
-        document.querySelectorAll('[data-search-open]').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                openModal();
-            });
-        });
+        // 触发按钮 — 仅保留快捷键，不绑定点击
 
         // 关闭 overlay
         var overlay = modal.querySelector('[data-search-close]');

@@ -20,6 +20,7 @@ if (!defined('PAN_CDN_STATIC')) {
 require_once get_template_directory() . '/inc/inc-rss.php';
 require_once get_template_directory() . '/inc/inc-memos.php';
 require_once get_template_directory() . '/inc/inc-code-runner.php';
+require_once get_template_directory() . '/inc/inc-download-button.php';
 // require_once get_template_directory() . '/inc/inc-comment-levels.php';
 
 function lared_setup(): void
@@ -449,6 +450,17 @@ function lared_sanitize_image_animation(string $value): string
     return in_array($value, $allowed, true) ? $value : 'none';
 }
 
+/**
+ * 始终输出英文日期（不受 WordPress 语言设置影响）
+ * 使用站点时区，格式字符同 PHP date()
+ */
+function lared_date_en(string $format, int $utc_timestamp): string
+{
+    return (new DateTimeImmutable('@' . $utc_timestamp))
+        ->setTimezone(wp_timezone())
+        ->format($format);
+}
+
 function lared_assets(): void
 {
     // CDN 配置（默认从常量，可在 wp-config.php 覆盖）
@@ -469,15 +481,15 @@ function lared_assets(): void
         'lared-tailwind',
         get_template_directory_uri() . '/assets/css/tailwind.css',
         [],
-        wp_get_theme()->get('Version')
+        (string) filemtime(get_template_directory() . '/assets/css/tailwind.css')
     );
 
-    // 主题样式
+    // 主题样式（使用文件修改时间作为版本号，避免浏览器缓存旧样式）
     wp_enqueue_style(
         'lared-style',
         get_stylesheet_uri(),
         ['lared-tailwind'],
-        wp_get_theme()->get('Version')
+        (string) filemtime(get_stylesheet_directory() . '/style.css')
     );
 
     // Font Awesome Pro
@@ -496,20 +508,20 @@ function lared_assets(): void
         '1.10.1'
     );
 
-    // PrismJS Dracula Theme
+    // PrismJS Dracula Theme (from prism-themes package)
     wp_enqueue_style(
         'lared-prism-theme',
-        $cdn_static . '/prismjs@1.29.0/themes/prism-dracula.min.css',
+        $cdn_static . '/prism-themes@1.9.0/themes/prism-dracula.min.css',
         [],
-        '1.29.0'
+        '1.9.0'
     );
 
-    // Theme JS
+    // Theme JS（使用文件修改时间作为版本号，避免浏览器缓存旧脚本）
     wp_enqueue_script(
         'lared-theme',
         get_template_directory_uri() . '/assets/js/app.js',
         [],
-        wp_get_theme()->get('Version'),
+        (string) filemtime(get_template_directory() . '/assets/js/app.js'),
         true
     );
 
@@ -557,6 +569,11 @@ function lared_assets(): void
         '1.0.0',
         true
     );
+
+    // WordPress 内置回复脚本（moveForm）
+    if (is_singular() && comments_open() && get_option('thread_comments')) {
+        wp_enqueue_script('comment-reply');
+    }
 }
 add_action('wp_enqueue_scripts', 'lared_assets');
 
@@ -580,6 +597,7 @@ function lared_append_content_link_icon(string $content): string
                 str_contains(strtolower($url), 'javascript:') ||
                 str_contains($url, '#') ||
                 str_contains(strtolower($attrs_before . $attrs_after), 'no-arrow') ||
+                str_contains(strtolower($attrs_before . $attrs_after), 'dl-button') ||
                 str_contains(strtolower($text), '<img')
             ) {
                 return $matches[0];
@@ -593,7 +611,7 @@ function lared_append_content_link_icon(string $content): string
                 $attrs_after .= ' rel="noopener noreferrer"';
             }
 
-            return '<a' . $attrs_before . 'href="' . $url . '"' . trim($attrs_after) . '>' . $text . ' <span class="external-link-icon">' . $link_icon . '</span></a>';
+            return '<a' . $attrs_before . 'href="' . $url . '"' . trim($attrs_after) . '>' . $text . ' <span class="lared-inline-link-icon">' . $link_icon . '</span></a>';
         },
         $content
     ) ?? $content;
@@ -891,24 +909,37 @@ function lared_ajax_submit_comment(): void
     check_ajax_referer('lared_comment_submit', 'nonce');
 
     $comment_post_id = (int) ($_POST['comment_post_ID'] ?? 0);
-    $comment_author = sanitize_text_field($_POST['author'] ?? '');
-    $comment_author_email = sanitize_email($_POST['email'] ?? '');
-    $comment_author_url = esc_url_raw($_POST['url'] ?? '');
     $comment_content = sanitize_textarea_field($_POST['comment'] ?? '');
     $comment_parent = (int) ($_POST['comment_parent'] ?? 0);
 
-    if (!$comment_post_id || '' === $comment_content || '' === $comment_author || '' === $comment_author_email) {
-        wp_send_json_error(['message' => __('请填写所有必填项。', 'lared')]);
+    $user = wp_get_current_user();
+    $user_id = $user->ID;
+
+    // 已登录用户从账号获取信息，游客从表单获取
+    if ($user_id > 0) {
+        $comment_author = $user->display_name;
+        $comment_author_email = $user->user_email;
+        $comment_author_url = $user->user_url;
+    } else {
+        $comment_author = sanitize_text_field($_POST['author'] ?? '');
+        $comment_author_email = sanitize_email($_POST['email'] ?? '');
+        $comment_author_url = esc_url_raw($_POST['url'] ?? '');
+    }
+
+    if (!$comment_post_id || '' === $comment_content) {
+        wp_send_json_error(['message' => __('请填写评论内容。', 'lared')]);
         return;
     }
 
-    if (!is_email($comment_author_email)) {
+    if (0 === $user_id && ('' === $comment_author || '' === $comment_author_email)) {
+        wp_send_json_error(['message' => __('请填写昵称和邮箱。', 'lared')]);
+        return;
+    }
+
+    if (0 === $user_id && !is_email($comment_author_email)) {
         wp_send_json_error(['message' => __('请输入有效的邮箱地址。', 'lared')]);
         return;
     }
-
-    $user = wp_get_current_user();
-    $user_id = $user->ID;
 
     $comment_data = [
         'comment_post_ID' => $comment_post_id,
@@ -918,8 +949,21 @@ function lared_ajax_submit_comment(): void
         'comment_content' => $comment_content,
         'comment_parent' => $comment_parent,
         'user_id' => $user_id,
-        'comment_approved' => 0,
     ];
+
+    // 防重复提交：同一作者 + 同一内容 60 秒内不允许重复
+    global $wpdb;
+    $recent_dup = $wpdb->get_var($wpdb->prepare(
+        "SELECT comment_ID FROM {$wpdb->comments} WHERE comment_post_ID = %d AND comment_author_email = %s AND comment_content = %s AND comment_date > %s LIMIT 1",
+        $comment_post_id,
+        $comment_author_email,
+        $comment_content,
+        gmdate('Y-m-d H:i:s', time() - 60)
+    ));
+    if ($recent_dup) {
+        wp_send_json_error(['message' => __('请勿重复提交评论。', 'lared')]);
+        return;
+    }
 
     $comment_id = wp_new_comment($comment_data, true);
 
@@ -930,6 +974,20 @@ function lared_ajax_submit_comment(): void
 
     $comment = get_comment($comment_id);
     $is_approved = (1 === (int) $comment->comment_approved);
+
+    // 为匿名用户强制设置 cookie，确保下次访问能识别为回头访客
+    if (0 === $user_id && $comment) {
+        $secure = ('https' === parse_url(home_url(), PHP_URL_SCHEME));
+        $expire = time() + 30 * DAY_IN_SECONDS;
+        $path   = defined('COOKIEPATH') ? COOKIEPATH : '/';
+        $domain = defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '';
+        setcookie('comment_author_' . COOKIEHASH, $comment_author, $expire, $path, $domain, $secure, true);
+        setcookie('comment_author_email_' . COOKIEHASH, $comment_author_email, $expire, $path, $domain, $secure, true);
+        if (!empty($comment_author_url)) {
+            setcookie('comment_author_url_' . COOKIEHASH, $comment_author_url, $expire, $path, $domain, $secure, true);
+        }
+    }
+
     $comment_html = '';
 
     if ($is_approved) {
@@ -956,10 +1014,91 @@ function lared_ajax_submit_comment(): void
         'commentId' => (int) $comment->comment_ID,
         'commentTotal' => (int) get_comments_number($post_id),
         'commenterCount' => lared_count_unique_approved_commenters($post_id),
+        'commenterName' => $comment_author,
     ]);
 }
 add_action('wp_ajax_lared_submit_comment', 'lared_ajax_submit_comment');
 add_action('wp_ajax_nopriv_lared_submit_comment', 'lared_ajax_submit_comment');
+
+/**
+ * AJAX 编辑评论（60 秒内允许前端编辑自己的评论）
+ */
+function lared_ajax_edit_comment(): void
+{
+    check_ajax_referer('lared_comment_edit', 'nonce');
+
+    $comment_id = (int) ($_POST['comment_id'] ?? 0);
+    $new_content = sanitize_textarea_field($_POST['comment'] ?? '');
+
+    if (!$comment_id || '' === $new_content) {
+        wp_send_json_error(['message' => __('请填写评论内容。', 'lared')]);
+        return;
+    }
+
+    $comment = get_comment($comment_id);
+    if (!$comment) {
+        wp_send_json_error(['message' => __('评论不存在。', 'lared')]);
+        return;
+    }
+
+    // 验证身份：通过 IP + User Agent + 作者信息匹配
+    $user = wp_get_current_user();
+    $is_owner = false;
+
+    if ($user->ID > 0 && (int) $comment->user_id === $user->ID) {
+        $is_owner = true;
+    } elseif (0 === $user->ID) {
+        // 游客：比对 IP + 作者邮箱
+        $visitor_ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        if ($comment->comment_author_IP === $visitor_ip
+            && strtolower(trim($comment->comment_author_email)) === strtolower(trim(sanitize_email($_POST['author_email'] ?? '')))
+        ) {
+            $is_owner = true;
+        }
+    }
+
+    if (!$is_owner) {
+        wp_send_json_error(['message' => __('无权编辑此评论。', 'lared')]);
+        return;
+    }
+
+    // 检查是否在 60 秒内
+    $comment_time = strtotime($comment->comment_date_gmt);
+    if ((time() - $comment_time) > 60) {
+        wp_send_json_error(['message' => __('编辑时间已过期（60 秒）。', 'lared')]);
+        return;
+    }
+
+    // 更新评论内容
+    $result = wp_update_comment([
+        'comment_ID' => $comment_id,
+        'comment_content' => $new_content,
+    ]);
+
+    if (is_wp_error($result)) {
+        wp_send_json_error(['message' => $result->get_error_message()]);
+        return;
+    }
+
+    // 重新获取更新后的评论并渲染 HTML
+    $updated_comment = get_comment($comment_id);
+    ob_start();
+    wp_list_comments([
+        'style' => 'ol',
+        'short_ping' => true,
+        'avatar_size' => 44,
+        'callback' => 'lared_custom_comment_callback',
+    ], [$updated_comment]);
+    $comment_html = (string) ob_get_clean();
+
+    wp_send_json_success([
+        'message' => __('评论已更新。', 'lared'),
+        'html' => $comment_html,
+        'commentId' => $comment_id,
+    ]);
+}
+add_action('wp_ajax_lared_edit_comment', 'lared_ajax_edit_comment');
+add_action('wp_ajax_nopriv_lared_edit_comment', 'lared_ajax_edit_comment');
 
 /**
  * AJAX: Hero 区域随机获取一篇文章（从 4 种排序方式中随机选一种）
@@ -1119,15 +1258,38 @@ function lared_ajax_search(): void
 add_action('wp_ajax_lared_ajax_search', 'lared_ajax_search');
 add_action('wp_ajax_nopriv_lared_ajax_search', 'lared_ajax_search');
 
+/**
+ * 搜索结果只显示文章，排除页面等其他 post type。
+ */
+function lared_search_only_posts(\WP_Query $query): void
+{
+    if (!is_admin() && $query->is_search() && $query->is_main_query()) {
+        $query->set('post_type', 'post');
+    }
+}
+add_action('pre_get_posts', 'lared_search_only_posts');
+
 function lared_localize_script(): void
 {
+    // 获取当前 Gravatar CDN 域名（兼容 wp-starter-kit 插件配置）
+    $avatar_host = 'secure.gravatar.com';
+    $sk_options = get_option('wp_starter_kit_options');
+    if (!empty($sk_options['cdn_url']) && $sk_options['cdn_url'] !== 'custom') {
+        $avatar_host = $sk_options['cdn_url'];
+    } elseif (!empty($sk_options['cdn_url']) && $sk_options['cdn_url'] === 'custom' && !empty($sk_options['custom_cdn_url'])) {
+        $avatar_host = $sk_options['custom_cdn_url'];
+    }
+
     wp_localize_script('lared-theme', 'LaredAjax', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('lared_ajax_nonce'),
         'memosFilterNonce' => wp_create_nonce('lared_memos_filter_nonce'),
         'memosPublishNonce' => wp_create_nonce('lared_memos_publish_nonce'),
         'commentSubmitNonce' => wp_create_nonce('lared_comment_submit'),
+        'commentEditNonce' => wp_create_nonce('lared_comment_edit'),
         'levelNonce' => wp_create_nonce('lared_level_nonce'),
+        'themeUrl' => get_template_directory_uri(),
+        'avatarBaseUrl' => 'https://' . $avatar_host . '/avatar/',
     ]);
 }
 add_action('wp_enqueue_scripts', 'lared_localize_script', 20);
@@ -1845,6 +2007,48 @@ function lared_clean_code_backticks(string $content): string
 add_filter('the_content', 'lared_clean_code_backticks', 999);
 add_filter('the_excerpt', 'lared_clean_code_backticks', 999);
 
+// ====== 评论表情渲染 ======
+
+/**
+ * 将评论中的表情代码（如 :daxiao:）替换为 <img> 标签
+ */
+function lared_render_comment_emojis(string $text): string
+{
+    static $emoji_map = null;
+
+    if (null === $emoji_map) {
+        $json_path = get_template_directory() . '/assets/json/bilibili-emojis.json';
+        if (file_exists($json_path)) {
+            $json = (string) file_get_contents($json_path);
+            $emoji_map = json_decode($json, true);
+        }
+        if (!is_array($emoji_map)) {
+            $emoji_map = [];
+        }
+    }
+
+    if (empty($emoji_map)) {
+        return $text;
+    }
+
+    $theme_url = get_template_directory_uri();
+
+    foreach ($emoji_map as $code => $emoji) {
+        if (false === strpos($text, $code)) {
+            continue;
+        }
+        $img = '<img class="lared-emoji" src="' . esc_url($theme_url . '/assets/images/bilibili/' . $emoji['file'])
+            . '" alt="' . esc_attr($emoji['name'])
+            . '" title="' . esc_attr($emoji['name'])
+            . '" data-code="' . esc_attr($code)
+            . '" loading="lazy">';
+        $text = str_replace($code, $img, $text);
+    }
+
+    return $text;
+}
+add_filter('comment_text', 'lared_render_comment_emojis', 20);
+
 /**
  * 自定义评论回调函数
  */
@@ -1854,50 +2058,46 @@ function lared_custom_comment_callback(WP_Comment $comment, array $args, int $de
     ?>
     <<?php echo $tag; ?> id="comment-<?php comment_ID(); ?>" <?php comment_class(empty($args['has_children']) ? '' : 'parent', $comment); ?>>
         <article id="div-comment-<?php comment_ID(); ?>" class="comment-body">
-            <footer class="comment-meta">
-                <div class="comment-author vcard">
-                    <?php if (0 !== $args['avatar_size']) {
-                        echo get_avatar($comment, $args['avatar_size']);
-                    } ?>
-                    <div class="comment-author-name">
-                        <?php comment_author_link($comment); ?>
+            <?php if (0 !== $args['avatar_size']) {
+                echo get_avatar($comment, $args['avatar_size']);
+            } ?>
+            <div class="comment-main">
+                <div class="comment-header">
+                    <span class="comment-author-name vcard"><?php comment_author_link($comment); ?></span>
+                    <?php if (user_can($comment->user_id, 'manage_options')) : ?>
+                        <span class="lared-admin-badge" title="<?php esc_attr_e('博主', 'lared'); ?>"><i class="fa-sharp fa-solid fa-crown"></i></span>
+                    <?php endif; ?>
+                    <span class="comment-metadata">
+                        <a href="<?php echo esc_url(get_comment_link($comment, $args)); ?>">
+                            <time datetime="<?php comment_time('c'); ?>">
+                                <?php echo esc_html(get_comment_date('', $comment) . ' ' . get_comment_time('H:i:s', true, true, $comment)); ?>
+                            </time>
+                        </a>
+                    </span>
+                    <?php
+                    comment_reply_link(
+                        array_merge($args, [
+                            'add_below' => 'div-comment',
+                            'depth' => $depth,
+                            'max_depth' => $args['max_depth'],
+                            'before' => '<span class="reply">',
+                            'after' => '</span>',
+                            'reply_text' => '<i class="fa-sharp fa-solid fa-reply" style="font-size:14px"></i>',
+                        ])
+                    );
+                    ?>
+                </div>
+                <div class="comment-content">
+                    <?php comment_text(); ?>
+                </div>
+                <?php if ('0' === $comment->comment_approved) : ?>
+                    <div class="comment-footer">
+                        <em class="comment-awaiting-moderation">
+                            <?php echo esc_html__('Your comment is awaiting moderation.', 'lared'); ?>
+                        </em>
                     </div>
-                </div>
-                <div class="comment-metadata">
-                    <a href="<?php echo esc_url(get_comment_link($comment, $args)); ?>">
-                        <time datetime="<?php comment_time('c'); ?>">
-                            <?php
-                            printf(
-                                /* translators: 1: Comment date, 2: Comment time. */
-                                __('%1$s at %2$s', 'lared'),
-                                get_comment_date('', $comment),
-                                get_comment_time()
-                            );
-                            ?>
-                        </time>
-                    </a>
-                    <?php edit_comment_link(__('Edit', 'lared'), '<span class="edit-link">', '</span>'); ?>
-                </div>
-            </footer>
-            <div class="comment-content">
-                <?php comment_text(); ?>
+                <?php endif; ?>
             </div>
-            <?php if ('0' === $comment->comment_approved) : ?>
-                <em class="comment-awaiting-moderation">
-                    <?php echo esc_html__('Your comment is awaiting moderation.', 'lared'); ?>
-                </em>
-            <?php endif; ?>
-            <?php
-            comment_reply_link(
-                array_merge($args, [
-                    'add_below' => 'div-comment',
-                    'depth' => $depth,
-                    'max_depth' => $args['max_depth'],
-                    'before' => '<div class="reply">',
-                    'after' => '</div>',
-                ])
-            );
-            ?>
         </article>
     <?php
 }
@@ -2138,3 +2338,190 @@ function lared_wrap_images_with_loader(string $content): string
     );
 }
 add_filter('the_content', 'lared_wrap_images_with_loader', 25);
+
+/**
+ * 一次性合并工具：将旧浏览量 key 合并到 post_views
+ * 管理员登录后访问 ?lared_merge_views=1 执行合并
+ * 合并完成后请删除此函数和 add_action
+ *
+ * 合并逻辑：取 post_views / post_views_count / pan_post_views / _count_views
+ *           中的最大值写入 post_views，然后删除旧 key
+ */
+function lared_merge_views_keys(): void
+{
+    if (!isset($_GET['lared_merge_views']) || !current_user_can('manage_options')) {
+        return;
+    }
+
+    global $wpdb;
+
+    header('Content-Type: text/plain; charset=UTF-8');
+
+    $old_keys = ['post_views_count', 'pan_post_views', '_count_views'];
+    $target_key = 'post_views';
+
+    echo "====================================\n";
+    echo "  Lared 浏览量合并工具\n";
+    echo "====================================\n\n";
+
+    // 1. 收集所有涉及的 post_id
+    $placeholders = implode(',', array_fill(0, count($old_keys) + 1, '%s'));
+    $all_keys = array_merge([$target_key], $old_keys);
+
+    $post_ids = $wpdb->get_col(
+        $wpdb->prepare(
+            "SELECT DISTINCT post_id FROM {$wpdb->postmeta}
+             WHERE meta_key IN ({$placeholders})",
+            ...$all_keys
+        )
+    );
+
+    echo "► 涉及文章数：" . count($post_ids) . "\n\n";
+
+    $merged_count = 0;
+    $deleted_count = 0;
+
+    foreach ($post_ids as $pid) {
+        $pid = (int) $pid;
+        $title = get_the_title($pid) ?: "(ID {$pid})";
+        $title_short = mb_substr($title, 0, 20, 'UTF-8');
+
+        // 获取当前 post_views 值
+        $current = (int) get_post_meta($pid, $target_key, true);
+
+        // 获取所有旧 key 值，取最大值
+        $max_old = 0;
+        $old_values = [];
+        foreach ($old_keys as $ok) {
+            $val = (int) get_post_meta($pid, $ok, true);
+            $old_values[$ok] = $val;
+            if ($val > $max_old) {
+                $max_old = $val;
+            }
+        }
+
+        // 如果旧 key 最大值 > 当前 post_views，用旧值覆盖
+        $final = max($current, $max_old);
+
+        $changed = ($final !== $current);
+        if ($changed) {
+            update_post_meta($pid, $target_key, $final);
+            $merged_count++;
+        }
+
+        // 删除旧 key
+        $del_this = 0;
+        foreach ($old_keys as $ok) {
+            if ($old_values[$ok] > 0 || metadata_exists('post', $pid, $ok)) {
+                delete_post_meta($pid, $ok);
+                $del_this++;
+                $deleted_count++;
+            }
+        }
+
+        $status = $changed ? '✦ 已合并' : '  保持';
+        printf(
+            "%s  ID %-5d  %-22s  post_views: %d → %d  (删除旧key: %d)\n",
+            $status, $pid, $title_short, $current, $final, $del_this
+        );
+    }
+
+    echo "\n" . str_repeat('-', 60) . "\n";
+    echo "► 合并完成\n";
+    echo "  更新浏览量的文章数：{$merged_count}\n";
+    echo "  删除旧 meta 记录数：{$deleted_count}\n";
+    echo "\n► 提示：合并完成后，请从 functions.php 中删除 lared_merge_views_keys 函数\n";
+    echo "====================================\n";
+    exit;
+}
+add_action('init', 'lared_merge_views_keys');
+
+// ====== 文章字数统计 ======
+
+/**
+ * 获取文章字数（中文按字符计、英文按单词计）
+ * 使用 _word_count meta 缓存，避免每次重新计算
+ */
+function lared_get_word_count(int $post_id): int
+{
+    $cached = get_post_meta($post_id, '_word_count', true);
+    if ('' !== $cached && false !== $cached) {
+        return (int) $cached;
+    }
+
+    $count = lared_calculate_word_count($post_id);
+    if ($count > 0) {
+        update_post_meta($post_id, '_word_count', $count);
+    }
+
+    return $count;
+}
+
+/**
+ * 实际计算文章字数
+ * 中文：按字符数统计
+ * 英文/数字：按空格分隔的单词数统计
+ */
+function lared_calculate_word_count(int $post_id): int
+{
+    $content = get_post_field('post_content', $post_id);
+    if (empty($content)) {
+        return 0;
+    }
+
+    // 去除 HTML 标签和短代码
+    $content = wp_strip_all_tags(strip_shortcodes($content));
+    // 去除多余空白
+    $content = preg_replace('/\s+/u', ' ', trim($content));
+
+    if ('' === $content) {
+        return 0;
+    }
+
+    // 统计中文字符数
+    $chinese_count = preg_match_all('/[\x{4e00}-\x{9fff}\x{3400}-\x{4dbf}\x{f900}-\x{faff}]/u', $content);
+
+    // 去掉中文后统计英文单词数
+    $without_chinese = preg_replace('/[\x{4e00}-\x{9fff}\x{3400}-\x{4dbf}\x{f900}-\x{faff}]/u', ' ', $content);
+    $without_chinese = preg_replace('/\s+/', ' ', trim($without_chinese));
+    $english_count = ('' !== $without_chinese) ? count(array_filter(explode(' ', $without_chinese))) : 0;
+
+    return $chinese_count + $english_count;
+}
+
+/**
+ * 文章保存时自动更新字数统计
+ */
+function lared_update_word_count_on_save(int $post_id): void
+{
+    if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) {
+        return;
+    }
+
+    if ('publish' !== get_post_status($post_id)) {
+        return;
+    }
+
+    $count = lared_calculate_word_count($post_id);
+    update_post_meta($post_id, '_word_count', $count);
+}
+add_action('save_post', 'lared_update_word_count_on_save');
+
+/**
+ * 格式化字数显示（如 1,234 字 / 约 5 分钟阅读）
+ */
+function lared_format_word_count(int $post_id): string
+{
+    $count = lared_get_word_count($post_id);
+    return number_format($count) . ' 字';
+}
+
+/**
+ * 获取预估阅读时间（分钟）
+ * 中文平均阅读速度约 400-500 字/分钟，取 400
+ */
+function lared_get_reading_time(int $post_id): int
+{
+    $count = lared_get_word_count($post_id);
+    return max(1, (int) ceil($count / 400));
+}

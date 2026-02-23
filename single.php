@@ -74,9 +74,9 @@ if (have_posts()) :
         $comment_count = (int) get_comments_number();
         $post_views = function_exists('lared_get_post_views') ? lared_get_post_views(get_the_ID()) : 0;
         $post_timestamp = (int) get_post_time('U', true, get_the_ID());
-        $post_month_short = wp_date('M', $post_timestamp);
-        $post_day_number  = wp_date('j', $post_timestamp);
-        $post_time_full   = wp_date('M j, Y H:i', $post_timestamp);
+        $post_month_short = lared_date_en('M', $post_timestamp);
+        $post_day_number  = lared_date_en('j', $post_timestamp);
+        $post_time_full   = lared_date_en('Y/m/d H:i', $post_timestamp);
         ?>
 
         <main class="single-page-square main-shell mx-auto w-full max-w-[1280px] min-h-[calc(100vh-64px)] border-x border-[#d9d9d9] bg-[#fff] pb-[90px] max-[900px]:pb-16" data-post-id="<?php echo esc_attr((string) get_the_ID()); ?>">
