@@ -981,6 +981,11 @@
             var images = Array.prototype.slice.call(content.querySelectorAll('img:not(.emoji):not(.avatar)'));
             
             images.forEach(function (img) {
+                // 跳过网格布局内的图片（由 initPanGrid 处理）
+                if (img.closest('.pan-grid-2, .pan-grid-3, .pan-grid-4')) {
+                    return;
+                }
+
                 // 跳过已经包装过的图片 (PHP 已经处理过)
                 if (img.classList.contains('img-loading-target')) {
                     // 确保加载状态正确
@@ -994,6 +999,40 @@
                 }
                 
                 wrapImageWithLoader(img);
+            });
+        });
+
+        // 处理网格布局
+        initPanGrid();
+    }
+
+    /**
+     * pan-grid 图片网格布局初始化
+     * 清理 PHP loading-wrapper 残留，保持 grid 结构纯净
+     */
+    function initPanGrid() {
+        var grids = document.querySelectorAll('.pan-grid-2, .pan-grid-3, .pan-grid-4');
+
+        grids.forEach(function (grid) {
+            // 如果 PHP 的 pan_wrap_images_with_loader 把 img 包在了 figure.img-loading-wrapper 里，
+            // 需要把 img 解放出来，直接放入 grid 容器
+            var wrappers = Array.prototype.slice.call(grid.querySelectorAll('.img-loading-wrapper'));
+            wrappers.forEach(function (wrapper) {
+                var img = wrapper.querySelector('img');
+                if (img) {
+                    img.classList.remove('img-loading-target');
+                    img.style.opacity = '';
+                    img.style.position = '';
+                    grid.insertBefore(img, wrapper);
+                }
+                wrapper.remove();
+            });
+
+            // 确保所有图片可见
+            var imgs = Array.prototype.slice.call(grid.querySelectorAll('img'));
+            imgs.forEach(function (img) {
+                img.classList.remove('img-loading-target');
+                img.style.opacity = '1';
             });
         });
     }

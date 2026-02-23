@@ -5401,6 +5401,113 @@ img[data-img-animation].img-error {
 }
 
 /* ===========================================
+   文章图片网格布局 pan-grid-2 / 3 / 4
+   用法：在 WordPress 编辑器中用 HTML 块包裹图片
+   <div class="pan-grid-2"> <img> <img> </div>
+   =========================================== */
+
+/* 通用网格容器 */
+.pan-grid-2,
+.pan-grid-3,
+.pan-grid-4 {
+    display: grid;
+    gap: 8px;
+    margin: 1.5rem 0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* 网格内图片统一样式 */
+.pan-grid-2 img,
+.pan-grid-3 img,
+.pan-grid-4 img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+    display: block;
+    transition: transform 0.3s ease, filter 0.3s ease;
+    cursor: pointer;
+}
+
+.pan-grid-2 img:hover,
+.pan-grid-3 img:hover,
+.pan-grid-4 img:hover {
+    transform: scale(1.02);
+    filter: brightness(1.05);
+}
+
+/* 网格内 figure 容器清除默认间距 */
+.pan-grid-2 figure,
+.pan-grid-3 figure,
+.pan-grid-4 figure {
+    margin: 0;
+    padding: 0;
+}
+
+/* 网格内 figcaption 样式 */
+.pan-grid-2 figcaption,
+.pan-grid-3 figcaption,
+.pan-grid-4 figcaption {
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+    padding: 4px 0 0;
+    line-height: 1.4;
+}
+
+/* ── pan-grid-2：两图并排 ── */
+.pan-grid-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+.pan-grid-2 img {
+    aspect-ratio: 3 / 2;
+}
+
+/* ── pan-grid-3：三图等宽 ── */
+.pan-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.pan-grid-3 img {
+    aspect-ratio: 1 / 1;
+}
+
+/* ── pan-grid-4：四图方阵 2×2 ── */
+.pan-grid-4 {
+    grid-template-columns: 1fr 1fr;
+}
+
+.pan-grid-4 img {
+    aspect-ratio: 1 / 1;
+}
+
+/* ── 移动端响应式 ── */
+@media (max-width: 640px) {
+    .pan-grid-2,
+    .pan-grid-4 {
+        gap: 4px;
+    }
+
+    .pan-grid-3 {
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+    }
+
+    /* 三图模式移动端：前两张并排，第三张独占一行 */
+    .pan-grid-3 > :nth-child(3),
+    .pan-grid-3 > figure:nth-child(3) {
+        grid-column: 1 / -1;
+    }
+
+    .pan-grid-3 > :nth-child(3) img,
+    .pan-grid-3 > figure:nth-child(3) img {
+        aspect-ratio: 16 / 9;
+    }
+}
+
+/* ===========================================
    Header 登录功能样式
    =========================================== */
 
