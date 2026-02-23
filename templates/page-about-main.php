@@ -14,8 +14,8 @@ if (have_posts()) :
     while (have_posts()) :
         the_post();
 
-        $ten_year = function_exists('pan_get_ten_year_progress_data')
-            ? pan_get_ten_year_progress_data()
+        $ten_year = function_exists('lared_get_ten_year_progress_data')
+            ? lared_get_ten_year_progress_data()
             : [
                 'start_date' => '',
                 'end_date' => '',
@@ -36,7 +36,7 @@ if (have_posts()) :
                                 <?php
                                 printf(
                                     /* translators: %s: modified date */
-                                    esc_html__('更新于 %s', 'pan'),
+                                    esc_html__('更新于 %s', 'lared'),
                                     esc_html(get_the_modified_date('Y-m-d'))
                                 );
                                 ?>
@@ -46,9 +46,9 @@ if (have_posts()) :
                 </div>
             </section>
 
-            <section class="about-hero" aria-label="<?php esc_attr_e('关于页面头图', 'pan'); ?>">
+            <section class="about-hero" aria-label="<?php esc_attr_e('关于页面头图', 'lared'); ?>">
                 <?php
-                $about_cover_image_html = pan_get_post_image_html(
+                $about_cover_image_html = lared_get_post_image_html(
                     (int) get_the_ID(),
                     'full',
                     ['class' => 'about-hero-image']
@@ -64,16 +64,16 @@ if (have_posts()) :
             <section class="about-content">
                 <div class="about-content-inner">
                     <?php if ('' !== (string) ($ten_year['start_date'] ?? '')) : ?>
-                        <section class="about-decade-card" aria-label="<?php esc_attr_e('博客十年之约', 'pan'); ?>">
+                        <section class="about-decade-card" aria-label="<?php esc_attr_e('博客十年之约', 'lared'); ?>">
                             <div class="about-decade-head">
                                 <h2 class="about-decade-title">
                                     <i class="fa-regular fa-feather-pointed" aria-hidden="true"></i>
-                                    <span><?php esc_html_e('博客十年之约', 'pan'); ?></span>
+                                    <span><?php esc_html_e('博客十年之约', 'lared'); ?></span>
                                 </h2>
                                 <span class="about-decade-remaining">
                                     <?php
                                     printf(
-                                        esc_html__('剩余 %d 天', 'pan'),
+                                        esc_html__('剩余 %d 天', 'lared'),
                                         (int) ($ten_year['remaining_days'] ?? 0)
                                     );
                                     ?>

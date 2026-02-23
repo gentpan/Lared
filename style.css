@@ -8,7 +8,7 @@ Version: 1.0.0
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 8.0
-Text Domain: pan
+Text Domain: lared
 */
 
 @font-face {
@@ -165,10 +165,10 @@ code[class*="language-"] {
 .header-loading.is-active {
     visibility: visible;
     opacity: 1;
-    animation: pan-loading-spin 1s linear infinite;
+    animation: lared-loading-spin 1s linear infinite;
 }
 
-@keyframes pan-loading-spin {
+@keyframes lared-loading-spin {
     from {
         transform: rotate(0deg);
     }
@@ -223,7 +223,7 @@ body.theme-body :where(
 }
 
 body.theme-body .aplayer button,
-body.theme-body #pan-aplayer .aplayer button {
+body.theme-body #lared-aplayer .aplayer button {
     border: none !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -235,7 +235,7 @@ body.theme-body #pan-aplayer .aplayer button {
 }
 
 body.theme-body .aplayer button:hover,
-body.theme-body #pan-aplayer .aplayer button:hover {
+body.theme-body #lared-aplayer .aplayer button:hover {
     filter: none !important;
 }
 
@@ -2046,11 +2046,11 @@ body.theme-body .rss-btn.is-copied {
     background: #f3f3f3;
 }
 
-.pan-comment-field {
+.lared-comment-field {
     position: relative;
 }
 
-.pan-comment-field__icon {
+.lared-comment-field__icon {
     position: absolute;
     top: 50%;
     left: 18px;
@@ -2062,16 +2062,16 @@ body.theme-body .rss-btn.is-copied {
     pointer-events: none;
 }
 
-.pan-comment-field input[type="text"],
-.pan-comment-field input[type="email"],
-.pan-comment-field input[type="url"] {
+.lared-comment-field input[type="text"],
+.lared-comment-field input[type="email"],
+.lared-comment-field input[type="url"] {
     height: 84px;
     padding: 18px 18px 18px 84px;
     font-size: 34px;
     line-height: 1.1;
 }
 
-.pan-comment-field--comment .pan-comment-field__icon {
+.lared-comment-field--comment .lared-comment-field__icon {
     top: 40px;
     transform: none;
 }
@@ -2084,7 +2084,7 @@ body.theme-body .rss-btn.is-copied {
     resize: vertical;
 }
 
-.pan-comment-field input::placeholder,
+.lared-comment-field input::placeholder,
 .comment-form textarea::placeholder {
     color: #7a7a7a;
 }
@@ -2137,7 +2137,7 @@ code[class*="language-"] {
 /* =========================
    Prism - Container
    ========================= */
-.pan-prism-pre {
+.lared-prism-pre {
     position: relative;
     overflow: hidden;
     margin: 1.1rem 0;
@@ -2146,12 +2146,12 @@ code[class*="language-"] {
     background: #09090A;  /* 代码块背景色 */
 }
 
-.pan-prism-pre > code {
+.lared-prism-pre > code {
     border-radius: 0;
     background: #09090A !important;  /* 代码块背景色 */
 }
 
-.pan-prism-pre:not(.pan-prism-pre--single-line)::before {
+.lared-prism-pre:not(.lared-prism-pre--single-line)::before {
     position: absolute;
     top: 0;
     right: 0;
@@ -2163,7 +2163,7 @@ code[class*="language-"] {
     content: "";
 }
 
-.pan-prism-pre:not(.pan-prism-pre--single-line)::after {
+.lared-prism-pre:not(.lared-prism-pre--single-line)::after {
     position: absolute;
     top: 12px;
     left: 10px;
@@ -2176,7 +2176,7 @@ code[class*="language-"] {
     content: "";
 }
 
-.pan-prism-pre:not(.pan-prism-pre--single-line) > code[class*="language-"] {
+.lared-prism-pre:not(.lared-prism-pre--single-line) > code[class*="language-"] {
     display: block;
     padding-top: 40px !important;
 }
@@ -2184,24 +2184,24 @@ code[class*="language-"] {
 /* =========================
    Prism - States
    ========================= */
-.pan-prism-pre--collapsed {
+.lared-prism-pre--collapsed {
     overflow: hidden !important;
     max-height: calc(40px + (1.65em * 20) + 1.25em);
 }
 
-.pan-prism-pre--expanded {
+.lared-prism-pre--expanded {
     overflow: hidden !important;
     max-height: none;
 }
 
-.pan-prism-pre.pan-prism-pre--single-line {
+.lared-prism-pre.lared-prism-pre--single-line {
     display: flex;
     align-items: center;
     min-height: 44px;
     padding: 0 44px 0 0;
 }
 
-.pan-prism-pre.pan-prism-pre--single-line > code {
+.lared-prism-pre.lared-prism-pre--single-line > code {
     display: block;
     width: 100%;
     margin: 0;
@@ -2212,8 +2212,8 @@ code[class*="language-"] {
 /* =========================
    Prism - Actions
    ========================= */
-.pan-code-copy-btn,
-.pan-code-fold-btn {
+.lared-code-copy-btn,
+.lared-code-fold-btn {
     z-index: 2;
     display: inline-flex;
     justify-content: center;
@@ -2226,12 +2226,12 @@ code[class*="language-"] {
     cursor: pointer;
 }
 
-.pan-code-copy-btn {
+.lared-code-copy-btn {
     border-radius: 0;
     font-size: 15px;
 }
 
-.pan-code-fold-btn {
+.lared-code-fold-btn {
     position: absolute;
     top: auto;
     right: 8px;
@@ -2239,20 +2239,20 @@ code[class*="language-"] {
     font-size: 12px;
 }
 
-.pan-prism-pre:not(.pan-prism-pre--single-line) .pan-code-copy-btn {
+.lared-prism-pre:not(.lared-prism-pre--single-line) .lared-code-copy-btn {
     position: absolute;
     top: 8px;
     right: 8px;
 }
 
-.pan-prism-pre.pan-prism-pre--single-line .pan-code-copy-btn {
+.lared-prism-pre.lared-prism-pre--single-line .lared-code-copy-btn {
     position: absolute;
     top: 50%;
     right: 10px;
     transform: translateY(-50%);
 }
 
-body.theme-body .pan-code-copy-btn {
+body.theme-body .lared-code-copy-btn {
     padding: 0 !important;
     border: 0 !important;
     color: #fff !important;
@@ -2260,20 +2260,20 @@ body.theme-body .pan-code-copy-btn {
     box-shadow: none !important;
 }
 
-.pan-code-copy-btn:hover,
-.pan-code-fold-btn:hover {
+.lared-code-copy-btn:hover,
+.lared-code-fold-btn:hover {
     color: #f2f2f2;
 }
 
-.pan-code-copy-btn.is-copied {
+.lared-code-copy-btn.is-copied {
     color: #4ab866 !important;
 }
 
 /* =========================
    Prism - Square Mode
    ========================= */
-.single-page-square .pan-prism-pre,
-.single-page-square .pan-code-copy-btn,
+.single-page-square .lared-prism-pre,
+.single-page-square .lared-code-copy-btn,
 .single-page-square pre[class*="language-"],
 .single-page-square code[class*="language-"] {
     border-radius: 0 !important;
@@ -2352,15 +2352,15 @@ body.theme-body .pan-code-copy-btn {
         grid-template-columns: 1fr;
     }
 
-    .pan-comment-field input[type="text"],
-    .pan-comment-field input[type="email"],
-    .pan-comment-field input[type="url"] {
+    .lared-comment-field input[type="text"],
+    .lared-comment-field input[type="email"],
+    .lared-comment-field input[type="url"] {
         height: 60px;
         padding: 14px 14px 14px 46px;
         font-size: 16px;
     }
 
-    .pan-comment-field--comment .pan-comment-field__icon {
+    .lared-comment-field--comment .lared-comment-field__icon {
         top: 18px;
     }
 
@@ -2765,7 +2765,7 @@ body.theme-body .pan-code-copy-btn {
     background: #f7f7f7;
 }
 
-.page-content.prose :where(pre):not(.pan-prism-pre) {
+.page-content.prose :where(pre):not(.lared-prism-pre) {
     overflow-x: auto;
     margin: 1.15rem 0;
     padding: 14px 16px;
@@ -2775,7 +2775,7 @@ body.theme-body .pan-code-copy-btn {
     background: #09090A;  /* 代码块背景色 */
 }
 
-.page-content.prose :where(pre):not(.pan-prism-pre) code {
+.page-content.prose :where(pre):not(.lared-prism-pre) code {
     display: block;
     margin: 0;
     padding: 0;
@@ -2866,7 +2866,7 @@ body.theme-body .pan-code-copy-btn {
     content: none !important;
 }
 
-.page-content a .pan-inline-link-icon {
+.page-content a .lared-inline-link-icon {
     margin-left: 4px;
     font-size: .9em;
     line-height: 1;
@@ -3992,19 +3992,19 @@ body.theme-body .pan-code-copy-btn {
     }
 }
 
-.pan-pagination {
+.lared-pagination {
     margin-top: 0;
     padding-bottom: 4px;
 }
 
-.pan-pagination .nav-links {
+.lared-pagination .nav-links {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
 }
 
-.pan-pagination--home .nav-links {
+.lared-pagination--home .nav-links {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -4015,7 +4015,7 @@ body.theme-body .pan-code-copy-btn {
     transform: translate(-50%, -50%);
 }
 
-.pan-pagination--home {
+.lared-pagination--home {
     position: relative;
     top: 0;
     display: flex;
@@ -4025,7 +4025,7 @@ body.theme-body .pan-code-copy-btn {
     min-height: 56px;
 }
 
-.pan-pagination .page-numbers {
+.lared-pagination .page-numbers {
     display: inline-flex;
     justify-content: center;
     align-items: center;
@@ -4043,13 +4043,13 @@ body.theme-body .pan-code-copy-btn {
     vertical-align: middle;
 }
 
-.pan-pagination .page-numbers.current {
+.lared-pagination .page-numbers.current {
     border-color: var(--color-accent);
     color: #fff;
     background: var(--color-accent);
 }
 
-.pan-pagination .page-numbers:hover {
+.lared-pagination .page-numbers:hover {
     color: var(--color-accent);
 }
 
@@ -5215,7 +5215,7 @@ body.theme-body .font-black {
     height: 100% !important;
 }
 
-#pan-aplayer .aplayer.aplayer-fixed {
+#lared-aplayer .aplayer.aplayer-fixed {
     right: auto;
     bottom: 0;       /* 紧贴底部 */
     left: 16px;
@@ -5343,7 +5343,7 @@ img[data-img-animation].img-error {
     border-radius: 50% !important;
     -webkit-border-radius: 50% !important;
     -moz-border-radius: 50% !important;
-    animation: pan-loading-spin 1s linear infinite !important;
+    animation: lared-loading-spin 1s linear infinite !important;
     box-sizing: border-box !important;
 }
 
@@ -5401,15 +5401,15 @@ img[data-img-animation].img-error {
 }
 
 /* ===========================================
-   文章图片网格布局 pan-grid-2 / 3 / 4
+   文章图片网格布局 lared-grid-2 / 3 / 4
    用法：在 WordPress 编辑器中用 HTML 块包裹图片
-   <div class="pan-grid-2"> <img> <img> </div>
+   <div class="lared-grid-2"> <img> <img> </div>
    =========================================== */
 
 /* 通用网格容器 */
-.pan-grid-2,
-.pan-grid-3,
-.pan-grid-4 {
+.lared-grid-2,
+.lared-grid-3,
+.lared-grid-4 {
     display: grid;
     gap: 8px;
     margin: 1.5rem 0;
@@ -5418,9 +5418,9 @@ img[data-img-animation].img-error {
 }
 
 /* 网格内图片统一样式 */
-.pan-grid-2 img,
-.pan-grid-3 img,
-.pan-grid-4 img {
+.lared-grid-2 img,
+.lared-grid-3 img,
+.lared-grid-4 img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -5430,25 +5430,25 @@ img[data-img-animation].img-error {
     cursor: pointer;
 }
 
-.pan-grid-2 img:hover,
-.pan-grid-3 img:hover,
-.pan-grid-4 img:hover {
+.lared-grid-2 img:hover,
+.lared-grid-3 img:hover,
+.lared-grid-4 img:hover {
     transform: scale(1.02);
     filter: brightness(1.05);
 }
 
 /* 网格内 figure 容器清除默认间距 */
-.pan-grid-2 figure,
-.pan-grid-3 figure,
-.pan-grid-4 figure {
+.lared-grid-2 figure,
+.lared-grid-3 figure,
+.lared-grid-4 figure {
     margin: 0;
     padding: 0;
 }
 
 /* 网格内 figcaption 样式 */
-.pan-grid-2 figcaption,
-.pan-grid-3 figcaption,
-.pan-grid-4 figcaption {
+.lared-grid-2 figcaption,
+.lared-grid-3 figcaption,
+.lared-grid-4 figcaption {
     font-size: 12px;
     color: #666;
     text-align: center;
@@ -5456,53 +5456,53 @@ img[data-img-animation].img-error {
     line-height: 1.4;
 }
 
-/* ── pan-grid-2：两图并排 ── */
-.pan-grid-2 {
+/* ── lared-grid-2：两图并排 ── */
+.lared-grid-2 {
     grid-template-columns: 1fr 1fr;
 }
 
-.pan-grid-2 img {
+.lared-grid-2 img {
     aspect-ratio: 3 / 2;
 }
 
-/* ── pan-grid-3：三图等宽 ── */
-.pan-grid-3 {
+/* ── lared-grid-3：三图等宽 ── */
+.lared-grid-3 {
     grid-template-columns: repeat(3, 1fr);
 }
 
-.pan-grid-3 img {
+.lared-grid-3 img {
     aspect-ratio: 1 / 1;
 }
 
-/* ── pan-grid-4：四图方阵 2×2 ── */
-.pan-grid-4 {
+/* ── lared-grid-4：四图方阵 2×2 ── */
+.lared-grid-4 {
     grid-template-columns: 1fr 1fr;
 }
 
-.pan-grid-4 img {
+.lared-grid-4 img {
     aspect-ratio: 1 / 1;
 }
 
 /* ── 移动端响应式 ── */
 @media (max-width: 640px) {
-    .pan-grid-2,
-    .pan-grid-4 {
+    .lared-grid-2,
+    .lared-grid-4 {
         gap: 4px;
     }
 
-    .pan-grid-3 {
+    .lared-grid-3 {
         grid-template-columns: 1fr 1fr;
         gap: 4px;
     }
 
     /* 三图模式移动端：前两张并排，第三张独占一行 */
-    .pan-grid-3 > :nth-child(3),
-    .pan-grid-3 > figure:nth-child(3) {
+    .lared-grid-3 > :nth-child(3),
+    .lared-grid-3 > figure:nth-child(3) {
         grid-column: 1 / -1;
     }
 
-    .pan-grid-3 > :nth-child(3) img,
-    .pan-grid-3 > figure:nth-child(3) img {
+    .lared-grid-3 > :nth-child(3) img,
+    .lared-grid-3 > figure:nth-child(3) img {
         aspect-ratio: 16 / 9;
     }
 }
@@ -6117,7 +6117,7 @@ img[data-img-animation].img-error {
    下载按钮短代码样式
    =========================================== */
 
-.pan-download-box {
+.lared-download-box {
     background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
     border: 1px solid #e5e5e5;
     border-radius: 8px;
@@ -6127,7 +6127,7 @@ img[data-img-animation].img-error {
     transition: box-shadow 0.3s ease;
 }
 
-.pan-download-box:hover {
+.lared-download-box:hover {
     box-shadow: 0 4px 16px rgba(245, 48, 4, 0.08);
 }
 
@@ -6273,7 +6273,7 @@ img[data-img-animation].img-error {
 
 /* 响应式 */
 @media (max-width: 480px) {
-    .pan-download-box {
+    .lared-download-box {
         padding: 16px;
     }
     
@@ -6312,7 +6312,7 @@ img[data-img-animation].img-error {
 .single-article-content pre:not(.line-numbers) code,
 .home-article-body pre:not(.line-numbers) code,
 .page-content pre:not(.line-numbers) code,
-.pan-prism-pre:not(.line-numbers) code {
+.lared-prism-pre:not(.line-numbers) code {
     color: inherit !important;
     background: transparent !important;
     padding: 0 !important;
@@ -6322,7 +6322,7 @@ img[data-img-animation].img-error {
 
 /* 有行号的代码块内的 code 标签 */
 pre.line-numbers > code,
-.pan-prism-pre.line-numbers > code {
+.lared-prism-pre.line-numbers > code {
     color: inherit !important;
     background: transparent !important;
     border-radius: 0 !important;
@@ -6352,7 +6352,7 @@ pre.line-numbers > code,
 }
 
 /* 方式2: 短代码生成的红色代码 */
-.pan-red-code {
+.lared-red-code {
     display: inline-block;
     color: #fff !important;
     background: var(--color-accent, #f53004) !important;
@@ -6375,7 +6375,7 @@ pre.line-numbers > code,
 
 /* 代码块容器 - 给行号留出空间 */
 body pre.line-numbers,
-body .pan-prism-pre.line-numbers {
+body .lared-prism-pre.line-numbers {
     position: relative !important;
     padding-left: 3.5em !important;  /* 行号区域宽度 */
     margin-left: 0 !important;
@@ -6383,7 +6383,7 @@ body .pan-prism-pre.line-numbers {
 
 /* 代码内容 - 统一行高 */
 body pre.line-numbers > code,
-body .pan-prism-pre.line-numbers > code {
+body .lared-prism-pre.line-numbers > code {
     display: block !important;
     margin-left: 0 !important;
     padding-left: 0.5em !important;
@@ -6392,7 +6392,7 @@ body .pan-prism-pre.line-numbers > code {
 
 /* 行号容器 - 紧贴左侧 */
 body pre.line-numbers .line-numbers-rows,
-body .pan-prism-pre.line-numbers .line-numbers-rows {
+body .lared-prism-pre.line-numbers .line-numbers-rows {
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
@@ -6408,14 +6408,14 @@ body .pan-prism-pre.line-numbers .line-numbers-rows {
 }
 
 /* 有标题栏的代码块行号位置 */
-body .pan-prism-pre.line-numbers .line-numbers-rows {
+body .lared-prism-pre.line-numbers .line-numbers-rows {
     top: 40px !important;
     height: calc(100% - 40px) !important;
 }
 
 /* 行号区域内的每一行 - 与代码行高保持一致 */
 body pre.line-numbers .line-numbers-rows > span,
-body .pan-prism-pre.line-numbers .line-numbers-rows > span {
+body .lared-prism-pre.line-numbers .line-numbers-rows > span {
     display: block !important;
     counter-increment: linenumber !important;
     padding: 0 !important;
@@ -6426,7 +6426,7 @@ body .pan-prism-pre.line-numbers .line-numbers-rows > span {
 
 /* 行号数字 - 右对齐，与代码行精确对齐 */
 body pre.line-numbers .line-numbers-rows > span::before,
-body .pan-prism-pre.line-numbers .line-numbers-rows > span::before {
+body .lared-prism-pre.line-numbers .line-numbers-rows > span::before {
     display: block !important;
     content: counter(linenumber) !important;
     color: #666 !important;
@@ -6462,12 +6462,12 @@ body .pan-prism-pre.line-numbers .line-numbers-rows > span::before {
 }
 
 /* 链接后面的 icon - 高优先级，紧贴文字 */
-.single-article-content a .pan-inline-link-icon,
-.page-content a .pan-inline-link-icon,
-.home-article-body a .pan-inline-link-icon,
-.entry-content a .pan-inline-link-icon,
-.prose a .pan-inline-link-icon,
-[class*="prose"] a .pan-inline-link-icon {
+.single-article-content a .lared-inline-link-icon,
+.page-content a .lared-inline-link-icon,
+.home-article-body a .lared-inline-link-icon,
+.entry-content a .lared-inline-link-icon,
+.prose a .lared-inline-link-icon,
+[class*="prose"] a .lared-inline-link-icon {
     margin-left: 0 !important;
     margin-right: 0 !important;
     padding-left: 1px !important;

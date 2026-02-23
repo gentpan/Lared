@@ -27,7 +27,7 @@ if (!defined('ABSPATH')) {
  * </js>
  * [/code_runner]
  */
-function pan_code_runner_shortcode($atts, $content = null) {
+function lared_code_runner_shortcode($atts, $content = null) {
     // 默认参数
     $atts = shortcode_atts([
         'html' => '',
@@ -106,7 +106,7 @@ function pan_code_runner_shortcode($atts, $content = null) {
     $data_uri = 'data:text/html;charset=utf-8,' . rawurlencode($full_html);
 
     // 开始输出
-    $output = '<div class="pan-code-runner">';
+    $output = '<div class="lared-code-runner">';
     
     // 标题栏
     $output .= '<div class="cr-header">';
@@ -169,15 +169,15 @@ function pan_code_runner_shortcode($atts, $content = null) {
 
     return $output;
 }
-add_shortcode('code_runner', 'pan_code_runner_shortcode');
+add_shortcode('code_runner', 'lared_code_runner_shortcode');
 
 /**
  * 代码运行器样式
  */
-function pan_code_runner_styles() {
+function lared_code_runner_styles() {
     echo '<style>
 /* 代码运行器样式 */
-.pan-code-runner {
+.lared-code-runner {
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
@@ -300,12 +300,12 @@ function pan_code_runner_styles() {
 }
 </style>';
 }
-add_action('wp_head', 'pan_code_runner_styles');
+add_action('wp_head', 'lared_code_runner_styles');
 
 /**
  * 代码运行器 JavaScript
  */
-function pan_code_runner_scripts() {
+function lared_code_runner_scripts() {
     echo '<script>
 (function() {
     // Tab 切换功能
@@ -331,4 +331,4 @@ function pan_code_runner_scripts() {
 })();
 </script>';
 }
-add_action('wp_footer', 'pan_code_runner_scripts', 99);
+add_action('wp_footer', 'lared_code_runner_scripts', 99);

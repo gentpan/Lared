@@ -3,7 +3,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 ?><!doctype html>
-<html <?php language_attributes(); ?> data-img-animation="<?php echo esc_attr(get_option('pan_image_load_animation', 'none')); ?>">
+<html <?php language_attributes(); ?> data-img-animation="<?php echo esc_attr(get_option('lared_image_load_animation', 'none')); ?>">
 <head>
     <meta charset="<?php bloginfo('charset'); ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
                 'theme_location' => 'primary',
                 'container' => false,
                 'menu_class' => 'nav',
-                'fallback_cb' => 'pan_primary_menu_fallback',
+                'fallback_cb' => 'lared_primary_menu_fallback',
             ]);
             ?>
         </nav>
@@ -29,9 +29,9 @@ if (!defined('ABSPATH')) {
         <div class="flex items-center gap-[10px]">
             <span class="header-loading" data-header-loading aria-hidden="true"></span>
             
-            <button type="button" class="header-search-trigger" data-search-open aria-label="<?php esc_attr_e('Search', 'pan'); ?>">
+            <button type="button" class="header-search-trigger" data-search-open aria-label="<?php esc_attr_e('Search', 'lared'); ?>">
                 <i class="fa-solid fa-magnifying-glass header-search-trigger-icon" aria-hidden="true"></i>
-                <span class="header-search-trigger-text"><?php esc_html_e('Search docs', 'pan'); ?></span>
+                <span class="header-search-trigger-text"><?php esc_html_e('Search docs', 'lared'); ?></span>
                 <kbd class="header-search-trigger-kbd" data-search-kbd></kbd>
             </button>
             

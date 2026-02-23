@@ -16,8 +16,8 @@ if (have_posts()) :
 
         $categories = get_the_category();
         $first_cat = !empty($categories) ? $categories[0] : null;
-        $category_label = $first_cat ? $first_cat->name : __('Uncategorized', 'pan');
-        $category_icon_html = $first_cat ? pan_get_category_icon_html((int) $first_cat->term_id) : '';
+        $category_label = $first_cat ? $first_cat->name : __('Uncategorized', 'lared');
+        $category_icon_html = $first_cat ? lared_get_category_icon_html((int) $first_cat->term_id) : '';
 
         $tags = get_the_tags();
         $author_id = (int) get_the_author_meta('ID');
@@ -72,7 +72,7 @@ if (have_posts()) :
         );
 
         $comment_count = (int) get_comments_number();
-        $post_views = function_exists('pan_get_post_views') ? pan_get_post_views(get_the_ID()) : 0;
+        $post_views = function_exists('lared_get_post_views') ? lared_get_post_views(get_the_ID()) : 0;
         $post_timestamp = (int) get_post_time('U', true, get_the_ID());
         $post_month_short = wp_date('M', $post_timestamp);
         $post_day_number  = wp_date('j', $post_timestamp);
@@ -85,13 +85,13 @@ if (have_posts()) :
                     <img
                         class="single-top-banner__image"
                         src="<?php
-                        $banner_image = pan_get_post_image_url(get_the_ID(), 'large');
+                        $banner_image = lared_get_post_image_url(get_the_ID(), 'large');
                         if ('' === $banner_image) {
                             $banner_image = 'https://picsum.photos/1600/520?random=' . wp_rand(1, 999999);
                         }
                         echo esc_url($banner_image);
                         ?>"
-                        alt="<?php esc_attr_e('文章 Banner 占位图', 'pan'); ?>"
+                        alt="<?php esc_attr_e('文章 Banner 占位图', 'lared'); ?>"
                         loading="lazy"
                         decoding="async"
                     >
@@ -110,7 +110,7 @@ if (have_posts()) :
 
                             <div class="single-top-banner__meta-side" aria-label="Article Stats">
                                 <div class="single-top-banner__cat-group">
-                                    <span class="single-top-banner__cat-box" aria-label="<?php esc_attr_e('文章分类', 'pan'); ?>" tabindex="0">
+                                    <span class="single-top-banner__cat-box" aria-label="<?php esc_attr_e('文章分类', 'lared'); ?>" tabindex="0">
                                         <span class="single-top-banner__cat-box-icon" aria-hidden="true">
                                             <?php if ('' !== $category_icon_html) : ?>
                                                 <?php echo $category_icon_html; ?>
@@ -119,26 +119,26 @@ if (have_posts()) :
                                             <?php endif; ?>
                                         </span>
                                         <span class="single-top-banner__cat-box-name"><?php echo esc_html($category_label); ?></span>
-                                        <span class="single-top-banner__tooltip"><?php esc_html_e('文章分类', 'pan'); ?></span>
+                                        <span class="single-top-banner__tooltip"><?php esc_html_e('文章分类', 'lared'); ?></span>
                                     </span>
                                 </div>
 
-                                <div class="single-top-banner__stat-box single-top-banner__stat-box--comment" tabindex="0" aria-label="<?php esc_attr_e('评论数量', 'pan'); ?>">
+                                <div class="single-top-banner__stat-box single-top-banner__stat-box--comment" tabindex="0" aria-label="<?php esc_attr_e('评论数量', 'lared'); ?>">
                                     <span class="single-top-banner__stat-number"><?php echo esc_html($comment_count); ?></span>
-                                    <span class="single-top-banner__stat-label"><?php esc_html_e('评论', 'pan'); ?></span>
-                                    <span class="single-top-banner__tooltip"><?php esc_html_e('评论数量', 'pan'); ?></span>
+                                    <span class="single-top-banner__stat-label"><?php esc_html_e('评论', 'lared'); ?></span>
+                                    <span class="single-top-banner__tooltip"><?php esc_html_e('评论数量', 'lared'); ?></span>
                                 </div>
 
-                                <div class="single-top-banner__stat-box single-top-banner__stat-box--heat" tabindex="0" aria-label="<?php esc_attr_e('文章热度', 'pan'); ?>">
+                                <div class="single-top-banner__stat-box single-top-banner__stat-box--heat" tabindex="0" aria-label="<?php esc_attr_e('文章热度', 'lared'); ?>">
                                     <span class="single-top-banner__stat-number"><?php echo esc_html($post_views); ?></span>
-                                    <span class="single-top-banner__stat-label"><?php esc_html_e('热度', 'pan'); ?></span>
-                                    <span class="single-top-banner__tooltip"><?php esc_html_e('阅读数量', 'pan'); ?></span>
+                                    <span class="single-top-banner__stat-label"><?php esc_html_e('热度', 'lared'); ?></span>
+                                    <span class="single-top-banner__tooltip"><?php esc_html_e('阅读数量', 'lared'); ?></span>
                                 </div>
 
-                                <div class="single-top-banner__stat-box single-top-banner__stat-box--reading" tabindex="0" aria-label="<?php esc_attr_e('阅读时间', 'pan'); ?>">
+                                <div class="single-top-banner__stat-box single-top-banner__stat-box--reading" tabindex="0" aria-label="<?php esc_attr_e('阅读时间', 'lared'); ?>">
                                     <span class="single-top-banner__stat-number"><?php echo esc_html($reading_minutes); ?></span>
-                                    <span class="single-top-banner__stat-label"><?php esc_html_e('分钟', 'pan'); ?></span>
-                                    <span class="single-top-banner__tooltip"><?php esc_html_e('阅读时间', 'pan'); ?></span>
+                                    <span class="single-top-banner__stat-label"><?php esc_html_e('分钟', 'lared'); ?></span>
+                                    <span class="single-top-banner__tooltip"><?php esc_html_e('阅读时间', 'lared'); ?></span>
                                 </div>
                             </div>
                         </div>
@@ -149,8 +149,8 @@ if (have_posts()) :
             <section class="mx-auto w-full max-w-[1280px]">
                 <div class="single-content-wrap box-border pt-7 pb-10 max-[900px]:pt-[22px] max-[900px]:pb-7">
                     <?php if (!empty($single_toc_items)) : ?>
-                        <aside class="single-side-toc" aria-label="<?php esc_attr_e('文章目录', 'pan'); ?>">
-                            <nav class="single-side-toc__nav" aria-label="<?php esc_attr_e('文章目录导航', 'pan'); ?>">
+                        <aside class="single-side-toc" aria-label="<?php esc_attr_e('文章目录', 'lared'); ?>">
+                            <nav class="single-side-toc__nav" aria-label="<?php esc_attr_e('文章目录导航', 'lared'); ?>">
                                 <?php foreach ($single_toc_items as $index => $toc_item) : ?>
                                     <a
                                         class="single-side-toc__item level-<?php echo (int) $toc_item['level']; ?> <?php echo 0 === $index ? 'is-active' : ''; ?>"
@@ -171,15 +171,15 @@ if (have_posts()) :
                     <div class="single-footer-meta" aria-label="Article Footer Meta">
                         <div class="single-footer-meta__left">
                             <span class="single-footer-meta__item">
-                                <strong><?php esc_html_e('作者', 'pan'); ?></strong>
+                                <strong><?php esc_html_e('作者', 'lared'); ?></strong>
                                 <?php if ('' !== $author_url) : ?>
                                     <a class="single-footer-meta__author-link" href="<?php echo esc_url($author_url); ?>"><?php echo esc_html(get_the_author()); ?></a>
                                 <?php else : ?>
                                     <?php echo esc_html(get_the_author()); ?>
                                 <?php endif; ?>
-                                <?php esc_html_e('本文采用', 'pan'); ?>
+                                <?php esc_html_e('本文采用', 'lared'); ?>
                                 <a class="single-footer-meta__license-link" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a>
-                                <?php esc_html_e('许可协议，转载请注明来源。', 'pan'); ?>
+                                <?php esc_html_e('许可协议，转载请注明来源。', 'lared'); ?>
                             </span>
                         </div>
 
@@ -190,7 +190,7 @@ if (have_posts()) :
                                         <a class="single-footer-meta__tag" href="<?php echo esc_url(get_tag_link($tag->term_id)); ?>"><span class="single-footer-meta__tag-text"><?php echo esc_html($tag->name); ?></span></a>
                                     <?php endforeach; ?>
                                 <?php else : ?>
-                                    <span class="single-footer-meta__tag is-empty"><?php esc_html_e('None', 'pan'); ?></span>
+                                    <span class="single-footer-meta__tag is-empty"><?php esc_html_e('None', 'lared'); ?></span>
                                 <?php endif; ?>
                             </span>
                         </div>
@@ -198,20 +198,20 @@ if (have_posts()) :
 
                     <nav class="single-post-nav" aria-label="Post Navigation">
                         <div class="single-post-nav__item single-post-nav__item--prev">
-                            <span class="single-post-nav__label"><?php esc_html_e('上一篇', 'pan'); ?></span>
+                            <span class="single-post-nav__label"><?php esc_html_e('上一篇', 'lared'); ?></span>
                             <?php if ($previous_post instanceof WP_Post) : ?>
                                 <a class="single-post-nav__link" href="<?php echo esc_url(get_permalink($previous_post->ID)); ?>"><?php echo esc_html(get_the_title($previous_post->ID)); ?></a>
                             <?php else : ?>
-                                <span class="single-post-nav__empty"><?php esc_html_e('暂无上一篇', 'pan'); ?></span>
+                                <span class="single-post-nav__empty"><?php esc_html_e('暂无上一篇', 'lared'); ?></span>
                             <?php endif; ?>
                         </div>
 
                         <div class="single-post-nav__item single-post-nav__item--next">
-                            <span class="single-post-nav__label"><?php esc_html_e('下一篇', 'pan'); ?></span>
+                            <span class="single-post-nav__label"><?php esc_html_e('下一篇', 'lared'); ?></span>
                             <?php if ($next_post instanceof WP_Post) : ?>
                                 <a class="single-post-nav__link" href="<?php echo esc_url(get_permalink($next_post->ID)); ?>"><?php echo esc_html(get_the_title($next_post->ID)); ?></a>
                             <?php else : ?>
-                                <span class="single-post-nav__empty"><?php esc_html_e('暂无下一篇', 'pan'); ?></span>
+                                <span class="single-post-nav__empty"><?php esc_html_e('暂无下一篇', 'lared'); ?></span>
                             <?php endif; ?>
                         </div>
                     </nav>

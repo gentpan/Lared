@@ -7,7 +7,7 @@ get_header();
 
 $search_query = get_search_query();
 $found_posts  = (int) $wp_query->found_posts;
-$search_title = sprintf(__('搜索：%s', 'pan'), $search_query);
+$search_title = sprintf(__('搜索：%s', 'lared'), $search_query);
 ?>
 
 <main class="main-shell keyword-archive-page mx-auto w-full max-w-[1280px] min-h-[calc(100vh-64px)] border-x border-[#d9d9d9] bg-[#ffffff] pb-[90px] max-[900px]:pb-16">
@@ -17,7 +17,7 @@ $search_title = sprintf(__('搜索：%s', 'pan'), $search_query);
             <div class="listing-head-main">
                 <div class="listing-head-title-row">
                     <h1 class="listing-head-title"><?php echo esc_html($search_title); ?></h1>
-                    <p class="listing-head-side-stat"><?php printf(esc_html__('共找到 %d 条结果', 'pan'), $found_posts); ?></p>
+                    <p class="listing-head-side-stat"><?php printf(esc_html__('共找到 %d 条结果', 'lared'), $found_posts); ?></p>
                 </div>
             </div>
         </div>
@@ -53,20 +53,20 @@ $search_title = sprintf(__('搜索：%s', 'pan'), $search_query);
                 <?php endwhile; ?>
             </div>
 
-            <div class="pan-pagination">
+            <div class="lared-pagination">
                 <?php
                 the_posts_pagination([
                     'mid_size'           => 2,
-                    'prev_text'          => '&larr; ' . __('上一页', 'pan'),
-                    'next_text'          => __('下一页', 'pan') . ' &rarr;',
+                    'prev_text'          => '&larr; ' . __('上一页', 'lared'),
+                    'next_text'          => __('下一页', 'lared') . ' &rarr;',
                     'before_page_number' => '',
-                    'screen_reader_text' => __('搜索结果分页', 'pan'),
+                    'screen_reader_text' => __('搜索结果分页', 'lared'),
                 ]);
                 ?>
             </div>
         <?php else : ?>
             <div class="listing-empty">
-                <p><?php esc_html_e('没有找到匹配内容，请尝试其他关键词。', 'pan'); ?></p>
+                <p><?php esc_html_e('没有找到匹配内容，请尝试其他关键词。', 'lared'); ?></p>
             </div>
         <?php endif; ?>
     </section>

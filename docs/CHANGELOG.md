@@ -133,16 +133,16 @@
 ### 数据库变更
 
 v1.0.0 使用的选项：
-- `pan_aplayer_playlist_json`
-- `pan_music_playlist_urls`
-- `pan_music_meting_api_template`
-- `pan_memos_site_url`
-- `pan_memos_api_url`
-- `pan_memos_api_token`
-- `pan_memos_page_size`
-- `pan_umami_script`
-- `pan_ten_year_start_date`
-- `pan_template_path_migrated_v4`
+- `lared_aplayer_playlist_json`
+- `lared_music_playlist_urls`
+- `lared_music_meting_api_template`
+- `lared_memos_site_url`
+- `lared_memos_api_url`
+- `lared_memos_api_token`
+- `lared_memos_page_size`
+- `lared_umami_script`
+- `lared_ten_year_start_date`
+- `lared_template_path_migrated_v4`
 
 ---
 

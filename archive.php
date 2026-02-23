@@ -17,7 +17,7 @@ $archive_found_posts = (int) $wp_query->found_posts;
             <div class="listing-head-main">
                 <div class="listing-head-title-row">
                     <h1 class="listing-head-title"><?php echo esc_html(wp_strip_all_tags((string) $archive_title)); ?></h1>
-                    <p class="listing-head-side-stat"><?php printf(esc_html__('%d 篇文章', 'pan'), $archive_found_posts); ?></p>
+                    <p class="listing-head-side-stat"><?php printf(esc_html__('%d 篇文章', 'lared'), $archive_found_posts); ?></p>
                 </div>
                 <?php if ('' !== trim((string) $archive_desc)) : ?>
                     <div class="listing-head-desc"><?php echo wp_kses_post($archive_desc); ?></div>
@@ -32,10 +32,10 @@ $archive_found_posts = (int) $wp_query->found_posts;
                 <?php while (have_posts()) : the_post(); ?>
                     <?php
                     $post_id     = (int) get_the_ID();
-                    $image_url   = pan_get_post_image_url($post_id, 'large');
+                    $image_url   = lared_get_post_image_url($post_id, 'large');
                     $category    = get_the_category();
-                    $cat_name    = !empty($category) ? $category[0]->name : __('未分类', 'pan');
-                    $cat_icon    = (!empty($category) && isset($category[0]->term_id)) ? pan_get_category_icon_html((int) $category[0]->term_id) : '';
+                    $cat_name    = !empty($category) ? $category[0]->name : __('未分类', 'lared');
+                    $cat_icon    = (!empty($category) && isset($category[0]->term_id)) ? lared_get_category_icon_html((int) $category[0]->term_id) : '';
                     $excerpt_raw = get_the_excerpt();
                     ?>
                     <article class="listing-card">
@@ -76,20 +76,20 @@ $archive_found_posts = (int) $wp_query->found_posts;
                 <?php endwhile; ?>
             </div>
 
-            <div class="pan-pagination">
+            <div class="lared-pagination">
                 <?php
                 the_posts_pagination([
                     'mid_size'           => 2,
-                    'prev_text'          => '&larr; ' . __('上一页', 'pan'),
-                    'next_text'          => __('下一页', 'pan') . ' &rarr;',
+                    'prev_text'          => '&larr; ' . __('上一页', 'lared'),
+                    'next_text'          => __('下一页', 'lared') . ' &rarr;',
                     'before_page_number' => '',
-                    'screen_reader_text' => __('文章分页', 'pan'),
+                    'screen_reader_text' => __('文章分页', 'lared'),
                 ]);
                 ?>
             </div>
         <?php else : ?>
             <div class="listing-empty">
-                <p><?php esc_html_e('这个归档下暂时没有内容。', 'pan'); ?></p>
+                <p><?php esc_html_e('这个归档下暂时没有内容。', 'lared'); ?></p>
             </div>
         <?php endif; ?>
     </section>

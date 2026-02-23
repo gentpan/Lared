@@ -29,7 +29,7 @@ if (have_posts()) :
                     <div class="listing-head-main">
                         <div class="listing-head-title-row">
                             <h1 class="listing-head-title"><?php the_title(); ?></h1>
-                            <p class="listing-head-side-stat"><?php printf(esc_html__('%d 个链接', 'pan'), $bookmark_count); ?></p>
+                            <p class="listing-head-side-stat"><?php printf(esc_html__('%d 个链接', 'lared'), $bookmark_count); ?></p>
                         </div>
                     </div>
                 </div>
@@ -69,8 +69,8 @@ if (have_posts()) :
                     </div>
                 <?php else : ?>
                     <div class="listing-empty">
-                        <p><?php esc_html_e('暂未配置友情链接。', 'pan'); ?></p>
-                        <p class="listing-empty-note"><?php esc_html_e('可在后台 Links/链接 管理中添加站点后自动展示。', 'pan'); ?></p>
+                        <p><?php esc_html_e('暂未配置友情链接。', 'lared'); ?></p>
+                        <p class="listing-empty-note"><?php esc_html_e('可在后台 Links/链接 管理中添加站点后自动展示。', 'lared'); ?></p>
                     </div>
                 <?php endif; ?>
             </section>

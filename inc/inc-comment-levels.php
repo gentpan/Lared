@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
  * 
  * @return array
  */
-function pan_get_comment_level_thresholds(): array
+function lared_get_comment_level_thresholds(): array
 {
     return [
         1  => ['name' => '见习', 'min' => 1,   'max' => 2,   'color' => '#9ca3af', 'bg' => '#f3f4f6', 'icon' => 'fa-solid fa-seedling'],
@@ -42,13 +42,13 @@ function pan_get_comment_level_thresholds(): array
  * @param int $count
  * @return int
  */
-function pan_calculate_level(int $count): int
+function lared_calculate_level(int $count): int
 {
     if ($count < 1) {
         return 0;
     }
 
-    $thresholds = pan_get_comment_level_thresholds();
+    $thresholds = lared_get_comment_level_thresholds();
 
     foreach ($thresholds as $level => $config) {
         if ($count >= $config['min'] && ($config['max'] === null || $count <= $config['max'])) {
@@ -65,13 +65,13 @@ function pan_calculate_level(int $count): int
  * @param int $level 等级1-12
  * @return array|null
  */
-function pan_get_level_config(int $level): ?array
+function lared_get_level_config(int $level): ?array
 {
     if ($level < 1 || $level > 12) {
         return null;
     }
 
-    $thresholds = pan_get_comment_level_thresholds();
+    $thresholds = lared_get_comment_level_thresholds();
     return $thresholds[$level] ?? null;
 }
 
@@ -81,7 +81,7 @@ function pan_get_level_config(int $level): ?array
  * @param string $email
  * @return array
  */
-function pan_get_user_comment_stats(string $email): array
+function lared_get_user_comment_stats(string $email): array
 {
     if (empty($email)) {
         return [
@@ -93,24 +93,24 @@ function pan_get_user_comment_stats(string $email): array
     }
 
     // 先从缓存获取等级信息
-    $level_info = pan_get_cached_level($email);
+    $level_info = lared_get_cached_level($email);
     
     if ($level_info === null) {
         // 缓存不存在或过期，重新计算
-        $level_info = pan_update_and_cache_level($email);
+        $level_info = lared_update_and_cache_level($email);
     }
 
     $current_level = $level_info['level'];
     $count = $level_info['count'];
     
-    $config = pan_get_level_config($current_level);
+    $config = lared_get_level_config($current_level);
     
     // 计算进度
     $progress = 0;
     $next_level = null;
     
     if ($current_level < 12) {
-        $next_level_config = pan_get_level_config($current_level + 1);
+        $next_level_config = lared_get_level_config($current_level + 1);
         if ($next_level_config) {
             $next_level = [
                 'id' => $current_level + 1,
@@ -148,9 +148,9 @@ function pan_get_user_comment_stats(string $email): array
  * @param string $email
  * @return array|null
  */
-function pan_get_cached_level(string $email): ?array
+function lared_get_cached_level(string $email): ?array
 {
-    $cache_key = 'pan_commenter_levels_v2';
+    $cache_key = 'lared_commenter_levels_v2';
     $levels = get_option($cache_key, []);
     $email_key = sanitize_email($email);
     
@@ -174,7 +174,7 @@ function pan_get_cached_level(string $email): ?array
  * @param string $email
  * @return array
  */
-function pan_update_and_cache_level(string $email): array
+function lared_update_and_cache_level(string $email): array
 {
     global $wpdb;
     
@@ -183,7 +183,7 @@ function pan_update_and_cache_level(string $email): array
         $email
     ));
     
-    $level = pan_calculate_level($count);
+    $level = lared_calculate_level($count);
     
     $result = [
         'level' => $level,
@@ -192,7 +192,7 @@ function pan_update_and_cache_level(string $email): array
     ];
     
     // 更新缓存
-    $cache_key = 'pan_commenter_levels_v2';
+    $cache_key = 'lared_commenter_levels_v2';
     $levels = get_option($cache_key, []);
     $levels[sanitize_email($email)] = $result;
     update_option($cache_key, $levels, false);
@@ -205,9 +205,9 @@ function pan_update_and_cache_level(string $email): array
  * 
  * @param string $email
  */
-function pan_clear_level_cache(string $email): void
+function lared_clear_level_cache(string $email): void
 {
-    $cache_key = 'pan_commenter_levels_v2';
+    $cache_key = 'lared_commenter_levels_v2';
     $levels = get_option($cache_key, []);
     $email_key = sanitize_email($email);
     
@@ -223,7 +223,7 @@ function pan_clear_level_cache(string $email): void
  * @param int $comment_id
  * @param int|string $comment_approved
  */
-function pan_update_level_on_comment($comment_id, $comment_approved): void
+function lared_update_level_on_comment($comment_id, $comment_approved): void
 {
     $comment = get_comment($comment_id);
     if (!$comment || empty($comment->comment_author_email)) {
@@ -231,13 +231,13 @@ function pan_update_level_on_comment($comment_id, $comment_approved): void
     }
     
     // 清除缓存，下次访问时重新计算
-    pan_clear_level_cache($comment->comment_author_email);
+    lared_clear_level_cache($comment->comment_author_email);
 }
-add_action('comment_post', 'pan_update_level_on_comment', 10, 2);
+add_action('comment_post', 'lared_update_level_on_comment', 10, 2);
 add_action('wp_set_comment_status', function($comment_id, $status) {
     $comment = get_comment($comment_id);
     if ($comment && !empty($comment->comment_author_email)) {
-        pan_clear_level_cache($comment->comment_author_email);
+        lared_clear_level_cache($comment->comment_author_email);
     }
 }, 10, 2);
 
@@ -248,7 +248,7 @@ add_action('wp_set_comment_status', function($comment_id, $status) {
  * @param string $size small|medium|large
  * @return string
  */
-function pan_get_level_badge_simple(array $level, string $size = 'small'): string
+function lared_get_level_badge_simple(array $level, string $size = 'small'): string
 {
     if (empty($level['id']) || $level['id'] < 1) {
         return '';
@@ -256,7 +256,7 @@ function pan_get_level_badge_simple(array $level, string $size = 'small'): strin
 
     $config = $level['config'] ?? null;
     if (!$config) {
-        $config = pan_get_level_config($level['id']);
+        $config = lared_get_level_config($level['id']);
     }
 
     if (!$config) {
@@ -282,7 +282,7 @@ function pan_get_level_badge_simple(array $level, string $size = 'small'): strin
     }
 
     return sprintf(
-        '<span class="pan-level-badge %s" style="%s" title="%s">%sLv%d %s</span>',
+        '<span class="lared-level-badge %s" style="%s" title="%s">%sLv%d %s</span>',
         esc_attr($size_class),
         $style,
         esc_attr(sprintf('评论数: %d', $level['count'] ?? 0)),
@@ -298,12 +298,12 @@ function pan_get_level_badge_simple(array $level, string $size = 'small'): strin
  * @param array $stats
  * @return string
  */
-function pan_get_level_badge_full(array $stats): string
+function lared_get_level_badge_full(array $stats): string
 {
     $level = $stats['level'] ?? ['id' => 0];
     
     if (empty($level['id'])) {
-        return '<div class="pan-level-badge-full guest">' .
+        return '<div class="lared-level-badge-full guest">' .
                '<span class="level-text">登录后发表评论获取等级</span>' .
                '</div>';
     }
@@ -313,7 +313,7 @@ function pan_get_level_badge_full(array $stats): string
     $count = $stats['count'] ?? 0;
     $next = $stats['next_level'];
 
-    $html = '<div class="pan-level-badge-full">';
+    $html = '<div class="lared-level-badge-full">';
     
     // 头部：图标 + 等级名
     $html .= '<div class="level-header" style="color: ' . esc_attr($config['color']) . '">';
@@ -347,9 +347,9 @@ function pan_get_level_badge_full(array $stats): string
 /**
  * AJAX: 获取评论者等级信息
  */
-function pan_ajax_get_commenter_level(): void
+function lared_ajax_get_commenter_level(): void
 {
-    check_ajax_referer('pan_level_nonce', 'nonce');
+    check_ajax_referer('lared_level_nonce', 'nonce');
     
     $email = sanitize_email($_POST['email'] ?? '');
     
@@ -358,23 +358,23 @@ function pan_ajax_get_commenter_level(): void
         return;
     }
     
-    $stats = pan_get_user_comment_stats($email);
+    $stats = lared_get_user_comment_stats($email);
     
     wp_send_json_success([
         'stats' => $stats,
-        'badge_simple' => pan_get_level_badge_simple($stats['level']),
-        'badge_full' => pan_get_level_badge_full($stats),
+        'badge_simple' => lared_get_level_badge_simple($stats['level']),
+        'badge_full' => lared_get_level_badge_full($stats),
     ]);
 }
-add_action('wp_ajax_pan_get_commenter_level', 'pan_ajax_get_commenter_level');
-add_action('wp_ajax_nopriv_pan_get_commenter_level', 'pan_ajax_get_commenter_level');
+add_action('wp_ajax_lared_get_commenter_level', 'lared_ajax_get_commenter_level');
+add_action('wp_ajax_nopriv_lared_get_commenter_level', 'lared_ajax_get_commenter_level');
 
 /**
  * 批量刷新所有评论者等级（用于初始化或修复数据）
  * 
  * @return array
  */
-function pan_refresh_all_commenter_levels(): array
+function lared_refresh_all_commenter_levels(): array
 {
     global $wpdb;
     
@@ -384,7 +384,7 @@ function pan_refresh_all_commenter_levels(): array
     $offset = 0;
     
     // 清除旧缓存
-    delete_option('pan_commenter_levels_v2');
+    delete_option('lared_commenter_levels_v2');
     
     do {
         $emails = $wpdb->get_col($wpdb->prepare(
@@ -401,11 +401,11 @@ function pan_refresh_all_commenter_levels(): array
         
         foreach ($emails as $email) {
             try {
-                pan_update_and_cache_level($email);
+                lared_update_and_cache_level($email);
                 $updated++;
             } catch (Exception $e) {
                 $errors++;
-                error_log('Pan Level Update Error: ' . $e->getMessage());
+                error_log('Lared Level Update Error: ' . $e->getMessage());
             }
         }
         

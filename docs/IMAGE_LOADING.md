@@ -78,10 +78,10 @@
     border: 4px solid #e5e7eb;           /* border-4 border-gray-300 */
     border-top-color: var(--color-accent, #f53004);  /* border-t 主题色 */
     border-radius: 9999px;                /* rounded-full */
-    animation: pan-loading-spin 1s linear infinite;  /* animate-spin */
+    animation: lared-loading-spin 1s linear infinite;  /* animate-spin */
 }
 
-@keyframes pan-loading-spin {
+@keyframes lared-loading-spin {
     to { transform: rotate(360deg); }
 }
 ```

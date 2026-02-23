@@ -15,8 +15,8 @@ if (have_posts()) :
         the_post();
 
         // 只从 JSON 缓存获取数据（每日12:00更新）
-        $cache_data = function_exists('pan_get_memos_json_cache') 
-            ? pan_get_memos_json_cache() 
+        $cache_data = function_exists('lared_get_memos_json_cache') 
+            ? lared_get_memos_json_cache() 
             : ['items' => [], 'stats' => []];
         
         $items = $cache_data['items'] ?? [];
@@ -27,7 +27,7 @@ if (have_posts()) :
         $latest_timestamp = (int) ($stats['latest_timestamp'] ?? 0);
         $latest_updated = $latest_timestamp > 0
             ? wp_date('Y-m-d H:i:s', $latest_timestamp)
-            : __('暂无更新', 'pan');
+            : __('暂无更新', 'lared');
         $cached_at = $stats['cached_at'] ?? '';
 
         // 从缓存数据计算侧边栏统计
@@ -112,7 +112,7 @@ if (have_posts()) :
                                 <?php
                                 printf(
                                     /* translators: 1: memos count, 2: latest updated */
-                                    esc_html__('%1$d 条动态 · %2$s', 'pan'),
+                                    esc_html__('%1$d 条动态 · %2$s', 'lared'),
                                     $item_count,
                                     $latest_updated
                                 );
@@ -142,23 +142,23 @@ if (have_posts()) :
                     <!-- 发布表单 -->
                     <section class="memos-publish-box">
                         <div class="memos-publish-header">
-                            <h3><i class="fa-solid fa-pen-to-square"></i> <?php esc_html_e('发布说说', 'pan'); ?></h3>
+                            <h3><i class="fa-solid fa-pen-to-square"></i> <?php esc_html_e('发布说说', 'lared'); ?></h3>
                         </div>
                         <form class="memos-publish-form" id="memos-publish-form" method="post">
-                            <?php wp_nonce_field('pan_memos_publish_nonce', 'memos_publish_nonce'); ?>
+                            <?php wp_nonce_field('lared_memos_publish_nonce', 'memos_publish_nonce'); ?>
                             <div class="memos-publish-textarea-wrap">
                                 <textarea 
                                     name="memos_content" 
                                     id="memos-content"
                                     class="memos-publish-textarea"
-                                    placeholder="<?php esc_attr_e('写下你的想法... 支持 #标签', 'pan'); ?>"
+                                    placeholder="<?php esc_attr_e('写下你的想法... 支持 #标签', 'lared'); ?>"
                                     rows="3"
                                     required
                                 ></textarea>
                             </div>
                             <div class="memos-publish-tools">
                                 <div class="memos-publish-tags">
-                                    <span class="memos-publish-label"><i class="fa-solid fa-hashtag"></i> <?php esc_html_e('关键词', 'pan'); ?>:</span>
+                                    <span class="memos-publish-label"><i class="fa-solid fa-hashtag"></i> <?php esc_html_e('关键词', 'lared'); ?>:</span>
                                     <div class="memos-publish-tag-list" id="memos-tag-list">
                                         <?php foreach ($keyword_suggestions as $keyword) : ?>
                                             <span class="memos-publish-tag-btn" data-tag="<?php echo esc_attr($keyword); ?>">#<?php echo esc_html($keyword); ?></span>
@@ -167,12 +167,12 @@ if (have_posts()) :
                                 </div>
                                 <div class="memos-publish-actions">
                                     <select name="memos_visibility" class="memos-publish-visibility">
-                                        <option value="PUBLIC"><?php esc_html_e('公开', 'pan'); ?></option>
-                                        <option value="PRIVATE"><?php esc_html_e('私密', 'pan'); ?></option>
+                                        <option value="PUBLIC"><?php esc_html_e('公开', 'lared'); ?></option>
+                                        <option value="PRIVATE"><?php esc_html_e('私密', 'lared'); ?></option>
                                     </select>
                                     <button type="submit" class="memos-publish-submit">
                                         <i class="fa-solid fa-paper-plane"></i>
-                                        <?php esc_html_e('发布', 'pan'); ?>
+                                        <?php esc_html_e('发布', 'lared'); ?>
                                     </button>
                                 </div>
                             </div>
@@ -193,7 +193,7 @@ if (have_posts()) :
                                 $time_human = $time_source > 0
                                     ? sprintf(
                                         /* translators: %s: relative time */
-                                        __('%s前', 'pan'),
+                                        __('%s前', 'lared'),
                                         human_time_diff($time_source, current_time('timestamp'))
                                     )
                                     : '';
@@ -208,7 +208,7 @@ if (have_posts()) :
                                                         <span class="memos-card-keyword" data-keyword="<?php echo esc_attr($keyword); ?>">#<?php echo esc_html((string) $keyword); ?></span>
                                                     <?php endforeach; ?>
                                                 <?php else : ?>
-                                                    <span class="memos-card-keyword memos-card-keyword-empty"><?php esc_html_e('无关键词', 'pan'); ?></span>
+                                                    <span class="memos-card-keyword memos-card-keyword-empty"><?php esc_html_e('无关键词', 'lared'); ?></span>
                                                 <?php endif; ?>
                                             </div>
                                             <?php if ('' !== $time_human && $time_source > 0) : ?>
@@ -224,18 +224,18 @@ if (have_posts()) :
                         </div>
                     <?php elseif (empty($errors)) : ?>
                         <div class="listing-empty">
-                            <p><?php esc_html_e('暂未获取到 Memos 内容。', 'pan'); ?></p>
-                            <p class="listing-empty-note"><?php esc_html_e('请检查 Memos 站点地址、API 地址和 Token 配置。', 'pan'); ?></p>
+                            <p><?php esc_html_e('暂未获取到 Memos 内容。', 'lared'); ?></p>
+                            <p class="listing-empty-note"><?php esc_html_e('请检查 Memos 站点地址、API 地址和 Token 配置。', 'lared'); ?></p>
                         </div>
                     <?php endif; ?>
                 </section>
 
                 <!-- 右侧：侧边栏 -->
-                <aside class="memos-sidebar" aria-label="<?php esc_attr_e('说说侧边栏', 'pan'); ?>">
+                <aside class="memos-sidebar" aria-label="<?php esc_attr_e('说说侧边栏', 'lared'); ?>">
                     <!-- 日历 -->
                     <section class="memos-sidebar-block memos-sidebar-block--calendar">
                         <div class="memos-sidebar-block-title memos-sidebar-block-title--calendar">
-                            <h3><i class="fa-solid fa-calendar" aria-hidden="true"></i><span><?php esc_html_e('日历', 'pan'); ?></span></h3>
+                            <h3><i class="fa-solid fa-calendar" aria-hidden="true"></i><span><?php esc_html_e('日历', 'lared'); ?></span></h3>
                             <div class="memos-calendar-nav">
                                 <button type="button" class="memos-calendar-prev" data-action="prev-month"><i class="fa-solid fa-chevron-left"></i></button>
                                 <span class="memos-calendar-title-text" id="memos-calendar-title"><?php echo esc_html($current_year); ?>-<?php echo esc_html($current_month); ?></span>
@@ -280,10 +280,10 @@ if (have_posts()) :
                     <!-- 热力图 -->
                     <section class="memos-sidebar-block memos-sidebar-block--heatmap">
                         <div class="memos-sidebar-block-title">
-                            <h3><i class="fa-solid fa-fire" aria-hidden="true"></i><span><?php esc_html_e('更新热力图', 'pan'); ?></span></h3>
+                            <h3><i class="fa-solid fa-fire" aria-hidden="true"></i><span><?php esc_html_e('更新热力图', 'lared'); ?></span></h3>
                         </div>
                         <div class="memos-sidebar-block-body">
-                            <div class="memos-mini-heatmap" aria-label="<?php esc_attr_e('近60天更新热力图', 'pan'); ?>">
+                            <div class="memos-mini-heatmap" aria-label="<?php esc_attr_e('近60天更新热力图', 'lared'); ?>">
                                 <?php foreach ($memos_heatmap_cells as $heatmap_cell) : ?>
                                     <span
                                         class="memos-mini-heatmap-cell tone-red level-<?php echo esc_attr((string) $heatmap_cell['level']); ?>"
@@ -297,7 +297,7 @@ if (have_posts()) :
                     <!-- 关键词 -->
                     <section class="memos-sidebar-block memos-sidebar-block--tags">
                         <div class="memos-sidebar-block-title">
-                            <h3><i class="fa-solid fa-hashtag" aria-hidden="true"></i><span><?php esc_html_e('关键词', 'pan'); ?></span></h3>
+                            <h3><i class="fa-solid fa-hashtag" aria-hidden="true"></i><span><?php esc_html_e('关键词', 'lared'); ?></span></h3>
                         </div>
                         <div class="memos-sidebar-block-body">
                             <?php if (!empty($memos_keywords)) : ?>
@@ -313,7 +313,7 @@ if (have_posts()) :
                                     <?php endforeach; ?>
                                 </div>
                             <?php else : ?>
-                                <p><?php esc_html_e('暂无关键词。', 'pan'); ?></p>
+                                <p><?php esc_html_e('暂无关键词。', 'lared'); ?></p>
                             <?php endif; ?>
                         </div>
                     </section>

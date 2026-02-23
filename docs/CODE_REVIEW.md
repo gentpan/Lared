@@ -55,9 +55,9 @@ $url = esc_url_raw($input_url);
 
 **示例代码**:
 ```php
-function pan_setup(): void { }
-function pan_get_post_views(int $post_id): int { }
-function pan_sanitize_term_description(string $description): string { }
+function lared_setup(): void { }
+function lared_get_post_views(int $post_id): int { }
+function lared_sanitize_term_description(string $description): string { }
 ```
 
 ### 3. 模块化设计 ⭐⭐⭐⭐
@@ -131,7 +131,7 @@ Theme Name: Lared
 **示例**:
 ```php
 wp_enqueue_style(
-    'pan-fonts',
+    'lared-fonts',
     'https://fonts.bluecdn.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap',
     [],
     null
@@ -145,12 +145,12 @@ wp_enqueue_style(
 **建议修复**:
 ```php
 // 定义常量
-if (!defined('PAN_CDN_FONTS')) {
-    define('PAN_CDN_FONTS', 'https://fonts.bluecdn.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+if (!defined('LARED_CDN_FONTS')) {
+    define('LARED_CDN_FONTS', 'https://fonts.bluecdn.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
 }
 
 // 使用常量
-wp_enqueue_style('pan-fonts', PAN_CDN_FONTS, [], null);
+wp_enqueue_style('lared-fonts', LARED_CDN_FONTS, [], null);
 ```
 
 #### 4. 社交链接占位符
@@ -234,16 +234,16 @@ $hf_image_url = 'https://picsum.photos/1600/800?random=' . wp_rand(100000, 99999
 **优化建议**:
 ```php
 // 为热门文章添加缓存
-$popular_posts = get_transient('pan_popular_posts');
+$popular_posts = get_transient('lared_popular_posts');
 if (false === $popular_posts) {
     $popular_posts = get_posts([...]);
-    set_transient('pan_popular_posts', $popular_posts, HOUR_IN_SECONDS);
+    set_transient('lared_popular_posts', $popular_posts, HOUR_IN_SECONDS);
 }
 ```
 
 ### 资源加载
 
-**文件**: `functions.php` - `pan_assets()`
+**文件**: `functions.php` - `lared_assets()`
 
 | 资源 | 类型 | 优化建议 |
 |------|------|----------|
@@ -260,11 +260,11 @@ if (false === $popular_posts) {
 
 | 功能 | 验证方式 | 状态 |
 |------|----------|------|
-| 播放列表 JSON | `pan_sanitize_aplayer_playlist_json()` | ✅ 安全 |
-| Memos URL | `pan_sanitize_memos_url()` | ✅ 安全 |
-| Memos Token | `pan_sanitize_memos_token()` | ✅ 安全 |
-| Umami 代码 | `pan_sanitize_umami_script()` | ✅ 安全 |
-| 日期 | `pan_sanitize_ten_year_start_date()` | ✅ 安全 |
+| 播放列表 JSON | `lared_sanitize_aplayer_playlist_json()` | ✅ 安全 |
+| Memos URL | `lared_sanitize_memos_url()` | ✅ 安全 |
+| Memos Token | `lared_sanitize_memos_token()` | ✅ 安全 |
+| Umami 代码 | `lared_sanitize_umami_script()` | ✅ 安全 |
+| 日期 | `lared_sanitize_ten_year_start_date()` | ✅ 安全 |
 
 ### 输出转义
 

@@ -127,12 +127,12 @@
 
 ### 修改字体
 
-编辑 `functions.php` 中 `pan_assets()` 函数:
+编辑 `functions.php` 中 `lared_assets()` 函数:
 
 ```php
 // 修改 Google Fonts 地址
 wp_enqueue_style(
-    'pan-fonts',
+    'lared-fonts',
     'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap',
     [],
     null
@@ -211,8 +211,8 @@ wp_enqueue_style(
 修改 CDN 常量（`wp-config.php`）:
 
 ```php
-define('PAN_CDN_FONTS', 'https://your-cdn.com/fonts.css');
-define('PAN_CDN_STATIC', 'https://your-cdn.com/npm');
+define('LARED_CDN_FONTS', 'https://your-cdn.com/fonts.css');
+define('LARED_CDN_STATIC', 'https://your-cdn.com/npm');
 ```
 
 ---

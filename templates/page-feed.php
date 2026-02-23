@@ -15,8 +15,8 @@ if (have_posts()) :
         the_post();
 
         // 从 JSON 缓存获取友联动态数据
-        $feed_data = function_exists('pan_get_feed_items_paged') 
-            ? pan_get_feed_items_paged(0, 18) 
+        $feed_data = function_exists('lared_get_feed_items_paged') 
+            ? lared_get_feed_items_paged(0, 18) 
             : ['items' => [], 'total' => 0, 'has_more' => false, 'stats' => []];
         
         $items = $feed_data['items'] ?? [];
@@ -29,7 +29,7 @@ if (have_posts()) :
         $latest_timestamp = $stats['latest_timestamp'] ?? 0;
         $latest_updated = $latest_timestamp > 0
             ? wp_date('Y-m-d H:i:s', $latest_timestamp)
-            : __('暂无更新', 'pan');
+            : __('暂无更新', 'lared');
         ?>
 
         <main class="main-shell mx-auto w-full max-w-[1280px] min-h-[calc(100vh-64px)] border-x border-[#d9d9d9] bg-[#fff] pb-[90px] max-[900px]:pb-16">
@@ -43,7 +43,7 @@ if (have_posts()) :
                                 <?php
                                 printf(
                                     /* translators: 1: sources count, 2: items count, 3: latest updated */
-                                    esc_html__('已订阅 %1$d 个站点，聚合 %2$d 条内容。最后更新：%3$s', 'pan'),
+                                    esc_html__('已订阅 %1$d 个站点，聚合 %2$d 条内容。最后更新：%3$s', 'lared'),
                                     $source_count,
                                     $item_count,
                                     $latest_updated
@@ -66,8 +66,8 @@ if (have_posts()) :
                     <div class="rss-feed-grid" id="rss-feed-grid" data-offset="18" data-total="<?php echo esc_attr($total); ?>">
                         <?php 
                         foreach ($items as $item) {
-                            if (function_exists('pan_render_feed_card')) {
-                                pan_render_feed_card($item);
+                            if (function_exists('lared_render_feed_card')) {
+                                lared_render_feed_card($item);
                             }
                         }
                         ?>
@@ -81,24 +81,24 @@ if (have_posts()) :
                     <!-- 加载更多按钮 -->
                     <div class="feed-load-more-wrap" id="feed-load-more-wrap" style="display: <?php echo $has_more ? 'block' : 'none'; ?>;">
                         <button type="button" class="feed-load-more-btn" id="feed-load-more-btn">
-                            <span><?php esc_html_e('加载更多', 'pan'); ?></span>
+                            <span><?php esc_html_e('加载更多', 'lared'); ?></span>
                             <i class="fa-solid fa-chevron-down"></i>
                         </button>
                     </div>
                     
                     <!-- 没有更多内容提示 -->
                     <div class="feed-no-more" id="feed-no-more" style="display: none;">
-                        <p><?php esc_html_e('已加载全部内容', 'pan'); ?></p>
+                        <p><?php esc_html_e('已加载全部内容', 'lared'); ?></p>
                     </div>
                 <?php elseif ($source_count > 0) : ?>
                     <div class="listing-empty">
-                        <p><?php esc_html_e('已检测到订阅源，但暂未抓取到可展示内容。', 'pan'); ?></p>
-                        <p class="listing-empty-note"><?php esc_html_e('请检查友情链接 RSS 地址是否可访问，系统会自动缓存后重试。', 'pan'); ?></p>
+                        <p><?php esc_html_e('已检测到订阅源，但暂未抓取到可展示内容。', 'lared'); ?></p>
+                        <p class="listing-empty-note"><?php esc_html_e('请检查友情链接 RSS 地址是否可访问，系统会自动缓存后重试。', 'lared'); ?></p>
                     </div>
                 <?php else : ?>
                     <div class="listing-empty">
-                        <p><?php esc_html_e('暂未配置可用订阅源。', 'pan'); ?></p>
-                        <p class="listing-empty-note"><?php esc_html_e('请先在友情链接中配置站点及 RSS 地址（link_rss）。', 'pan'); ?></p>
+                        <p><?php esc_html_e('暂未配置可用订阅源。', 'lared'); ?></p>
+                        <p class="listing-empty-note"><?php esc_html_e('请先在友情链接中配置站点及 RSS 地址（link_rss）。', 'lared'); ?></p>
                     </div>
                 <?php endif; ?>
             </section>
@@ -143,8 +143,8 @@ if (have_posts()) :
                 // 延迟1秒后加载（确保 loading 动画可见）
                 setTimeout(function() {
                     var formData = new FormData();
-                    formData.append('action', 'pan_get_feed_items');
-                    formData.append('nonce', '<?php echo wp_create_nonce('pan_feed_nonce'); ?>');
+                    formData.append('action', 'lared_get_feed_items');
+                    formData.append('nonce', '<?php echo wp_create_nonce('lared_feed_nonce'); ?>');
                     formData.append('offset', offset);
                     formData.append('limit', limit);
                     
@@ -184,7 +184,7 @@ if (have_posts()) :
                         if (spinner) spinner.style.display = 'none';
                         if (isManual && loadMoreBtn) {
                             loadMoreBtn.disabled = false;
-                            loadMoreBtn.innerHTML = '<span><?php esc_html_e('加载更多', 'pan'); ?></span><i class="fa-solid fa-chevron-down"></i>';
+                            loadMoreBtn.innerHTML = '<span><?php esc_html_e('加载更多', 'lared'); ?></span><i class="fa-solid fa-chevron-down"></i>';
                         }
                     });
                 }, 1000);

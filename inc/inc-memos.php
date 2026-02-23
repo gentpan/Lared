@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-function pan_sanitize_memos_url(string $value): string
+function lared_sanitize_memos_url(string $value): string
 {
     $value = trim($value);
     if ('' === $value) {
@@ -14,7 +14,7 @@ function pan_sanitize_memos_url(string $value): string
     return esc_url_raw($value);
 }
 
-function pan_sanitize_memos_token(string $value): string
+function lared_sanitize_memos_token(string $value): string
 {
     $value = trim($value);
     if ('' === $value) {
@@ -25,7 +25,7 @@ function pan_sanitize_memos_token(string $value): string
     return is_string($value) ? sanitize_text_field($value) : '';
 }
 
-function pan_sanitize_memos_page_size($value): int
+function lared_sanitize_memos_page_size($value): int
 {
     $size = (int) $value;
     if ($size <= 0) {
@@ -35,19 +35,19 @@ function pan_sanitize_memos_page_size($value): int
     return max(1, min(100, $size));
 }
 
-function pan_get_memos_site_url(): string
+function lared_get_memos_site_url(): string
 {
-    return pan_sanitize_memos_url((string) get_option('pan_memos_site_url', ''));
+    return lared_sanitize_memos_url((string) get_option('lared_memos_site_url', ''));
 }
 
-function pan_get_memos_api_url(): string
+function lared_get_memos_api_url(): string
 {
-    $saved = pan_sanitize_memos_url((string) get_option('pan_memos_api_url', ''));
+    $saved = lared_sanitize_memos_url((string) get_option('lared_memos_api_url', ''));
     if ('' !== $saved) {
         return $saved;
     }
 
-    $site_url = pan_get_memos_site_url();
+    $site_url = lared_get_memos_site_url();
     if ('' === $site_url) {
         return '';
     }
@@ -55,17 +55,17 @@ function pan_get_memos_api_url(): string
     return untrailingslashit($site_url) . '/api/v1/memos';
 }
 
-function pan_get_memos_api_token(): string
+function lared_get_memos_api_token(): string
 {
-    return pan_sanitize_memos_token((string) get_option('pan_memos_api_token', ''));
+    return lared_sanitize_memos_token((string) get_option('lared_memos_api_token', ''));
 }
 
-function pan_get_memos_page_size(): int
+function lared_get_memos_page_size(): int
 {
-    return pan_sanitize_memos_page_size((int) get_option('pan_memos_page_size', 20));
+    return lared_sanitize_memos_page_size((int) get_option('lared_memos_page_size', 20));
 }
 
-function pan_memos_parse_timestamp($value): int
+function lared_memos_parse_timestamp($value): int
 {
     if (is_numeric($value)) {
         $ts = (int) $value;
@@ -86,7 +86,7 @@ function pan_memos_parse_timestamp($value): int
 /**
  * @return string[]
  */
-function pan_memos_extract_keywords(array $memo, string $content): array
+function lared_memos_extract_keywords(array $memo, string $content): array
 {
     $keywords = [];
 
@@ -117,7 +117,7 @@ function pan_memos_extract_keywords(array $memo, string $content): array
     return $keywords;
 }
 
-function pan_memos_strip_hashtag_markers(string $content): string
+function lared_memos_strip_hashtag_markers(string $content): string
 {
     if ('' === trim($content)) {
         return $content;
@@ -135,13 +135,13 @@ function pan_memos_strip_hashtag_markers(string $content): string
  * @param string $content 原始内容
  * @return string 处理后的 HTML
  */
-function pan_memos_process_images(string $content): string
+function lared_memos_process_images(string $content): string
 {
     if ('' === trim($content)) {
         return $content;
     }
 
-    $site_url = pan_get_memos_site_url();
+    $site_url = lared_get_memos_site_url();
     
     // 匹配 Markdown 图片语法: ![alt](url)
     $content = preg_replace_callback(
@@ -192,23 +192,23 @@ function pan_memos_process_images(string $content): string
  * @param string $content 原始内容
  * @return string HTML 内容
  */
-function pan_memos_content_to_html(string $content): string
+function lared_memos_content_to_html(string $content): string
 {
     if ('' === trim($content)) {
         return '';
     }
     
     // 先处理图片
-    $content = pan_memos_process_images($content);
+    $content = lared_memos_process_images($content);
     
     // 移除标签标记 #tag
-    $content = pan_memos_strip_hashtag_markers($content);
+    $content = lared_memos_strip_hashtag_markers($content);
     
     // 转换为段落
     return wpautop($content);
 }
 
-function pan_memos_is_list_array(array $value): bool
+function lared_memos_is_list_array(array $value): bool
 {
     if (function_exists('array_is_list')) {
         return array_is_list($value);
@@ -228,11 +228,11 @@ function pan_memos_is_list_array(array $value): bool
 /**
  * @return array<string, mixed>
  */
-function pan_get_memos_stream(array $args = []): array
+function lared_get_memos_stream(array $args = []): array
 {
     $defaults = [
         'cache_ttl' => 300,
-        'page_size' => pan_get_memos_page_size(),
+        'page_size' => lared_get_memos_page_size(),
         'force_refresh' => false,
     ];
 
@@ -241,9 +241,9 @@ function pan_get_memos_stream(array $args = []): array
     $page_size = max(1, min(100, (int) $args['page_size']));
     $force_refresh = !empty($args['force_refresh']);
 
-    $site_url = pan_get_memos_site_url();
-    $api_url = pan_get_memos_api_url();
-    $token = pan_get_memos_api_token();
+    $site_url = lared_get_memos_site_url();
+    $api_url = lared_get_memos_api_url();
+    $token = lared_get_memos_api_token();
 
     if ('' === $api_url) {
         return [
@@ -252,7 +252,7 @@ function pan_get_memos_stream(array $args = []): array
                 'count' => 0,
                 'latest_timestamp' => 0,
             ],
-            'errors' => [__('尚未配置 Memos API 地址。', 'pan')],
+            'errors' => [__('尚未配置 Memos API 地址。', 'lared')],
         ];
     }
 
@@ -261,7 +261,7 @@ function pan_get_memos_stream(array $args = []): array
         'pageSize' => $page_size,
     ], $request_url);
 
-    $cache_key = 'pan_memos_' . md5($request_url . '|' . $token . '|' . $site_url . '|v2_hashtag_fix');
+    $cache_key = 'lared_memos_' . md5($request_url . '|' . $token . '|' . $site_url . '|v2_hashtag_fix');
 
     if (!$force_refresh) {
         $cached = get_transient($cache_key);
@@ -306,7 +306,7 @@ function pan_get_memos_stream(array $args = []): array
                 'count' => 0,
                 'latest_timestamp' => 0,
             ],
-            'errors' => [sprintf(__('Memos API 请求失败（HTTP %d）。', 'pan'), $code)],
+            'errors' => [sprintf(__('Memos API 请求失败（HTTP %d）。', 'lared'), $code)],
         ];
     }
 
@@ -318,7 +318,7 @@ function pan_get_memos_stream(array $args = []): array
                 'count' => 0,
                 'latest_timestamp' => 0,
             ],
-            'errors' => [__('Memos API 返回了无效 JSON。', 'pan')],
+            'errors' => [__('Memos API 返回了无效 JSON。', 'lared')],
         ];
     }
 
@@ -327,7 +327,7 @@ function pan_get_memos_stream(array $args = []): array
         $raw_items = $decoded['memos'];
     } elseif (isset($decoded['data']) && is_array($decoded['data'])) {
         $raw_items = $decoded['data'];
-    } elseif (pan_memos_is_list_array($decoded)) {
+    } elseif (lared_memos_is_list_array($decoded)) {
         $raw_items = $decoded;
     }
 
@@ -346,8 +346,8 @@ function pan_get_memos_stream(array $args = []): array
         $uid = (string) ($memo['uid'] ?? $memo['id'] ?? '');
         $memo_id = '' !== $uid ? $uid : ('' !== $name ? $name : md5($content));
 
-        $created = pan_memos_parse_timestamp($memo['createTime'] ?? ($memo['createdTs'] ?? ($memo['createdAt'] ?? 0)));
-        $updated = pan_memos_parse_timestamp($memo['updateTime'] ?? ($memo['updatedTs'] ?? ($memo['updatedAt'] ?? 0)));
+        $created = lared_memos_parse_timestamp($memo['createTime'] ?? ($memo['createdTs'] ?? ($memo['createdAt'] ?? 0)));
+        $updated = lared_memos_parse_timestamp($memo['updateTime'] ?? ($memo['updatedTs'] ?? ($memo['updatedAt'] ?? 0)));
 
         $memo_url = '';
         if ('' !== $site_url) {
@@ -359,14 +359,14 @@ function pan_get_memos_stream(array $args = []): array
             }
         }
 
-        $content_html = pan_memos_content_to_html($content);
-        $display_content = pan_memos_strip_hashtag_markers($content);
+        $content_html = lared_memos_content_to_html($content);
+        $display_content = lared_memos_strip_hashtag_markers($content);
         $title = wp_trim_words(wp_strip_all_tags($display_content), 12, '…');
-        $keywords = pan_memos_extract_keywords($memo, $content);
+        $keywords = lared_memos_extract_keywords($memo, $content);
 
         $items[] = [
             'id' => $memo_id,
-            'title' => '' !== $title ? $title : __('Memos 动态', 'pan'),
+            'title' => '' !== $title ? $title : __('Memos 动态', 'lared'),
             'content_html' => wp_kses_post($content_html),
             'excerpt' => wp_strip_all_tags($display_content),  // 完整内容，不裁剪
             'keywords' => $keywords,
@@ -406,9 +406,9 @@ function pan_get_memos_stream(array $args = []): array
  * 
  * @return array<string, mixed>
  */
-function pan_get_memos_stats(): array
+function lared_get_memos_stats(): array
 {
-    $cache_key = 'pan_memos_stats_v2';
+    $cache_key = 'lared_memos_stats_v2';
     $cached = get_transient($cache_key);
     
     if (is_array($cached) && !empty($cached['items'])) {
@@ -420,9 +420,9 @@ function pan_get_memos_stats(): array
     }
     
     // 获取所有 memos（不分页）
-    $api_url = pan_get_memos_api_url();
-    $token = pan_get_memos_api_token();
-    $site_url = pan_get_memos_site_url();
+    $api_url = lared_get_memos_api_url();
+    $token = lared_get_memos_api_token();
+    $site_url = lared_get_memos_site_url();
     
     if ('' === $api_url) {
         return [
@@ -489,7 +489,7 @@ function pan_get_memos_stats(): array
         $raw_items = $decoded['memos'];
     } elseif (isset($decoded['data']) && is_array($decoded['data'])) {
         $raw_items = $decoded['data'];
-    } elseif (pan_memos_is_list_array($decoded)) {
+    } elseif (lared_memos_is_list_array($decoded)) {
         $raw_items = $decoded;
     }
     
@@ -507,7 +507,7 @@ function pan_get_memos_stats(): array
             continue;
         }
         
-        $created = pan_memos_parse_timestamp($memo['createTime'] ?? ($memo['createdTs'] ?? ($memo['createdAt'] ?? 0)));
+        $created = lared_memos_parse_timestamp($memo['createTime'] ?? ($memo['createdTs'] ?? ($memo['createdAt'] ?? 0)));
         $date_key = $created > 0 ? gmdate('Y-m-d', $created) : '';
         
         // 统计每日数量
@@ -519,7 +519,7 @@ function pan_get_memos_stats(): array
         }
         
         // 提取关键词并统计
-        $keywords = pan_memos_extract_keywords($memo, $content);
+        $keywords = lared_memos_extract_keywords($memo, $content);
         foreach ($keywords as $keyword) {
             if (!isset($keyword_counts[$keyword])) {
                 $keyword_counts[$keyword] = 0;
@@ -528,9 +528,9 @@ function pan_get_memos_stats(): array
         }
         
         // 处理内容 HTML
-        $content_html = pan_memos_content_to_html($content);
+        $content_html = lared_memos_content_to_html($content);
         
-        $updated = pan_memos_parse_timestamp($memo['updateTime'] ?? ($memo['updatedTs'] ?? ($memo['updatedAt'] ?? 0)));
+        $updated = lared_memos_parse_timestamp($memo['updateTime'] ?? ($memo['updatedTs'] ?? ($memo['updatedAt'] ?? 0)));
         
         $items[] = [
             'content' => $content,
@@ -561,13 +561,13 @@ function pan_get_memos_stats(): array
 /**
  * 清除 Memos 缓存
  */
-function pan_clear_memos_cache(): void
+function lared_clear_memos_cache(): void
 {
     global $wpdb;
     
     // 清除所有 memos 相关的 transient
-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_pan_memos%'");
-    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_pan_memos%'");
+    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_lared_memos%'");
+    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_lared_memos%'");
 }
 
 /**
@@ -576,10 +576,10 @@ function pan_clear_memos_cache(): void
  * @param int $days 天数
  * @return array
  */
-function pan_get_memos_heatmap_data(int $days = 60): array
+function lared_get_memos_heatmap_data(int $days = 60): array
 {
     // 从 JSON 缓存获取数据
-    $cache = pan_get_memos_json_cache();
+    $cache = lared_get_memos_json_cache();
     $items = $cache['items'] ?? [];
     
     // 计算每日数量
@@ -627,10 +627,10 @@ function pan_get_memos_heatmap_data(int $days = 60): array
  * @param int $limit 数量限制
  * @return array
  */
-function pan_get_memos_keywords(int $limit = 20): array
+function lared_get_memos_keywords(int $limit = 20): array
 {
     // 从 JSON 缓存获取数据
-    $cache = pan_get_memos_json_cache();
+    $cache = lared_get_memos_json_cache();
     $items = $cache['items'] ?? [];
     
     // 计算关键词使用次数
@@ -668,10 +668,10 @@ function pan_get_memos_keywords(int $limit = 20): array
  * @param int $month 月份
  * @return array
  */
-function pan_get_memos_calendar_data(int $year, int $month): array
+function lared_get_memos_calendar_data(int $year, int $month): array
 {
     // 从 JSON 缓存获取数据
-    $cache = pan_get_memos_json_cache();
+    $cache = lared_get_memos_json_cache();
     $items = $cache['items'] ?? [];
     
     // 计算每日数量
@@ -704,11 +704,11 @@ function pan_get_memos_calendar_data(int $year, int $month): array
 /**
  * AJAX 处理：获取日历数据
  */
-function pan_ajax_get_memos_calendar(): void
+function lared_ajax_get_memos_calendar(): void
 {
     // 验证 nonce
-    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'pan_memos_filter_nonce')) {
-        wp_send_json_error(['message' => __('安全验证失败', 'pan')]);
+    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'lared_memos_filter_nonce')) {
+        wp_send_json_error(['message' => __('安全验证失败', 'lared')]);
         return;
     }
     
@@ -716,11 +716,11 @@ function pan_ajax_get_memos_calendar(): void
     $month = (int) ($_POST['month'] ?? 0);
     
     if ($year < 2000 || $year > 2100 || $month < 1 || $month > 12) {
-        wp_send_json_error(['message' => __('日期无效', 'pan')]);
+        wp_send_json_error(['message' => __('日期无效', 'lared')]);
         return;
     }
     
-    $days = pan_get_memos_calendar_data($year, $month);
+    $days = lared_get_memos_calendar_data($year, $month);
     
     wp_send_json_success([
         'days' => $days,
@@ -728,13 +728,13 @@ function pan_ajax_get_memos_calendar(): void
         'month' => $month,
     ]);
 }
-add_action('wp_ajax_pan_get_memos_calendar', 'pan_ajax_get_memos_calendar');
-add_action('wp_ajax_nopriv_pan_get_memos_calendar', 'pan_ajax_get_memos_calendar');
+add_action('wp_ajax_lared_get_memos_calendar', 'lared_ajax_get_memos_calendar');
+add_action('wp_ajax_nopriv_lared_get_memos_calendar', 'lared_ajax_get_memos_calendar');
 
 /**
  * 获取 Memos JSON 缓存文件路径
  */
-function pan_get_memos_cache_dir(): string
+function lared_get_memos_cache_dir(): string
 {
     $upload_dir = wp_upload_dir();
     $cache_dir = $upload_dir['basedir'] . '/memos-cache';
@@ -751,9 +751,9 @@ function pan_get_memos_cache_dir(): string
     return $cache_dir;
 }
 
-function pan_get_memos_json_cache_file(): string
+function lared_get_memos_json_cache_file(): string
 {
-    return pan_get_memos_cache_dir() . '/memos-data.json';
+    return lared_get_memos_cache_dir() . '/memos-data.json';
 }
 
 /**
@@ -761,13 +761,13 @@ function pan_get_memos_json_cache_file(): string
  * 
  * @return array
  */
-function pan_get_memos_json_cache(): array
+function lared_get_memos_json_cache(): array
 {
-    $cache_file = pan_get_memos_json_cache_file();
+    $cache_file = lared_get_memos_json_cache_file();
     
     if (!file_exists($cache_file)) {
         // 如果缓存文件不存在，先创建一次
-        pan_update_memos_json_cache();
+        lared_update_memos_json_cache();
     }
     
     if (file_exists($cache_file)) {
@@ -792,10 +792,10 @@ function pan_get_memos_json_cache(): array
  * 更新 Memos JSON 缓存文件
  * 从 API 获取最新数据并保存到 JSON 文件
  */
-function pan_update_memos_json_cache(): void
+function lared_update_memos_json_cache(): void
 {
-    $api_url = pan_get_memos_api_url();
-    $token = pan_get_memos_api_token();
+    $api_url = lared_get_memos_api_url();
+    $token = lared_get_memos_api_token();
     
     if ('' === $api_url) {
         return;
@@ -842,7 +842,7 @@ function pan_update_memos_json_cache(): void
         $raw_items = $decoded['memos'];
     } elseif (isset($decoded['data']) && is_array($decoded['data'])) {
         $raw_items = $decoded['data'];
-    } elseif (pan_memos_is_list_array($decoded)) {
+    } elseif (lared_memos_is_list_array($decoded)) {
         $raw_items = $decoded;
     }
     
@@ -857,18 +857,18 @@ function pan_update_memos_json_cache(): void
             continue;
         }
         
-        $created = pan_memos_parse_timestamp($memo['createTime'] ?? ($memo['createdTs'] ?? ($memo['createdAt'] ?? 0)));
-        $updated = pan_memos_parse_timestamp($memo['updateTime'] ?? ($memo['updatedTs'] ?? ($memo['updatedAt'] ?? 0)));
+        $created = lared_memos_parse_timestamp($memo['createTime'] ?? ($memo['createdTs'] ?? ($memo['createdAt'] ?? 0)));
+        $updated = lared_memos_parse_timestamp($memo['updateTime'] ?? ($memo['updatedTs'] ?? ($memo['updatedAt'] ?? 0)));
         
         // 处理内容
-        $content_html = pan_memos_content_to_html($content);
-        $display_content = pan_memos_strip_hashtag_markers($content);
+        $content_html = lared_memos_content_to_html($content);
+        $display_content = lared_memos_strip_hashtag_markers($content);
         
         $items[] = [
             'content' => $content,
             'content_html' => $content_html,
             'excerpt' => wp_strip_all_tags($display_content),
-            'keywords' => pan_memos_extract_keywords($memo, $content),
+            'keywords' => lared_memos_extract_keywords($memo, $content),
             'created_timestamp' => $created,
             'updated_timestamp' => $updated,
         ];
@@ -890,7 +890,7 @@ function pan_update_memos_json_cache(): void
         ],
     ];
     
-    $cache_file = pan_get_memos_json_cache_file();
+    $cache_file = lared_get_memos_json_cache_file();
     file_put_contents($cache_file, json_encode($cache_data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 }
 
@@ -900,9 +900,9 @@ function pan_update_memos_json_cache(): void
  * @param int $limit 获取条数
  * @return array
  */
-function pan_get_home_memos(int $limit = 1): array
+function lared_get_home_memos(int $limit = 1): array
 {
-    $cache = pan_get_memos_json_cache();
+    $cache = lared_get_memos_json_cache();
     $items = $cache['items'] ?? [];
     
     if ($limit > 0 && count($items) > $limit) {
@@ -921,14 +921,14 @@ function pan_get_home_memos(int $limit = 1): array
 /**
  * 设置 Memos 缓存自动刷新计划任务（每日 12:00）
  */
-function pan_schedule_memos_cache_refresh(): void
+function lared_schedule_memos_cache_refresh(): void
 {
     // 清除旧的计划任务
-    wp_clear_scheduled_hook('pan_memos_daily_cache_refresh');
-    wp_clear_scheduled_hook('pan_memos_json_cache_refresh');
+    wp_clear_scheduled_hook('lared_memos_daily_cache_refresh');
+    wp_clear_scheduled_hook('lared_memos_json_cache_refresh');
     
     // 注册新的每日 12:00 任务
-    if (!wp_next_scheduled('pan_memos_json_cache_refresh')) {
+    if (!wp_next_scheduled('lared_memos_json_cache_refresh')) {
         // 计算下一个 12:00 的时间戳
         $now = current_time('timestamp');
         $today_noon = strtotime(date('Y-m-d 12:00:00', $now));
@@ -940,72 +940,72 @@ function pan_schedule_memos_cache_refresh(): void
             $next_run = $today_noon;
         }
         
-        wp_schedule_event($next_run, 'daily', 'pan_memos_json_cache_refresh');
+        wp_schedule_event($next_run, 'daily', 'lared_memos_json_cache_refresh');
     }
 }
-add_action('wp', 'pan_schedule_memos_cache_refresh');
+add_action('wp', 'lared_schedule_memos_cache_refresh');
 
 /**
  * 每日 12:00 刷新 Memos JSON 缓存
  */
-function pan_refresh_memos_cache_daily(): void
+function lared_refresh_memos_cache_daily(): void
 {
     // 更新 JSON 缓存文件
-    pan_update_memos_json_cache();
+    lared_update_memos_json_cache();
     
     // 同时清除旧的 transient 缓存
-    pan_clear_memos_cache();
+    lared_clear_memos_cache();
 }
-add_action('pan_memos_json_cache_refresh', 'pan_refresh_memos_cache_daily');
+add_action('lared_memos_json_cache_refresh', 'lared_refresh_memos_cache_daily');
 
 // 兼容旧钩子
-add_action('pan_memos_daily_cache_refresh', 'pan_refresh_memos_cache_daily');
+add_action('lared_memos_daily_cache_refresh', 'lared_refresh_memos_cache_daily');
 
 /**
  * 主题切换时清除计划任务
  */
-function pan_clear_memos_cache_schedule(): void
+function lared_clear_memos_cache_schedule(): void
 {
-    wp_clear_scheduled_hook('pan_memos_daily_cache_refresh');
-    wp_clear_scheduled_hook('pan_memos_json_cache_refresh');
+    wp_clear_scheduled_hook('lared_memos_daily_cache_refresh');
+    wp_clear_scheduled_hook('lared_memos_json_cache_refresh');
 }
-add_action('switch_theme', 'pan_clear_memos_cache_schedule');
+add_action('switch_theme', 'lared_clear_memos_cache_schedule');
 
 /**
  * 主题激活时初始化 Memos 缓存
  */
-function pan_activate_memos_cache(): void
+function lared_activate_memos_cache(): void
 {
     // 创建缓存目录并获取初始数据
-    pan_update_memos_json_cache();
+    lared_update_memos_json_cache();
     
     // 设置每日 12:00 的定时任务
-    pan_schedule_memos_cache_refresh();
+    lared_schedule_memos_cache_refresh();
 }
-add_action('after_switch_theme', 'pan_activate_memos_cache');
+add_action('after_switch_theme', 'lared_activate_memos_cache');
 
 /**
  * 手动刷新 Memos 缓存（供管理员使用）
  * 
  * @return array
  */
-function pan_manual_refresh_memos_cache(): array
+function lared_manual_refresh_memos_cache(): array
 {
     if (!is_user_logged_in() || !current_user_can('manage_options')) {
         return [
             'success' => false,
-            'message' => __('权限不足', 'pan'),
+            'message' => __('权限不足', 'lared'),
         ];
     }
     
-    pan_update_memos_json_cache();
+    lared_update_memos_json_cache();
     
-    $cache_file = pan_get_memos_json_cache_file();
-    $cache_data = pan_get_memos_json_cache();
+    $cache_file = lared_get_memos_json_cache_file();
+    $cache_data = lared_get_memos_json_cache();
     
     return [
         'success' => true,
-        'message' => __('缓存已更新', 'pan'),
+        'message' => __('缓存已更新', 'lared'),
         'cached_at' => $cache_data['stats']['cached_at'] ?? '',
         'item_count' => $cache_data['stats']['count'] ?? 0,
     ];
@@ -1019,22 +1019,22 @@ function pan_manual_refresh_memos_cache(): array
  * @param string $visibility 可见性 (PUBLIC/PRIVATE/PROTECTED)
  * @return array
  */
-function pan_publish_memo(string $content, array $tags = [], string $visibility = 'PUBLIC'): array
+function lared_publish_memo(string $content, array $tags = [], string $visibility = 'PUBLIC'): array
 {
-    $api_url = pan_get_memos_api_url();
-    $token = pan_get_memos_api_token();
+    $api_url = lared_get_memos_api_url();
+    $token = lared_get_memos_api_token();
     
     if ('' === $api_url || '' === $token) {
         return [
             'success' => false,
-            'message' => __('Memos API 未配置', 'pan'),
+            'message' => __('Memos API 未配置', 'lared'),
         ];
     }
     
     if ('' === trim($content)) {
         return [
             'success' => false,
-            'message' => __('内容不能为空', 'pan'),
+            'message' => __('内容不能为空', 'lared'),
         ];
     }
     
@@ -1071,7 +1071,7 @@ function pan_publish_memo(string $content, array $tags = [], string $visibility 
     
     if ($code < 200 || $code >= 300) {
         $error_data = json_decode($body, true);
-        $error_message = $error_data['message'] ?? sprintf(__('发布失败 (HTTP %d)', 'pan'), $code);
+        $error_message = $error_data['message'] ?? sprintf(__('发布失败 (HTTP %d)', 'lared'), $code);
         return [
             'success' => false,
             'message' => $error_message,
@@ -1079,12 +1079,12 @@ function pan_publish_memo(string $content, array $tags = [], string $visibility 
     }
     
     // 清除旧缓存，更新 JSON 缓存，让新内容立即显示
-    pan_clear_memos_cache();
-    pan_update_memos_json_cache();
+    lared_clear_memos_cache();
+    lared_update_memos_json_cache();
     
     return [
         'success' => true,
-        'message' => __('发布成功', 'pan'),
+        'message' => __('发布成功', 'lared'),
         'data' => json_decode($body, true),
     ];
 }
@@ -1092,17 +1092,17 @@ function pan_publish_memo(string $content, array $tags = [], string $visibility 
 /**
  * AJAX 处理：发布 Memos
  */
-function pan_ajax_publish_memo(): void
+function lared_ajax_publish_memo(): void
 {
     // 检查权限
     if (!is_user_logged_in() || !current_user_can('publish_posts')) {
-        wp_send_json_error(['message' => __('权限不足', 'pan')]);
+        wp_send_json_error(['message' => __('权限不足', 'lared')]);
         return;
     }
     
     // 检查 nonce
-    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'pan_memos_publish_nonce')) {
-        wp_send_json_error(['message' => __('安全验证失败', 'pan')]);
+    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'lared_memos_publish_nonce')) {
+        wp_send_json_error(['message' => __('安全验证失败', 'lared')]);
         return;
     }
     
@@ -1110,7 +1110,7 @@ function pan_ajax_publish_memo(): void
     $tags = isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : [];
     $visibility = sanitize_text_field($_POST['visibility'] ?? 'PUBLIC');
     
-    $result = pan_publish_memo($content, $tags, $visibility);
+    $result = lared_publish_memo($content, $tags, $visibility);
     
     if ($result['success']) {
         wp_send_json_success(['message' => $result['message']]);
@@ -1118,14 +1118,14 @@ function pan_ajax_publish_memo(): void
         wp_send_json_error(['message' => $result['message']]);
     }
 }
-add_action('wp_ajax_pan_publish_memo', 'pan_ajax_publish_memo');
+add_action('wp_ajax_lared_publish_memo', 'lared_ajax_publish_memo');
 
 /**
  * AJAX 处理：手动刷新 Memos 缓存
  */
-function pan_ajax_refresh_memos_cache(): void
+function lared_ajax_refresh_memos_cache(): void
 {
-    $result = pan_manual_refresh_memos_cache();
+    $result = lared_manual_refresh_memos_cache();
     
     if ($result['success']) {
         wp_send_json_success($result);
@@ -1133,17 +1133,17 @@ function pan_ajax_refresh_memos_cache(): void
         wp_send_json_error($result);
     }
 }
-add_action('wp_ajax_pan_refresh_memos_cache', 'pan_ajax_refresh_memos_cache');
+add_action('wp_ajax_lared_refresh_memos_cache', 'lared_ajax_refresh_memos_cache');
 
 /**
  * 获取 Memos 缓存状态
  * 
  * @return array
  */
-function pan_get_memos_cache_status(): array
+function lared_get_memos_cache_status(): array
 {
-    $cache_file = pan_get_memos_json_cache_file();
-    $cache_data = pan_get_memos_json_cache();
+    $cache_file = lared_get_memos_json_cache_file();
+    $cache_data = lared_get_memos_json_cache();
     
     $file_exists = file_exists($cache_file);
     $file_size = $file_exists ? filesize($cache_file) : 0;
@@ -1155,7 +1155,7 @@ function pan_get_memos_cache_status(): array
         'file_size' => $file_size,
         'file_size_formatted' => size_format($file_size),
         'last_updated' => $file_mtime > 0 ? wp_date('Y-m-d H:i:s', $file_mtime) : '',
-        'next_scheduled' => wp_next_scheduled('pan_memos_json_cache_refresh'),
+        'next_scheduled' => wp_next_scheduled('lared_memos_json_cache_refresh'),
         'item_count' => $cache_data['stats']['count'] ?? 0,
         'cached_at' => $cache_data['stats']['cached_at'] ?? '',
     ];
@@ -1167,9 +1167,9 @@ function pan_get_memos_cache_status(): array
  * @param int $limit 数量限制
  * @return array
  */
-function pan_get_memos_keyword_suggestions(int $limit = 20): array
+function lared_get_memos_keyword_suggestions(int $limit = 20): array
 {
-    $cache = pan_get_memos_json_cache();
+    $cache = lared_get_memos_json_cache();
     $items = $cache['items'] ?? [];
     
     // 计算关键词使用次数
@@ -1192,9 +1192,9 @@ function pan_get_memos_keyword_suggestions(int $limit = 20): array
  * @param string $date 日期 (Y-m-d)
  * @return array
  */
-function pan_get_memos_by_date(string $date): array
+function lared_get_memos_by_date(string $date): array
 {
-    $cache = pan_get_memos_json_cache();
+    $cache = lared_get_memos_json_cache();
     $items = $cache['items'] ?? [];
     
     $filtered = [];
@@ -1217,9 +1217,9 @@ function pan_get_memos_by_date(string $date): array
  * @param string $keyword 关键词
  * @return array
  */
-function pan_get_memos_by_keyword(string $keyword): array
+function lared_get_memos_by_keyword(string $keyword): array
 {
-    $cache = pan_get_memos_json_cache();
+    $cache = lared_get_memos_json_cache();
     $items = $cache['items'] ?? [];
     
     $filtered = [];
@@ -1235,30 +1235,30 @@ function pan_get_memos_by_keyword(string $keyword): array
 /**
  * AJAX 处理：按日期获取 Memos
  */
-function pan_ajax_get_memos_by_date(): void
+function lared_ajax_get_memos_by_date(): void
 {
     // 验证 nonce
-    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'pan_memos_filter_nonce')) {
-        wp_send_json_error(['message' => __('安全验证失败', 'pan')]);
+    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'lared_memos_filter_nonce')) {
+        wp_send_json_error(['message' => __('安全验证失败', 'lared')]);
         return;
     }
     
     $date = sanitize_text_field($_POST['date'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-        wp_send_json_error(['message' => __('日期格式无效', 'pan')]);
+        wp_send_json_error(['message' => __('日期格式无效', 'lared')]);
         return;
     }
     
-    $items = pan_get_memos_by_date($date);
+    $items = lared_get_memos_by_date($date);
     
     // 渲染 HTML
     ob_start();
     if (!empty($items)) {
         foreach ($items as $item) {
-            pan_render_memo_card($item);
+            lared_render_memo_card($item);
         }
     } else {
-        echo '<div class="memos-empty-day">' . esc_html__('该日期暂无说说', 'pan') . '</div>';
+        echo '<div class="memos-empty-day">' . esc_html__('该日期暂无说说', 'lared') . '</div>';
     }
     $html = ob_get_clean();
     
@@ -1268,36 +1268,36 @@ function pan_ajax_get_memos_by_date(): void
         'date' => $date,
     ]);
 }
-add_action('wp_ajax_pan_get_memos_by_date', 'pan_ajax_get_memos_by_date');
-add_action('wp_ajax_nopriv_pan_get_memos_by_date', 'pan_ajax_get_memos_by_date');
+add_action('wp_ajax_lared_get_memos_by_date', 'lared_ajax_get_memos_by_date');
+add_action('wp_ajax_nopriv_lared_get_memos_by_date', 'lared_ajax_get_memos_by_date');
 
 /**
  * AJAX 处理：按关键词获取 Memos
  */
-function pan_ajax_get_memos_by_keyword(): void
+function lared_ajax_get_memos_by_keyword(): void
 {
     // 验证 nonce
-    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'pan_memos_filter_nonce')) {
-        wp_send_json_error(['message' => __('安全验证失败', 'pan')]);
+    if (!wp_verify_nonce($_POST['nonce'] ?? '', 'lared_memos_filter_nonce')) {
+        wp_send_json_error(['message' => __('安全验证失败', 'lared')]);
         return;
     }
     
     $keyword = sanitize_text_field($_POST['keyword'] ?? '');
     if ('' === $keyword) {
-        wp_send_json_error(['message' => __('关键词不能为空', 'pan')]);
+        wp_send_json_error(['message' => __('关键词不能为空', 'lared')]);
         return;
     }
     
-    $items = pan_get_memos_by_keyword($keyword);
+    $items = lared_get_memos_by_keyword($keyword);
     
     // 渲染 HTML
     ob_start();
     if (!empty($items)) {
         foreach ($items as $item) {
-            pan_render_memo_card($item);
+            lared_render_memo_card($item);
         }
     } else {
-        echo '<div class="memos-empty-keyword">' . esc_html__('该关键词暂无说说', 'pan') . '</div>';
+        echo '<div class="memos-empty-keyword">' . esc_html__('该关键词暂无说说', 'lared') . '</div>';
     }
     $html = ob_get_clean();
     
@@ -1307,15 +1307,15 @@ function pan_ajax_get_memos_by_keyword(): void
         'keyword' => $keyword,
     ]);
 }
-add_action('wp_ajax_pan_get_memos_by_keyword', 'pan_ajax_get_memos_by_keyword');
-add_action('wp_ajax_nopriv_pan_get_memos_by_keyword', 'pan_ajax_get_memos_by_keyword');
+add_action('wp_ajax_lared_get_memos_by_keyword', 'lared_ajax_get_memos_by_keyword');
+add_action('wp_ajax_nopriv_lared_get_memos_by_keyword', 'lared_ajax_get_memos_by_keyword');
 
 /**
  * 渲染单个 Memos 卡片
  * 
  * @param array $item Memos 数据
  */
-function pan_render_memo_card(array $item): void
+function lared_render_memo_card(array $item): void
 {
     $keywords = $item['keywords'] ?? [];
     $content_html = $item['content_html'] ?? '';
@@ -1325,7 +1325,7 @@ function pan_render_memo_card(array $item): void
     $time_human = $time_source > 0
         ? sprintf(
             /* translators: %s: relative time */
-            __('%s前', 'pan'),
+            __('%s前', 'lared'),
             human_time_diff($time_source, current_time('timestamp'))
         )
         : '';
@@ -1340,7 +1340,7 @@ function pan_render_memo_card(array $item): void
                             <span class="memos-card-keyword" data-keyword="<?php echo esc_attr($keyword); ?>">#<?php echo esc_html((string) $keyword); ?></span>
                         <?php endforeach; ?>
                     <?php else : ?>
-                        <span class="memos-card-keyword memos-card-keyword-empty"><?php esc_html_e('无关键词', 'pan'); ?></span>
+                        <span class="memos-card-keyword memos-card-keyword-empty"><?php esc_html_e('无关键词', 'lared'); ?></span>
                     <?php endif; ?>
                 </div>
                 <?php if ('' !== $time_human && $time_source > 0) : ?>

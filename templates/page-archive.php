@@ -59,10 +59,10 @@ foreach ($archive_posts as $archive_post) {
     $p_categories = wp_get_post_categories($post_id, ['fields' => 'all']);
     $p_first_cat  = !empty($p_categories) ? $p_categories[0] : null;
     $p_cat_icon   = ($p_first_cat && $p_first_cat->term_id > 0)
-        ? pan_get_category_icon_html((int) $p_first_cat->term_id)
+        ? lared_get_category_icon_html((int) $p_first_cat->term_id)
         : '';
     $p_comments   = max(0, (int) $archive_post->comment_count);
-    $p_views      = function_exists('pan_get_post_views') ? pan_get_post_views($post_id) : 0;
+    $p_views      = function_exists('lared_get_post_views') ? lared_get_post_views($post_id) : 0;
 
     $archive_tree[$year_key]['months'][$month_key]['posts'][] = [
         'id'       => $post_id,
@@ -95,8 +95,8 @@ foreach ($archive_posts as $archive_post) {
 }
 
 $archive_total_posts = count($archive_posts);
-$site_running_days = function_exists('pan_get_site_running_days_from_first_post')
-    ? pan_get_site_running_days_from_first_post()
+$site_running_days = function_exists('lared_get_site_running_days_from_first_post')
+    ? lared_get_site_running_days_from_first_post()
     : 0;
 
 $today_ts = strtotime(wp_date('Y-m-d', current_time('timestamp')) . ' 00:00:00');
@@ -155,19 +155,19 @@ $heatmap_month_labels = array_values($month_labels);
                     <div class="archive-head-stats" aria-label="归档统计">
                         <span class="archive-head-stat">
                             <b><?php echo esc_html(number_format_i18n($archive_total_posts)); ?></b>
-                            <em><?php esc_html_e('篇文章', 'pan'); ?></em>
+                            <em><?php esc_html_e('篇文章', 'lared'); ?></em>
                         </span>
                         <span class="archive-head-stat">
                             <b><?php echo esc_html(number_format_i18n($site_running_days)); ?></b>
-                            <em><?php esc_html_e('天', 'pan'); ?></em>
+                            <em><?php esc_html_e('天', 'lared'); ?></em>
                         </span>
                         <span class="archive-head-stat">
                             <b><?php echo esc_html(number_format_i18n($archive_total_chars)); ?></b>
-                            <em><?php esc_html_e('字', 'pan'); ?></em>
+                            <em><?php esc_html_e('字', 'lared'); ?></em>
                         </span>
                         <span class="archive-head-stat">
                             <b><?php echo esc_html(number_format_i18n($archive_total_comments)); ?></b>
-                            <em><?php esc_html_e('条评论', 'pan'); ?></em>
+                            <em><?php esc_html_e('条评论', 'lared'); ?></em>
                         </span>
                     </div>
                 </div>
@@ -177,10 +177,10 @@ $heatmap_month_labels = array_values($month_labels);
     </section>
 
     <section class="listing-content">
-        <section class="archive-heatmap" aria-label="<?php esc_attr_e('近一年更新热力图', 'pan'); ?>">
+        <section class="archive-heatmap" aria-label="<?php esc_attr_e('近一年更新热力图', 'lared'); ?>">
             <div class="archive-heatmap-head">
-                <h2 class="archive-heatmap-title"><?php esc_html_e('近一年更新热力图', 'pan'); ?></h2>
-                <p class="archive-heatmap-subtitle"><?php esc_html_e('每个方块代表一天，颜色越深表示当天发文越多。', 'pan'); ?></p>
+                <h2 class="archive-heatmap-title"><?php esc_html_e('近一年更新热力图', 'lared'); ?></h2>
+                <p class="archive-heatmap-subtitle"><?php esc_html_e('每个方块代表一天，颜色越深表示当天发文越多。', 'lared'); ?></p>
             </div>
 
             <div class="archive-heatmap-wrap">
@@ -214,7 +214,7 @@ $heatmap_month_labels = array_values($month_labels);
                                 ? ''
                                 : sprintf(
                                     /* translators: 1: post count, 2: date */
-                                    __('%1$d 篇文章 · %2$s', 'pan'),
+                                    __('%1$d 篇文章 · %2$s', 'lared'),
                                     max(0, $count),
                                     $date_text
                                 );
@@ -234,14 +234,14 @@ $heatmap_month_labels = array_values($month_labels);
             </div>
 
             <div class="archive-heatmap-legend" aria-hidden="true">
-                <span><?php esc_html_e('少', 'pan'); ?></span>
+                <span><?php esc_html_e('少', 'lared'); ?></span>
                 <i class="archive-heatmap-cell level-0"></i>
                 <i class="archive-heatmap-cell level-1"></i>
                 <i class="archive-heatmap-cell level-2"></i>
                 <i class="archive-heatmap-cell level-3"></i>
                 <i class="archive-heatmap-cell level-4"></i>
                 <i class="archive-heatmap-cell level-5"></i>
-                <span><?php esc_html_e('多', 'pan'); ?></span>
+                <span><?php esc_html_e('多', 'lared'); ?></span>
             </div>
         </section>
 
@@ -251,7 +251,7 @@ $heatmap_month_labels = array_values($month_labels);
                     <section class="archive-year-group">
                         <header class="archive-year-head">
                             <h2 class="archive-year-title"><?php echo esc_html((string) $year); ?></h2>
-                            <span class="archive-year-count"><?php echo esc_html(sprintf(_n('%d 篇', '%d 篇', (int) $year_data['count'], 'pan'), (int) $year_data['count'])); ?></span>
+                            <span class="archive-year-count"><?php echo esc_html(sprintf(_n('%d 篇', '%d 篇', (int) $year_data['count'], 'lared'), (int) $year_data['count'])); ?></span>
                         </header>
 
                         <?php if (!empty($year_data['months']) && is_array($year_data['months'])) : ?>
@@ -259,7 +259,7 @@ $heatmap_month_labels = array_values($month_labels);
                                 <section class="archive-month-group">
                                     <header class="archive-month-head">
                                         <h3 class="archive-month-title"><?php echo esc_html((string) ($month_data['label'] ?? '')); ?></h3>
-                                        <span class="archive-month-count"><?php echo esc_html(sprintf(_n('%d 篇', '%d 篇', (int) ($month_data['count'] ?? 0), 'pan'), (int) ($month_data['count'] ?? 0))); ?></span>
+                                        <span class="archive-month-count"><?php echo esc_html(sprintf(_n('%d 篇', '%d 篇', (int) ($month_data['count'] ?? 0), 'lared'), (int) ($month_data['count'] ?? 0))); ?></span>
                                     </header>
 
                                     <ul class="archive-post-list">
@@ -271,8 +271,8 @@ $heatmap_month_labels = array_values($month_labels);
                                                 <?php endif; ?>
                                                 <a class="archive-post-link" href="<?php echo esc_url((string) ($month_post['url'] ?? '')); ?>"><?php echo esc_html((string) ($month_post['title'] ?? '')); ?></a>
                                                 <span class="archive-post-stats">
-                                                    <span class="archive-post-stat" title="<?php esc_attr_e('评论', 'pan'); ?>"><i class="fa-regular fa-comment" aria-hidden="true"></i><?php echo esc_html((string) ($month_post['comments'] ?? 0)); ?></span>
-                                                    <span class="archive-post-stat" title="<?php esc_attr_e('浏览', 'pan'); ?>"><i class="fa-regular fa-eye" aria-hidden="true"></i><?php echo esc_html((string) ($month_post['views'] ?? 0)); ?></span>
+                                                    <span class="archive-post-stat" title="<?php esc_attr_e('评论', 'lared'); ?>"><i class="fa-regular fa-comment" aria-hidden="true"></i><?php echo esc_html((string) ($month_post['comments'] ?? 0)); ?></span>
+                                                    <span class="archive-post-stat" title="<?php esc_attr_e('浏览', 'lared'); ?>"><i class="fa-regular fa-eye" aria-hidden="true"></i><?php echo esc_html((string) ($month_post['views'] ?? 0)); ?></span>
                                                 </span>
                                             </li>
                                         <?php endforeach; ?>
@@ -285,7 +285,7 @@ $heatmap_month_labels = array_values($month_labels);
             </div>
         <?php else : ?>
             <div class="listing-empty">
-                <p><?php esc_html_e('暂无文章。', 'pan'); ?></p>
+                <p><?php esc_html_e('暂无文章。', 'lared'); ?></p>
             </div>
         <?php endif; ?>
     </section>

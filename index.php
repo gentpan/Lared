@@ -8,14 +8,14 @@ get_header();
 <main class="main-shell mx-auto w-full max-w-[1280px] min-h-[calc(100vh-64px)] border-x border-[#d9d9d9] bg-[#fff]">
     <?php
     // Hero：四种文章类型（最新 / 热门 / 热评 / 随机）
-    $hero_items = pan_get_hero_items();
+    $hero_items = lared_get_hero_items();
     $hero_first = !empty($hero_items) ? $hero_items[0] : null;
     ?>
 
     <?php if ($hero_first !== null) : ?>
         <?php
         $hf_post_id   = $hero_first['post_id'];
-        $hf_image_url = pan_get_post_image_url($hf_post_id, 'large');
+        $hf_image_url = lared_get_post_image_url($hf_post_id, 'large');
         if ('' === $hf_image_url) {
             $hf_image_url = 'https://picsum.photos/1600/800?random=' . wp_rand(100000, 999999);
         }
@@ -28,7 +28,7 @@ get_header();
                     <?php foreach ($hero_items as $hi_index => $hi_item) : ?>
                         <?php
                         $hi_post_id   = $hi_item['post_id'];
-                        $hi_image = pan_get_post_image_url($hi_post_id, 'large');
+                        $hi_image = lared_get_post_image_url($hi_post_id, 'large');
                         if ('' === $hi_image) {
                             $hi_image = 'https://picsum.photos/1600/800?random=' . wp_rand(100000, 999999);
                         }
@@ -136,8 +136,8 @@ get_header();
     }
 
     $latest_memo_item = null;
-    $latest_memo_stream = function_exists('pan_get_memos_stream')
-        ? pan_get_memos_stream([
+    $latest_memo_stream = function_exists('lared_get_memos_stream')
+        ? lared_get_memos_stream([
             'cache_ttl' => 300,
             'page_size' => 1,
         ])
@@ -238,8 +238,8 @@ get_header();
         'number'     => 16,
         'hide_empty' => true,
     ]);
-    $site_days = function_exists('pan_get_site_running_days_from_first_post')
-        ? pan_get_site_running_days_from_first_post()
+    $site_days = function_exists('lared_get_site_running_days_from_first_post')
+        ? lared_get_site_running_days_from_first_post()
         : 0;
     $post_count = (int) wp_count_posts('post')->publish;
     $category_count = (int) wp_count_terms([
@@ -256,7 +256,7 @@ get_header();
         $home_memo_time = (int) ($latest_memo_item['created_timestamp'] ?? 0);
         $home_memo_time_text = $home_memo_time > 0 ? wp_date('Y/m/d H:i', $home_memo_time) : '';
         ?>
-        <section class="home-memo-strip" aria-label="<?php esc_attr_e('最新 Memos', 'pan'); ?>">
+        <section class="home-memo-strip" aria-label="<?php esc_attr_e('最新 Memos', 'lared'); ?>">
             <a class="home-memo-strip-link" href="<?php echo esc_url($memos_page_url); ?>">
                 <span class="home-memo-strip-bird-track" aria-hidden="true">
                     <span class="home-memo-strip-icon">
@@ -275,19 +275,19 @@ get_header();
 
     <?php if (!empty($featured_posts)) : ?>
         <div class="home-main-layout">
-            <aside class="home-main-sidebar" aria-label="<?php esc_attr_e('首页侧边栏', 'pan'); ?>">
+            <aside class="home-main-sidebar" aria-label="<?php esc_attr_e('首页侧边栏', 'lared'); ?>">
                 <div class="home-main-sidebar-inner">
                     <section class="home-main-sidebar-block home-main-sidebar-block--welcome">
                         <div class="home-main-sidebar-block-title">
-                            <h3><i class="fa-solid fa-house-chimney" aria-hidden="true"></i><span><?php esc_html_e('欢迎板块', 'pan'); ?></span></h3>
+                            <h3><i class="fa-solid fa-house-chimney" aria-hidden="true"></i><span><?php esc_html_e('欢迎板块', 'lared'); ?></span></h3>
                         </div>
                         <div class="home-main-sidebar-block-body">
-                            <p><?php echo esc_html(get_bloginfo('description') ?: __('欢迎来到我的博客，记录技术与日常。', 'pan')); ?></p>
+                            <p><?php echo esc_html(get_bloginfo('description') ?: __('欢迎来到我的博客，记录技术与日常。', 'lared')); ?></p>
                         </div>
                     </section>
                     <section class="home-main-sidebar-block home-main-sidebar-block--heatmap home-main-sidebar-block--no-title">
                         <div class="home-main-sidebar-block-body">
-                            <div class="home-mini-heatmap" aria-label="<?php esc_attr_e('近60天更新热力图', 'pan'); ?>">
+                            <div class="home-mini-heatmap" aria-label="<?php esc_attr_e('近60天更新热力图', 'lared'); ?>">
                                 <?php foreach ($home_heatmap_cells as $heatmap_cell) : ?>
                                     <span
                                         class="home-mini-heatmap-cell tone-green level-<?php echo esc_attr((string) $heatmap_cell['level']); ?>"
@@ -299,9 +299,9 @@ get_header();
                     </section>
                     <section class="home-main-sidebar-block home-main-sidebar-block--popular home-main-sidebar-block--no-title">
                         <div class="home-sidebar-tabs">
-                            <button type="button" class="home-sidebar-tab is-active" data-tab="latest"><?php esc_html_e('最新日志', 'pan'); ?></button>
-                            <button type="button" class="home-sidebar-tab" data-tab="popular"><?php esc_html_e('热评日志', 'pan'); ?></button>
-                            <button type="button" class="home-sidebar-tab" data-tab="random"><?php esc_html_e('随机日志', 'pan'); ?></button>
+                            <button type="button" class="home-sidebar-tab is-active" data-tab="latest"><?php esc_html_e('最新日志', 'lared'); ?></button>
+                            <button type="button" class="home-sidebar-tab" data-tab="popular"><?php esc_html_e('热评日志', 'lared'); ?></button>
+                            <button type="button" class="home-sidebar-tab" data-tab="random"><?php esc_html_e('随机日志', 'lared'); ?></button>
                         </div>
                         <div class="home-sidebar-tab-content">
                             <div class="home-sidebar-tab-panel is-active" data-panel="latest">
@@ -316,7 +316,7 @@ get_header();
                                         <?php endforeach; ?>
                                     </ul>
                                 <?php else : ?>
-                                    <p><?php esc_html_e('暂无文章。', 'pan'); ?></p>
+                                    <p><?php esc_html_e('暂无文章。', 'lared'); ?></p>
                                 <?php endif; ?>
                             </div>
                             <div class="home-sidebar-tab-panel" data-panel="popular">
@@ -331,7 +331,7 @@ get_header();
                                         <?php endforeach; ?>
                                     </ul>
                                 <?php else : ?>
-                                    <p><?php esc_html_e('暂无热门文章。', 'pan'); ?></p>
+                                    <p><?php esc_html_e('暂无热门文章。', 'lared'); ?></p>
                                 <?php endif; ?>
                             </div>
                             <div class="home-sidebar-tab-panel" data-panel="random">
@@ -346,14 +346,14 @@ get_header();
                                         <?php endforeach; ?>
                                     </ul>
                                 <?php else : ?>
-                                    <p><?php esc_html_e('暂无文章。', 'pan'); ?></p>
+                                    <p><?php esc_html_e('暂无文章。', 'lared'); ?></p>
                                 <?php endif; ?>
                             </div>
                         </div>
                     </section>
                     <section class="home-main-sidebar-block home-main-sidebar-block--comments">
                         <div class="home-main-sidebar-block-title">
-                            <h3><i class="fa-solid fa-comments" aria-hidden="true"></i><span><?php esc_html_e('最新评论', 'pan'); ?></span></h3>
+                            <h3><i class="fa-solid fa-comments" aria-hidden="true"></i><span><?php esc_html_e('最新评论', 'lared'); ?></span></h3>
                         </div>
                         <div class="home-main-sidebar-block-body">
                             <?php if (!empty($latest_comments)) : ?>
@@ -379,7 +379,7 @@ get_header();
                                                 </span>
                                                 <span class="home-main-comment-tooltip" role="tooltip">
                                                     <span class="home-main-comment-tooltip-head">
-                                                        <strong class="home-main-comment-tooltip-author"><?php echo esc_html($comment_author ?: __('匿名', 'pan')); ?></strong>
+                                                        <strong class="home-main-comment-tooltip-author"><?php echo esc_html($comment_author ?: __('匿名', 'lared')); ?></strong>
                                                         <time class="home-main-comment-tooltip-time"><?php echo esc_html($comment_time); ?></time>
                                                     </span>
                                                     <span class="home-main-comment-tooltip-content"><?php echo esc_html($comment_excerpt); ?></span>
@@ -390,13 +390,13 @@ get_header();
                                     <?php endforeach; ?>
                                 </ul>
                             <?php else : ?>
-                                <p><?php esc_html_e('暂无评论。', 'pan'); ?></p>
+                                <p><?php esc_html_e('暂无评论。', 'lared'); ?></p>
                             <?php endif; ?>
                         </div>
                     </section>
                     <section class="home-main-sidebar-block">
                         <div class="home-main-sidebar-block-title">
-                            <h3><i class="fa-solid fa-tags" aria-hidden="true"></i><span><?php esc_html_e('关键词', 'pan'); ?></span></h3>
+                            <h3><i class="fa-solid fa-tags" aria-hidden="true"></i><span><?php esc_html_e('关键词', 'lared'); ?></span></h3>
                         </div>
                         <div class="home-main-sidebar-block-body">
                             <?php if (!empty($popular_tags)) : ?>
@@ -412,30 +412,30 @@ get_header();
                                     <?php endforeach; ?>
                                 </div>
                             <?php else : ?>
-                                <p><?php esc_html_e('暂无关键词。', 'pan'); ?></p>
+                                <p><?php esc_html_e('暂无关键词。', 'lared'); ?></p>
                             <?php endif; ?>
                         </div>
                     </section>
                     <section class="home-main-sidebar-block">
                         <div class="home-main-sidebar-block-title">
-                            <h3><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span><?php esc_html_e('统计信息', 'pan'); ?></span></h3>
+                            <h3><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span><?php esc_html_e('统计信息', 'lared'); ?></span></h3>
                         </div>
                         <div class="home-main-sidebar-block-body">
                             <dl class="home-main-sidebar-stats">
                                 <div>
-                                    <dt><?php esc_html_e('文章', 'pan'); ?></dt>
+                                    <dt><?php esc_html_e('文章', 'lared'); ?></dt>
                                     <dd><?php echo esc_html((string) $post_count); ?></dd>
                                 </div>
                                 <div>
-                                    <dt><?php esc_html_e('评论', 'pan'); ?></dt>
+                                    <dt><?php esc_html_e('评论', 'lared'); ?></dt>
                                     <dd><?php echo esc_html((string) $approved_comment_count); ?></dd>
                                 </div>
                                 <div>
-                                    <dt><?php esc_html_e('分类', 'pan'); ?></dt>
+                                    <dt><?php esc_html_e('分类', 'lared'); ?></dt>
                                     <dd><?php echo esc_html((string) $category_count); ?></dd>
                                 </div>
                                 <div>
-                                    <dt><?php esc_html_e('建站天数', 'pan'); ?></dt>
+                                    <dt><?php esc_html_e('建站天数', 'lared'); ?></dt>
                                     <dd><?php echo esc_html((string) $site_days); ?></dd>
                                 </div>
                             </dl>
@@ -452,9 +452,9 @@ get_header();
             // 获取完整分类对象，用于提取图标
             $post_categories  = wp_get_post_categories($post_id, ['fields' => 'all']);
             $first_category   = !empty($post_categories) ? $post_categories[0] : null;
-            $category_label   = $first_category ? $first_category->name : __('未分类', 'pan');
+            $category_label   = $first_category ? $first_category->name : __('未分类', 'lared');
             $category_icon_html = ($first_category && $first_category->term_id > 0)
-                ? pan_get_category_icon_html((int) $first_category->term_id)
+                ? lared_get_category_icon_html((int) $first_category->term_id)
                 : '';
 
             $post_timestamp = (int) get_post_time('U', true, $post_id);
@@ -464,9 +464,9 @@ get_header();
             $post_month_short = wp_date('M', $post_timestamp);
             $post_day_number  = wp_date('j', $post_timestamp);
             $post_time_full   = wp_date('Y/m/d H:i', $post_timestamp);
-            $article_image_url = pan_get_post_image_url($post_id, 'large');
+            $article_image_url = lared_get_post_image_url($post_id, 'large');
             if ('' === $article_image_url) {
-                $article_image_url = 'https://picsum.photos/seed/pan-post-' . $post_id . '/1600/900';
+                $article_image_url = 'https://picsum.photos/seed/lared-post-' . $post_id . '/1600/900';
             }
             $article_excerpt_raw = has_excerpt($post_id)
                 ? get_the_excerpt($post_id)
@@ -532,14 +532,14 @@ get_header();
             'total'     => (int) $featured_query->max_num_pages,
             'current'   => $paged,
             'mid_size'  => 2,
-            'prev_text' => '&larr; ' . __('上一页', 'pan'),
-            'next_text' => __('下一页', 'pan') . ' &rarr;',
+            'prev_text' => '&larr; ' . __('上一页', 'lared'),
+            'next_text' => __('下一页', 'lared') . ' &rarr;',
             'type'      => 'array',
         ]);
         ?>
 
         <?php if (!empty($pagination_links)) : ?>
-            <div class="pan-pagination pan-pagination--home">
+            <div class="lared-pagination lared-pagination--home">
                 <div class="nav-links">
                     <?php foreach ($pagination_links as $pagination_link) : ?>
                         <?php echo wp_kses_post($pagination_link); ?>

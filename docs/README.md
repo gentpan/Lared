@@ -318,12 +318,12 @@ Theme Name: Lared
 **建议**: 使用过滤器或常量定义 CDN 地址：
 ```php
 // 在 functions.php 顶部定义
-if (!defined('PAN_CDN_FONTS')) {
-    define('PAN_CDN_FONTS', 'https://fonts.bluecdn.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+if (!defined('LARED_CDN_FONTS')) {
+    define('LARED_CDN_FONTS', 'https://fonts.bluecdn.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
 }
 
 // 使用时
-wp_enqueue_style('pan-fonts', PAN_CDN_FONTS, [], null);
+wp_enqueue_style('lared-fonts', LARED_CDN_FONTS, [], null);
 ```
 
 #### 4. 外部链接占位符
@@ -333,14 +333,14 @@ wp_enqueue_style('pan-fonts', PAN_CDN_FONTS, [], null);
 **建议**: 添加主题设置选项或过滤器：
 ```php
 // 在 functions.php 中添加
-function pan_get_social_links(): array {
+function lared_get_social_links(): array {
     $defaults = [
         'github' => '',
         'twitter' => '',
         'telegram' => '',
         'rss' => get_feed_link(),
     ];
-    return apply_filters('pan_social_links', $defaults);
+    return apply_filters('lared_social_links', $defaults);
 }
 ```
 
@@ -356,7 +356,7 @@ function pan_get_social_links(): array {
 
 **建议**: 添加主题选项或优先使用特色图片：
 ```php
-function pan_get_post_image_url(int $post_id, string $size = 'large'): string {
+function lared_get_post_image_url(int $post_id, string $size = 'large'): string {
     // 1. 优先使用特色图片
     if (has_post_thumbnail($post_id)) {
         $url = get_the_post_thumbnail_url($post_id, $size);
@@ -367,11 +367,11 @@ function pan_get_post_image_url(int $post_id, string $size = 'large'): string {
     // ... 现有逻辑
     
     // 3. 使用主题设置的默认图片
-    $default_image = get_option('pan_default_post_image');
+    $default_image = get_option('lared_default_post_image');
     if ($default_image) return $default_image;
     
     // 4. 最后使用占位图
-    return 'https://picsum.photos/seed/pan-post-' . $post_id . '/1600/900';
+    return 'https://picsum.photos/seed/lared-post-' . $post_id . '/1600/900';
 }
 ```
 
@@ -381,7 +381,7 @@ function pan_get_post_image_url(int $post_id, string $size = 'large'): string {
 
 **建议**: 使用 WP-CLI 生成翻译模板：
 ```bash
-wp i18n make-pot . languages/pan.pot
+wp i18n make-pot . languages/lared.pot
 ```
 
 #### 7. 错误处理可以改进
@@ -390,11 +390,11 @@ wp i18n make-pot . languages/pan.pot
 
 **建议**: 添加错误日志：
 ```php
-function pan_get_memos_stream(array $args = []): array {
+function lared_get_memos_stream(array $args = []): array {
     // ... 现有代码
     
     if (is_wp_error($response)) {
-        error_log('Pan Theme: Memos API error - ' . $response->get_error_message());
+        error_log('Lared Theme: Memos API error - ' . $response->get_error_message());
         return [
             'items' => [],
             'stats' => ['count' => 0, 'latest_timestamp' => 0],

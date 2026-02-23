@@ -26,7 +26,7 @@ if (have_posts()) :
                                 <?php
                                 printf(
                                     /* translators: %s: modified date */
-                                    esc_html__('更新于 %s', 'pan'),
+                                    esc_html__('更新于 %s', 'lared'),
                                     esc_html(get_the_modified_date('Y-m-d'))
                                 );
                                 ?>
@@ -39,7 +39,7 @@ if (have_posts()) :
             <section class="listing-content">
                 <div class="overflow-hidden border border-[#d9d9d9] bg-[#f3f3f3]">
                     <?php
-                    $page_cover_image_html = pan_get_post_image_html(
+                    $page_cover_image_html = lared_get_post_image_html(
                         (int) get_the_ID(),
                         'full',
                         ['class' => 'block h-auto w-full']

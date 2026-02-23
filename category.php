@@ -10,7 +10,7 @@ $queried_term = get_queried_object();
 $cat_id       = ($queried_term instanceof WP_Term) ? (int) $queried_term->term_id : 0;
 $cat_name     = ($queried_term instanceof WP_Term) ? $queried_term->name : '';
 $cat_count    = ($queried_term instanceof WP_Term) ? (int) $queried_term->count : 0;
-$cat_icon_html = $cat_id > 0 ? pan_get_category_icon_html($cat_id) : '';
+$cat_icon_html = $cat_id > 0 ? lared_get_category_icon_html($cat_id) : '';
 ?>
 
 <main class="main-shell category-archive-page mx-auto w-full max-w-[1280px] min-h-[calc(100vh-64px)] border-x border-[#d9d9d9] bg-[#ffffff] pb-[90px] max-[900px]:pb-16">
@@ -27,7 +27,7 @@ $cat_icon_html = $cat_id > 0 ? pan_get_category_icon_html($cat_id) : '';
                     </h1>
 
                     <p class="listing-head-side-stat">
-                        <?php printf(esc_html__('%d 篇文章', 'pan'), $cat_count); ?>
+                        <?php printf(esc_html__('%d 篇文章', 'lared'), $cat_count); ?>
                     </p>
                 </div>
             </div>
@@ -40,7 +40,7 @@ $cat_icon_html = $cat_id > 0 ? pan_get_category_icon_html($cat_id) : '';
                 <?php while (have_posts()) : the_post(); ?>
                     <?php
                     $p_id        = (int) get_the_ID();
-                    $p_image_url = pan_get_post_image_url($p_id, 'large');
+                    $p_image_url = lared_get_post_image_url($p_id, 'large');
                     $p_comments  = (int) get_comments_number($p_id);
                     $p_date      = get_the_date('Y-m-d', $p_id);
                     ?>
@@ -62,7 +62,7 @@ $cat_icon_html = $cat_id > 0 ? pan_get_category_icon_html($cat_id) : '';
 
                             <div class="category-archive-meta-row">
                                 <time datetime="<?php echo esc_attr(get_the_date('c')); ?>"><?php echo esc_html($p_date); ?></time>
-                                <span><?php printf(esc_html__('%d 条评论', 'pan'), $p_comments); ?></span>
+                                <span><?php printf(esc_html__('%d 条评论', 'lared'), $p_comments); ?></span>
                             </div>
 
                             <div class="listing-card-body category-archive-card-body">
@@ -73,20 +73,20 @@ $cat_icon_html = $cat_id > 0 ? pan_get_category_icon_html($cat_id) : '';
                 <?php endwhile; ?>
             </div>
 
-            <div class="pan-pagination">
+            <div class="lared-pagination">
                 <?php
                 the_posts_pagination([
                     'mid_size'           => 2,
-                    'prev_text'          => '&larr; ' . __('上一页', 'pan'),
-                    'next_text'          => __('下一页', 'pan') . ' &rarr;',
+                    'prev_text'          => '&larr; ' . __('上一页', 'lared'),
+                    'next_text'          => __('下一页', 'lared') . ' &rarr;',
                     'before_page_number' => '',
-                    'screen_reader_text' => __('文章分页', 'pan'),
+                    'screen_reader_text' => __('文章分页', 'lared'),
                 ]);
                 ?>
             </div>
         <?php else : ?>
             <div class="listing-empty">
-                <p><?php esc_html_e('该分类下暂无文章。', 'pan'); ?></p>
+                <p><?php esc_html_e('该分类下暂无文章。', 'lared'); ?></p>
             </div>
         <?php endif; ?>
     </section>

@@ -109,7 +109,7 @@
             }
 
             /* AJAX: randomly pick one of the 4 article types for this tab's category */
-            if (!window.PanAjax || !window.PanAjax.ajaxUrl) {
+            if (!window.LaredAjax || !window.LaredAjax.ajaxUrl) {
                 applyHeroData(
                     item,
                     item.getAttribute('data-hero-title') || '',
@@ -122,12 +122,12 @@
             }
 
             var fd = new FormData();
-            fd.append('action', 'pan_hero_random_article');
-            fd.append('nonce', window.PanAjax.nonce);
+            fd.append('action', 'lared_hero_random_article');
+            fd.append('nonce', window.LaredAjax.nonce);
             fd.append('taxonomy', item.getAttribute('data-hero-taxonomy') || '');
             fd.append('term_id', item.getAttribute('data-hero-term-id') || '0');
 
-            fetch(window.PanAjax.ajaxUrl, { method: 'POST', body: fd })
+            fetch(window.LaredAjax.ajaxUrl, { method: 'POST', body: fd })
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     if (res.success && res.data) {
@@ -472,7 +472,7 @@
 
     /* aplayer-init.js */
     function fallbackAPlayerPlaylistFromDom() {
-        var fallbackContainer = document.getElementById('pan-aplayer');
+        var fallbackContainer = document.getElementById('lared-aplayer');
         if (!fallbackContainer) {
             return [];
         }
@@ -483,7 +483,7 @@
         }
 
         return [{
-            name: fallbackContainer.getAttribute('data-title') || 'Pan Radio',
+            name: fallbackContainer.getAttribute('data-title') || 'Lared Radio',
             artist: fallbackContainer.getAttribute('data-artist') || 'Unknown Artist',
             url: audioUrl,
             cover: fallbackContainer.getAttribute('data-cover') || '',
@@ -534,7 +534,7 @@
             return aplayerPlaylistPromise;
         }
 
-        var config = window.PanAPlayerConfig || {};
+        var config = window.LaredAPlayerConfig || {};
         var defaultCover = typeof config.defaultCover === 'string' ? config.defaultCover : '';
 
         if (Array.isArray(config.playlist) && config.playlist.length) {
@@ -547,7 +547,7 @@
     }
 
     function initAPlayer() {
-        var fixedContainer = document.getElementById('pan-aplayer');
+        var fixedContainer = document.getElementById('lared-aplayer');
         if (!fixedContainer || fixedContainer.getAttribute('data-aplayer-ready') === '1') {
             return;
         }
@@ -579,13 +579,13 @@
 
     /* comment-ajax.js */
     function ensureCommentNotice(form) {
-        var notice = form.querySelector('.pan-comment-ajax-notice');
+        var notice = form.querySelector('.lared-comment-ajax-notice');
         if (notice) {
             return notice;
         }
 
         notice = document.createElement('div');
-        notice.className = 'pan-comment-ajax-notice';
+        notice.className = 'lared-comment-ajax-notice';
         notice.style.marginTop = '10px';
         notice.style.fontSize = '13px';
         notice.style.color = '#666';
@@ -657,7 +657,7 @@
     }
 
     function markNewCommentHint(commentNode) {
-        if (!commentNode || commentNode.querySelector('.pan-comment-new-hint')) {
+        if (!commentNode || commentNode.querySelector('.lared-comment-new-hint')) {
             return;
         }
 
@@ -667,7 +667,7 @@
         }
 
         var hint = document.createElement('span');
-        hint.className = 'pan-comment-new-hint';
+        hint.className = 'lared-comment-new-hint';
         hint.textContent = ' · 刚刚发布（1 分钟内可编辑）';
         hint.style.color = '#999';
         hint.style.fontSize = '12px';
@@ -681,9 +681,9 @@
 
         commentNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        commentNode.classList.add('pan-comment-newly-added');
+        commentNode.classList.add('lared-comment-newly-added');
         window.setTimeout(function () {
-            commentNode.classList.remove('pan-comment-newly-added');
+            commentNode.classList.remove('lared-comment-newly-added');
         }, 1500);
     }
 
@@ -693,7 +693,7 @@
             return;
         }
 
-        if (!window.PanCommentAjax || !window.PanCommentAjax.ajaxUrl || !window.PanCommentAjax.nonce) {
+        if (!window.LaredCommentAjax || !window.LaredCommentAjax.ajaxUrl || !window.LaredCommentAjax.nonce) {
             return;
         }
 
@@ -708,10 +708,10 @@
             }
 
             var formData = new FormData(form);
-            formData.append('action', 'pan_submit_comment');
-            formData.append('nonce', window.PanCommentAjax.nonce);
+            formData.append('action', 'lared_submit_comment');
+            formData.append('nonce', window.LaredCommentAjax.nonce);
 
-            fetch(window.PanCommentAjax.ajaxUrl, {
+            fetch(window.LaredCommentAjax.ajaxUrl, {
                 method: 'POST',
                 credentials: 'same-origin',
                 body: formData,
@@ -725,13 +725,13 @@
                     if (!result || !result.success) {
                         var errorMessage = (result && result.data && result.data.message)
                             ? result.data.message
-                            : window.PanCommentAjax.errorMessage;
+                            : window.LaredCommentAjax.errorMessage;
                         notice.textContent = errorMessage;
                         notice.style.color = '#c53030';
                         return;
                     }
 
-                    notice.textContent = result.data.message || window.PanCommentAjax.successMessage;
+                    notice.textContent = result.data.message || window.LaredCommentAjax.successMessage;
                     notice.style.color = '#2f855a';
 
                     if (result.data.approved) {
@@ -752,7 +752,7 @@
                 })
                 .catch(function () {
                     var notice = ensureCommentNotice(form);
-                    notice.textContent = window.PanCommentAjax.errorMessage;
+                    notice.textContent = window.LaredCommentAjax.errorMessage;
                     notice.style.color = '#c53030';
                 })
                 .finally(function () {
@@ -832,12 +832,12 @@
 
         nodes.forEach(function (codeEl) {
             var preEl = codeEl.parentElement;
-            if (!preEl || preEl.getAttribute('data-pan-copy-ready') === '1') {
+            if (!preEl || preEl.getAttribute('data-lared-copy-ready') === '1') {
                 return;
             }
 
-            preEl.setAttribute('data-pan-copy-ready', '1');
-            preEl.classList.add('pan-prism-pre');
+            preEl.setAttribute('data-lared-copy-ready', '1');
+            preEl.classList.add('lared-prism-pre');
 
             // 清除旧的行号（避免 PJAX 重复生成）
             var oldLineNumbers = preEl.querySelector('.line-numbers-rows');
@@ -853,7 +853,7 @@
             }
 
             if (isSingleLineCode(codeEl.textContent || '')) {
-                preEl.classList.add('pan-prism-pre--single-line');
+                preEl.classList.add('lared-prism-pre--single-line');
             } else {
                 preEl.classList.add('line-numbers');
 
@@ -875,29 +875,29 @@
                 }
 
                 if (lineCount > MAX_VISIBLE_LINES) {
-                    preEl.classList.add('pan-prism-pre--collapsible', 'pan-prism-pre--collapsed');
+                    preEl.classList.add('lared-prism-pre--collapsible', 'lared-prism-pre--collapsed');
 
                     var foldBtn = document.createElement('button');
                     foldBtn.type = 'button';
-                    foldBtn.className = 'pan-code-fold-btn';
+                    foldBtn.className = 'lared-code-fold-btn';
                     foldBtn.textContent = '展开';
                     foldBtn.setAttribute('aria-label', '展开代码');
                     foldBtn.setAttribute('aria-expanded', 'false');
 
                     foldBtn.addEventListener('click', function () {
-                        var expanded = preEl.classList.contains('pan-prism-pre--expanded');
+                        var expanded = preEl.classList.contains('lared-prism-pre--expanded');
 
                         if (expanded) {
-                            preEl.classList.remove('pan-prism-pre--expanded');
-                            preEl.classList.add('pan-prism-pre--collapsed');
+                            preEl.classList.remove('lared-prism-pre--expanded');
+                            preEl.classList.add('lared-prism-pre--collapsed');
                             foldBtn.textContent = '展开';
                             foldBtn.setAttribute('aria-label', '展开代码');
                             foldBtn.setAttribute('aria-expanded', 'false');
                             return;
                         }
 
-                        preEl.classList.remove('pan-prism-pre--collapsed');
-                        preEl.classList.add('pan-prism-pre--expanded');
+                        preEl.classList.remove('lared-prism-pre--collapsed');
+                        preEl.classList.add('lared-prism-pre--expanded');
                         foldBtn.textContent = '收起';
                         foldBtn.setAttribute('aria-label', '收起代码');
                         foldBtn.setAttribute('aria-expanded', 'true');
@@ -909,7 +909,7 @@
 
             var button = document.createElement('button');
             button.type = 'button';
-            button.className = 'pan-code-copy-btn';
+            button.className = 'lared-code-copy-btn';
             button.setAttribute('aria-label', '复制代码');
             button.innerHTML = '<i class="fa-regular fa-copy" aria-hidden="true"></i>';
 
@@ -981,8 +981,8 @@
             var images = Array.prototype.slice.call(content.querySelectorAll('img:not(.emoji):not(.avatar)'));
             
             images.forEach(function (img) {
-                // 跳过网格布局内的图片（由 initPanGrid 处理）
-                if (img.closest('.pan-grid-2, .pan-grid-3, .pan-grid-4')) {
+                // 跳过网格布局内的图片（由 initLaredGrid 处理）
+                if (img.closest('.lared-grid-2, .lared-grid-3, .lared-grid-4')) {
                     return;
                 }
 
@@ -1003,18 +1003,18 @@
         });
 
         // 处理网格布局
-        initPanGrid();
+        initLaredGrid();
     }
 
     /**
-     * pan-grid 图片网格布局初始化
+     * lared-grid 图片网格布局初始化
      * 清理 PHP loading-wrapper 残留，保持 grid 结构纯净
      */
-    function initPanGrid() {
-        var grids = document.querySelectorAll('.pan-grid-2, .pan-grid-3, .pan-grid-4');
+    function initLaredGrid() {
+        var grids = document.querySelectorAll('.lared-grid-2, .lared-grid-3, .lared-grid-4');
 
         grids.forEach(function (grid) {
-            // 如果 PHP 的 pan_wrap_images_with_loader 把 img 包在了 figure.img-loading-wrapper 里，
+            // 如果 PHP 的 lared_wrap_images_with_loader 把 img 包在了 figure.img-loading-wrapper 里，
             // 需要把 img 解放出来，直接放入 grid 容器
             var wrappers = Array.prototype.slice.call(grid.querySelectorAll('.img-loading-wrapper'));
             wrappers.forEach(function (wrapper) {
@@ -1416,7 +1416,7 @@
 
     /* pjax-init.js */
     function initPjaxZhheo() {
-        if (document.documentElement.getAttribute('data-pan-pjax-ready') === '1') {
+        if (document.documentElement.getAttribute('data-lared-pjax-ready') === '1') {
             return;
         }
 
@@ -1424,7 +1424,7 @@
             return;
         }
 
-        document.documentElement.setAttribute('data-pan-pjax-ready', '1');
+        document.documentElement.setAttribute('data-lared-pjax-ready', '1');
 
         var headerLoading = document.querySelector('[data-header-loading]');
 
@@ -1644,7 +1644,7 @@
 
             // 发送 AJAX 请求
             var formData = new FormData();
-            formData.append('action', 'pan_publish_memo');
+            formData.append('action', 'lared_publish_memo');
             formData.append('nonce', form.querySelector('[name="memos_publish_nonce"]').value);
             formData.append('content', content);
             formData.append('visibility', visibilityValue);
@@ -1652,7 +1652,7 @@
                 formData.append('tags[]', tag);
             });
 
-            var ajaxUrl = (window.PanAjax && window.PanAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
+            var ajaxUrl = (window.LaredAjax && window.LaredAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
             fetch(ajaxUrl, {
                 method: 'POST',
                 body: formData,
@@ -1700,8 +1700,8 @@
         var grid = document.querySelector('.memos-grid');
         if (!grid) return;
 
-        var ajaxUrl = (window.PanAjax && window.PanAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
-        var nonce = (window.PanAjax && window.PanAjax.memosFilterNonce) || '';
+        var ajaxUrl = (window.LaredAjax && window.LaredAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
+        var nonce = (window.LaredAjax && window.LaredAjax.memosFilterNonce) || '';
         var isLoading = false;
 
         // 创建 loading 元素
@@ -1762,7 +1762,7 @@
             filterTitleEl.style.display = 'flex';
 
             var formData = new FormData();
-            formData.append('action', 'pan_get_memos_by_date');
+            formData.append('action', 'lared_get_memos_by_date');
             formData.append('nonce', nonce);
             formData.append('date', date);
 
@@ -1800,7 +1800,7 @@
             filterTitleEl.style.display = 'flex';
 
             var formData = new FormData();
-            formData.append('action', 'pan_get_memos_by_keyword');
+            formData.append('action', 'lared_get_memos_by_keyword');
             formData.append('nonce', nonce);
             formData.append('keyword', keyword);
 
@@ -1934,7 +1934,7 @@
             function fetchCalendarData(year, month) {
                 // 使用现有的AJAX端点获取数据
                 var formData = new FormData();
-                formData.append('action', 'pan_get_memos_calendar');
+                formData.append('action', 'lared_get_memos_calendar');
                 formData.append('nonce', nonce);
                 formData.append('year', year);
                 formData.append('month', month);
@@ -1989,11 +1989,11 @@
         if (main.getAttribute('data-views-tracked') === '1') return;
         main.setAttribute('data-views-tracked', '1');
 
-        var ajaxUrl = (window.PanAjax && window.PanAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
-        var nonce = (window.PanAjax && window.PanAjax.nonce) || '';
+        var ajaxUrl = (window.LaredAjax && window.LaredAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
+        var nonce = (window.LaredAjax && window.LaredAjax.nonce) || '';
 
         var formData = new FormData();
-        formData.append('action', 'pan_track_views');
+        formData.append('action', 'lared_track_views');
         formData.append('nonce', nonce);
         formData.append('post_id', postId);
 
@@ -2133,11 +2133,11 @@
 
             resultsContainer.innerHTML = '<div class="search-modal-loading"><i class="fa-solid fa-spinner fa-spin"></i> 搜索中…</div>';
 
-            var ajaxUrl = (window.PanAjax && window.PanAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
-            var nonce = (window.PanAjax && window.PanAjax.nonce) || '';
+            var ajaxUrl = (window.LaredAjax && window.LaredAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
+            var nonce = (window.LaredAjax && window.LaredAjax.nonce) || '';
 
             var formData = new FormData();
-            formData.append('action', 'pan_ajax_search');
+            formData.append('action', 'lared_ajax_search');
             formData.append('nonce', nonce);
             formData.append('keyword', keyword);
 
@@ -2162,8 +2162,8 @@
         window._searchModalBound = true;
     }
 
-    window.PanTheme = { init: init };
-    window.PanPrism = { init: initPrismEnhance };
+    window.LaredTheme = { init: init };
+    window.LaredPrism = { init: initPrismEnhance };
 
     document.addEventListener('DOMContentLoaded', init);
     document.addEventListener('DOMContentLoaded', initMemosPublish);

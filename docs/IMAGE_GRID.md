@@ -1,17 +1,17 @@
 # 文章图片网格布局
 
-在文章中使用 `pan-grid-2`、`pan-grid-3`、`pan-grid-4` CSS 类，可将多张图片按网格排列展示。
+在文章中使用 `lared-grid-2`、`lared-grid-3`、`lared-grid-4` CSS 类，可将多张图片按网格排列展示。
 
 ## 使用方法
 
 在 WordPress 编辑器中切换到 **HTML 模式**（或插入「自定义 HTML」块），用 `<div>` 包裹图片并添加对应 class。
 
-### pan-grid-2：两图并排
+### lared-grid-2：两图并排
 
 两张图片 50%/50% 等宽并排，适合对比图、前后对照。
 
 ```html
-<div class="pan-grid-2">
+<div class="lared-grid-2">
   <img src="图片1地址" alt="说明1">
   <img src="图片2地址" alt="说明2">
 </div>
@@ -21,12 +21,12 @@
 | 图片 1 | 图片 2 |
 |--------|--------|
 
-### pan-grid-3：三图等宽
+### lared-grid-3：三图等宽
 
 三张图片等宽并排，适合流程步骤、系列展示。
 
 ```html
-<div class="pan-grid-3">
+<div class="lared-grid-3">
   <img src="图片1地址" alt="说明1">
   <img src="图片2地址" alt="说明2">
   <img src="图片3地址" alt="说明3">
@@ -39,12 +39,12 @@
 
 > 移动端自动变为两图并排 + 第三张独占一行。
 
-### pan-grid-4：四图方阵
+### lared-grid-4：四图方阵
 
 四张图片 2×2 网格排列，适合产品展示、相册。
 
 ```html
-<div class="pan-grid-4">
+<div class="lared-grid-4">
   <img src="图片1地址" alt="说明1">
   <img src="图片2地址" alt="说明2">
   <img src="图片3地址" alt="说明3">
@@ -62,7 +62,7 @@
 可用 `<figure>` + `<figcaption>` 为每张图片添加文字说明：
 
 ```html
-<div class="pan-grid-2">
+<div class="lared-grid-2">
   <figure>
     <img src="图片1地址" alt="说明1">
     <figcaption>这是第一张图的说明</figcaption>

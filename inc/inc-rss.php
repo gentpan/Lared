@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-function pan_extract_bookmark_avatar_url($value): string
+function lared_extract_bookmark_avatar_url($value): string
 {
     $raw = trim((string) $value);
     if ('' === $raw) {
@@ -18,14 +18,14 @@ function pan_extract_bookmark_avatar_url($value): string
     return esc_url_raw($raw);
 }
 
-function pan_get_rss_cache_dir(): string
+function lared_get_rss_cache_dir(): string
 {
     return trailingslashit(untrailingslashit(ABSPATH) . '/data/rss');
 }
 
-function pan_ensure_rss_cache_dir(): bool
+function lared_ensure_rss_cache_dir(): bool
 {
-    $cache_dir = pan_get_rss_cache_dir();
+    $cache_dir = lared_get_rss_cache_dir();
     if (is_dir($cache_dir)) {
         return true;
     }
@@ -33,22 +33,22 @@ function pan_ensure_rss_cache_dir(): bool
     return wp_mkdir_p($cache_dir);
 }
 
-function pan_get_rss_cache_file_path(string $cache_key): string
+function lared_get_rss_cache_file_path(string $cache_key): string
 {
     $safe_key = preg_replace('/[^a-z0-9_\-]/i', '', $cache_key);
     if (!is_string($safe_key) || '' === $safe_key) {
         $safe_key = md5($cache_key);
     }
 
-    return pan_get_rss_cache_dir() . $safe_key . '.json';
+    return lared_get_rss_cache_dir() . $safe_key . '.json';
 }
 
 /**
  * @return array<string, mixed>|null
  */
-function pan_get_rss_cache(string $cache_key): ?array
+function lared_get_rss_cache(string $cache_key): ?array
 {
-    $cache_file = pan_get_rss_cache_file_path($cache_key);
+    $cache_file = lared_get_rss_cache_file_path($cache_key);
     if (!is_readable($cache_file)) {
         return null;
     }
@@ -72,13 +72,13 @@ function pan_get_rss_cache(string $cache_key): ?array
     return is_array($payload['data']) ? $payload['data'] : null;
 }
 
-function pan_set_rss_cache(string $cache_key, array $data, int $ttl): bool
+function lared_set_rss_cache(string $cache_key, array $data, int $ttl): bool
 {
-    if (!pan_ensure_rss_cache_dir()) {
+    if (!lared_ensure_rss_cache_dir()) {
         return false;
     }
 
-    $cache_file = pan_get_rss_cache_file_path($cache_key);
+    $cache_file = lared_get_rss_cache_file_path($cache_key);
     $now = time();
 
     $payload = [
@@ -98,9 +98,9 @@ function pan_set_rss_cache(string $cache_key, array $data, int $ttl): bool
 /**
  * @return array{removed:int, errors:int, dir:string}
  */
-function pan_clear_rss_cache_files(): array
+function lared_clear_rss_cache_files(): array
 {
-    $cache_dir = pan_get_rss_cache_dir();
+    $cache_dir = lared_get_rss_cache_dir();
     if (!is_dir($cache_dir)) {
         return [
             'removed' => 0,
@@ -145,7 +145,7 @@ function pan_clear_rss_cache_files(): array
  *
  * @return array<int, array<string, mixed>>
  */
-function pan_get_friend_rss_sources(): array
+function lared_get_friend_rss_sources(): array
 {
     $bookmarks = get_bookmarks([
         'orderby' => 'name',
@@ -165,14 +165,14 @@ function pan_get_friend_rss_sources(): array
             continue;
         }
 
-        $feed_candidates = pan_get_bookmark_feed_candidates($bookmark);
+        $feed_candidates = lared_get_bookmark_feed_candidates($bookmark);
         if (empty($feed_candidates)) {
             continue;
         }
 
         $site_name = isset($bookmark->link_name) ? sanitize_text_field((string) $bookmark->link_name) : '';
         $site_desc = isset($bookmark->link_description) ? sanitize_text_field((string) $bookmark->link_description) : '';
-        $site_avatar = pan_extract_bookmark_avatar_url($bookmark->link_image ?? '');
+        $site_avatar = lared_extract_bookmark_avatar_url($bookmark->link_image ?? '');
         $host = (string) wp_parse_url($site_url, PHP_URL_HOST);
 
         $sources[] = [
@@ -197,7 +197,7 @@ function pan_get_friend_rss_sources(): array
  *
  * @return array<string, mixed>
  */
-function pan_get_subscribed_feed_stream(array $args = []): array
+function lared_get_subscribed_feed_stream(array $args = []): array
 {
     $defaults = [
         'items_per_source' => 4,
@@ -210,7 +210,7 @@ function pan_get_subscribed_feed_stream(array $args = []): array
     $max_items = max(1, (int) $args['max_items']);
     $cache_ttl = max(60, (int) $args['cache_ttl']);
 
-    $sources = pan_get_friend_rss_sources();
+    $sources = lared_get_friend_rss_sources();
 
     if (empty($sources)) {
         return [
@@ -232,9 +232,9 @@ function pan_get_subscribed_feed_stream(array $args = []): array
         'max_items' => $max_items,
         'schema' => 'v2_site_avatar',
     ];
-    $cache_key = 'pan_rss_stream_' . md5((string) wp_json_encode($cache_payload));
+    $cache_key = 'lared_rss_stream_' . md5((string) wp_json_encode($cache_payload));
 
-    $cached = pan_get_rss_cache($cache_key);
+    $cached = lared_get_rss_cache($cache_key);
     if (is_array($cached)) {
         return $cached;
     }
@@ -244,7 +244,7 @@ function pan_get_subscribed_feed_stream(array $args = []): array
     $active_sources = 0;
 
     foreach ($sources as $source) {
-        $feed_result = pan_fetch_source_feed($source);
+        $feed_result = lared_fetch_source_feed($source);
 
         if (!empty($feed_result['error'])) {
             $errors[] = [
@@ -283,7 +283,7 @@ function pan_get_subscribed_feed_stream(array $args = []): array
             }
 
             $items[] = [
-                'title' => '' !== trim($item_title) ? $item_title : __('Untitled', 'pan'),
+                'title' => '' !== trim($item_title) ? $item_title : __('Untitled', 'lared'),
                 'url' => esc_url_raw($item_url),
                 'excerpt' => wp_trim_words(wp_strip_all_tags($item_desc), 36, '…'),
                 'published_timestamp' => max(0, (int) $feed_item->get_date('U')),
@@ -325,7 +325,7 @@ function pan_get_subscribed_feed_stream(array $args = []): array
         'errors' => $errors,
     ];
 
-    pan_set_rss_cache($cache_key, $result, $cache_ttl);
+    lared_set_rss_cache($cache_key, $result, $cache_ttl);
 
     return $result;
 }
@@ -334,7 +334,7 @@ function pan_get_subscribed_feed_stream(array $args = []): array
  * @param object $bookmark
  * @return string[]
  */
-function pan_get_bookmark_feed_candidates(object $bookmark): array
+function lared_get_bookmark_feed_candidates(object $bookmark): array
 {
     $candidates = [];
 
@@ -369,7 +369,7 @@ function pan_get_bookmark_feed_candidates(object $bookmark): array
  * @param array<string, mixed> $source
  * @return array<string, mixed>
  */
-function pan_fetch_source_feed(array $source): array
+function lared_fetch_source_feed(array $source): array
 {
     if (!function_exists('fetch_feed')) {
         require_once ABSPATH . WPINC . '/feed.php';
@@ -411,7 +411,7 @@ function pan_fetch_source_feed(array $source): array
     return [
         'feed' => null,
         'feed_url' => '',
-        'error' => __('RSS 暂不可用', 'pan'),
+        'error' => __('RSS 暂不可用', 'lared'),
     ];
 }
 
@@ -424,7 +424,7 @@ function pan_fetch_source_feed(array $source): array
 /**
  * 获取友联动态 JSON 缓存目录
  */
-function pan_get_feed_cache_dir(): string
+function lared_get_feed_cache_dir(): string
 {
     $upload_dir = wp_upload_dir();
     $cache_dir = $upload_dir['basedir'] . '/feed-cache';
@@ -443,18 +443,18 @@ function pan_get_feed_cache_dir(): string
 /**
  * 获取友联动态 JSON 缓存文件路径
  */
-function pan_get_feed_json_cache_file(): string
+function lared_get_feed_json_cache_file(): string
 {
-    return pan_get_feed_cache_dir() . '/feed-data.json';
+    return lared_get_feed_cache_dir() . '/feed-data.json';
 }
 
 /**
  * 更新友联动态 JSON 缓存
  * 从所有 RSS 源获取数据并保存到 JSON 文件
  */
-function pan_update_feed_json_cache(): void
+function lared_update_feed_json_cache(): void
 {
-    $sources = pan_get_friend_rss_sources();
+    $sources = lared_get_friend_rss_sources();
     
     if (empty($sources)) {
         return;
@@ -468,7 +468,7 @@ function pan_update_feed_json_cache(): void
     $items_per_source = 10;
     
     foreach ($sources as $source) {
-        $feed_result = pan_fetch_source_feed($source);
+        $feed_result = lared_fetch_source_feed($source);
         
         if (!empty($feed_result['error'])) {
             $errors[] = [
@@ -507,7 +507,7 @@ function pan_update_feed_json_cache(): void
             }
             
             $items[] = [
-                'title' => '' !== trim($item_title) ? $item_title : __('Untitled', 'pan'),
+                'title' => '' !== trim($item_title) ? $item_title : __('Untitled', 'lared'),
                 'url' => esc_url_raw($item_url),
                 'excerpt' => wp_trim_words(wp_strip_all_tags($item_desc), 36, '…'),
                 'published_timestamp' => max(0, (int) $feed_item->get_date('U')),
@@ -539,7 +539,7 @@ function pan_update_feed_json_cache(): void
         'errors' => $errors,
     ];
     
-    $cache_file = pan_get_feed_json_cache_file();
+    $cache_file = lared_get_feed_json_cache_file();
     file_put_contents($cache_file, json_encode($cache_data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 }
 
@@ -548,12 +548,12 @@ function pan_update_feed_json_cache(): void
  * 
  * @return array
  */
-function pan_get_feed_json_cache(): array
+function lared_get_feed_json_cache(): array
 {
-    $cache_file = pan_get_feed_json_cache_file();
+    $cache_file = lared_get_feed_json_cache_file();
     
     if (!file_exists($cache_file)) {
-        pan_update_feed_json_cache();
+        lared_update_feed_json_cache();
     }
     
     if (file_exists($cache_file)) {
@@ -584,9 +584,9 @@ function pan_get_feed_json_cache(): array
  * @param int $limit 获取数量
  * @return array
  */
-function pan_get_feed_items_paged(int $offset = 0, int $limit = 18): array
+function lared_get_feed_items_paged(int $offset = 0, int $limit = 18): array
 {
-    $cache = pan_get_feed_json_cache();
+    $cache = lared_get_feed_json_cache();
     $all_items = $cache['items'] ?? [];
     $total = count($all_items);
     
@@ -605,13 +605,13 @@ function pan_get_feed_items_paged(int $offset = 0, int $limit = 18): array
 /**
  * 设置友联动态缓存定时任务（每日4次：0, 6, 12, 18 点）
  */
-function pan_schedule_feed_cache_refresh(): void
+function lared_schedule_feed_cache_refresh(): void
 {
     // 清除旧的计划任务
-    wp_clear_scheduled_hook('pan_feed_json_cache_refresh');
+    wp_clear_scheduled_hook('lared_feed_json_cache_refresh');
     
     // 注册每日4次的任务
-    if (!wp_next_scheduled('pan_feed_json_cache_refresh')) {
+    if (!wp_next_scheduled('lared_feed_json_cache_refresh')) {
         $now = current_time('timestamp');
         $hours = [0, 6, 12, 18];
         $next_run = null;
@@ -629,58 +629,58 @@ function pan_schedule_feed_cache_refresh(): void
             $next_run = strtotime('+1 day', strtotime(date('Y-m-d', $now) . ' 00:00:00'));
         }
         
-        wp_schedule_event($next_run, 'pan_four_times_daily', 'pan_feed_json_cache_refresh');
+        wp_schedule_event($next_run, 'lared_four_times_daily', 'lared_feed_json_cache_refresh');
     }
 }
-add_action('wp', 'pan_schedule_feed_cache_refresh');
+add_action('wp', 'lared_schedule_feed_cache_refresh');
 
 /**
  * 注册每日4次的计划任务间隔
  */
-function pan_add_four_times_daily_schedule($schedules): array
+function lared_add_four_times_daily_schedule($schedules): array
 {
-    $schedules['pan_four_times_daily'] = [
+    $schedules['lared_four_times_daily'] = [
         'interval' => 6 * HOUR_IN_SECONDS, // 6小时 = 每日4次
-        'display' => __('每日4次', 'pan'),
+        'display' => __('每日4次', 'lared'),
     ];
     return $schedules;
 }
-add_filter('cron_schedules', 'pan_add_four_times_daily_schedule');
+add_filter('cron_schedules', 'lared_add_four_times_daily_schedule');
 
 /**
  * 定时刷新友联动态 JSON 缓存
  */
-function pan_refresh_feed_cache_scheduled(): void
+function lared_refresh_feed_cache_scheduled(): void
 {
-    pan_update_feed_json_cache();
+    lared_update_feed_json_cache();
 }
-add_action('pan_feed_json_cache_refresh', 'pan_refresh_feed_cache_scheduled');
+add_action('lared_feed_json_cache_refresh', 'lared_refresh_feed_cache_scheduled');
 
 /**
  * 主题切换时清除计划任务
  */
-function pan_clear_feed_cache_schedule(): void
+function lared_clear_feed_cache_schedule(): void
 {
-    wp_clear_scheduled_hook('pan_feed_json_cache_refresh');
+    wp_clear_scheduled_hook('lared_feed_json_cache_refresh');
 }
-add_action('switch_theme', 'pan_clear_feed_cache_schedule');
+add_action('switch_theme', 'lared_clear_feed_cache_schedule');
 
 /**
  * 主题激活时初始化友联动态缓存
  */
-function pan_activate_feed_cache(): void
+function lared_activate_feed_cache(): void
 {
-    pan_update_feed_json_cache();
-    pan_schedule_feed_cache_refresh();
+    lared_update_feed_json_cache();
+    lared_schedule_feed_cache_refresh();
 }
-add_action('after_switch_theme', 'pan_activate_feed_cache');
+add_action('after_switch_theme', 'lared_activate_feed_cache');
 
 /**
  * AJAX 处理：获取分页友联动态
  */
-function pan_ajax_get_feed_items(): void
+function lared_ajax_get_feed_items(): void
 {
-    check_ajax_referer('pan_feed_nonce', 'nonce');
+    check_ajax_referer('lared_feed_nonce', 'nonce');
     
     $offset = (int) ($_POST['offset'] ?? 0);
     $limit = (int) ($_POST['limit'] ?? 18);
@@ -688,13 +688,13 @@ function pan_ajax_get_feed_items(): void
     // 限制最大获取数量
     $limit = max(1, min(50, $limit));
     
-    $result = pan_get_feed_items_paged($offset, $limit);
+    $result = lared_get_feed_items_paged($offset, $limit);
     
     // 渲染 HTML
     ob_start();
     if (!empty($result['items'])) {
         foreach ($result['items'] as $item) {
-            pan_render_feed_card($item);
+            lared_render_feed_card($item);
         }
     }
     $html = ob_get_clean();
@@ -708,15 +708,15 @@ function pan_ajax_get_feed_items(): void
         'cached_at' => $result['stats']['cached_at'] ?? '',
     ]);
 }
-add_action('wp_ajax_pan_get_feed_items', 'pan_ajax_get_feed_items');
-add_action('wp_ajax_nopriv_pan_get_feed_items', 'pan_ajax_get_feed_items');
+add_action('wp_ajax_lared_get_feed_items', 'lared_ajax_get_feed_items');
+add_action('wp_ajax_nopriv_lared_get_feed_items', 'lared_ajax_get_feed_items');
 
 /**
  * 渲染单个友联动态卡片
  * 
  * @param array $item
  */
-function pan_render_feed_card(array $item): void
+function lared_render_feed_card(array $item): void
 {
     $item_title = (string) ($item['title'] ?? '');
     $item_url = (string) ($item['url'] ?? '');
@@ -728,7 +728,7 @@ function pan_render_feed_card(array $item): void
     
     $time_text = '';
     if ($item_timestamp > 0) {
-        $time_text = sprintf(__('%s前', 'pan'), human_time_diff($item_timestamp, current_time('timestamp')));
+        $time_text = sprintf(__('%s前', 'lared'), human_time_diff($item_timestamp, current_time('timestamp')));
     }
     ?>
     <article class="rss-feed-card">
