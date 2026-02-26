@@ -49,11 +49,9 @@ $cat_icon_html = $cat_id > 0 ? lared_get_category_icon_html($cat_id) : '';
                             <div class="listing-card-image-wrap category-archive-image-wrap">
                                 <?php if ('' !== $p_image_url) : ?>
                                     <img
-                                        class="listing-card-image category-archive-image"
-                                        src="<?php echo esc_url($p_image_url); ?>"
+                                        class="listing-card-image category-archive-image lazyload"
+                                        data-src="<?php echo esc_url($p_image_url); ?>"
                                         alt="<?php the_title_attribute(); ?>"
-                                        loading="lazy"
-                                        decoding="async"
                                     />
                                 <?php else : ?>
                                     <span class="listing-card-image-fallback" aria-hidden="true"></span>

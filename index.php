@@ -17,7 +17,7 @@ get_header();
         $hf_post_id   = $hero_first['post_id'];
         $hf_image_url = lared_get_post_image_url($hf_post_id, 'large');
         if ('' === $hf_image_url) {
-            $hf_image_url = 'https://picsum.photos/1600/800?random=' . wp_rand(100000, 999999);
+            $hf_image_url = 'https://img.et/1200/600?r=' . wp_rand(1, 999999);
         }
         ?>
         <section class="w-full pb-0">
@@ -30,7 +30,7 @@ get_header();
                         $hi_post_id   = $hi_item['post_id'];
                         $hi_image = lared_get_post_image_url($hi_post_id, 'large');
                         if ('' === $hi_image) {
-                            $hi_image = 'https://picsum.photos/1600/800?random=' . wp_rand(100000, 999999);
+                            $hi_image = 'https://img.et/1200/600?r=' . wp_rand(1, 999999);
                         }
                         $hi_active    = 0 === $hi_index;
                         ?>
@@ -59,9 +59,9 @@ get_header();
                 </aside>
 
                 <!-- 右侧：Banner 图 + 标题 + 文章类型 -->
-                <article class="order-2 relative h-full overflow-hidden bg-[#10131b] max-[1024px]:order-1 max-[1024px]:min-h-[340px]">
+                <article class="order-2 relative h-full overflow-hidden bg-[#10131b] max-[1024px]:order-1 max-[1024px]:min-h-[340px]" data-hero-current-post-id="<?php echo (int) $hf_post_id; ?>">
                     <img
-                        class="absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-300 <?php echo '' === $hf_image_url ? 'opacity-0' : 'opacity-100'; ?>"
+                        class="absolute inset-0 h-full w-full object-cover object-center"
                         src="<?php echo esc_url($hf_image_url); ?>"
                         alt="<?php echo esc_attr(get_the_title($hf_post_id)); ?>"
                         data-hero-main-image
@@ -115,14 +115,11 @@ get_header();
         $heatmap_day_counts[$day_key]++;
     }
 
-    /* 获取 Memos 说说数据，按天统计 */
+    /* 获取 Memos 说说数据，按天统计（从 JSON 文件缓存读取） */
     $heatmap_memo_counts = [];
-    if (function_exists('lared_get_memos_stream')) {
+    if (function_exists('lared_get_memos_json_cache')) {
         $heatmap_start_ts = strtotime('-' . ($heatmap_days_total - 1) . ' days', current_time('timestamp'));
-        $heatmap_memos = lared_get_memos_stream([
-            'cache_ttl'  => 300,
-            'page_size'  => 100,
-        ]);
+        $heatmap_memos = lared_get_memos_json_cache();
         if (!empty($heatmap_memos['items']) && is_array($heatmap_memos['items'])) {
             foreach ($heatmap_memos['items'] as $heatmap_memo) {
                 $memo_ts = (int) ($heatmap_memo['created_timestamp'] ?? 0);
@@ -174,11 +171,8 @@ get_header();
     }
 
     $latest_memo_item = null;
-    $latest_memo_stream = function_exists('lared_get_memos_stream')
-        ? lared_get_memos_stream([
-            'cache_ttl' => 300,
-            'page_size' => 1,
-        ])
+    $latest_memo_stream = function_exists('lared_get_memos_json_cache')
+        ? lared_get_memos_json_cache()
         : ['items' => []];
     if (!empty($latest_memo_stream['items']) && is_array($latest_memo_stream['items'])) {
         $latest_memo_item = $latest_memo_stream['items'][0];
@@ -265,10 +259,11 @@ get_header();
         'no_found_rows'       => true,
     ]);
     $latest_comments = get_comments([
-        'status'      => 'approve',
-        'number'      => 15,
-        'type'        => 'comment',
-        'post_status' => 'publish',
+        'status'           => 'approve',
+        'number'           => 15,
+        'type'             => 'comment',
+        'post_status'      => 'publish',
+        'author__not_in'   => lared_get_admin_user_ids(),
     ]);
     $popular_tags = get_tags([
         'orderby'    => 'count',
@@ -286,22 +281,85 @@ get_header();
     ]);
     $comment_totals = wp_count_comments();
     $approved_comment_count = isset($comment_totals->approved) ? (int) $comment_totals->approved : 0;
+
+    // 全站总访问量 = 首页访问 + 全部文章浏览
+    global $wpdb;
+    $home_views = (int) get_option('lared_home_views', 0);
+    $page_views = (int) $wpdb->get_var(
+        "SELECT COALESCE(SUM(CAST(meta_value AS UNSIGNED)), 0) FROM {$wpdb->postmeta} pm
+         INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+         WHERE pm.meta_key = 'post_views' AND p.post_status = 'publish' AND p.post_type = 'post'"
+    );
+    $total_views = $home_views + $page_views;
+
+    // 全站总字数
+    $total_words = (int) $wpdb->get_var(
+        "SELECT COALESCE(SUM(CAST(meta_value AS UNSIGNED)), 0) FROM {$wpdb->postmeta} pm
+         INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+         WHERE pm.meta_key = '_word_count' AND p.post_status = 'publish' AND p.post_type = 'post'"
+    );
     ?>
 
     <?php if (is_array($latest_memo_item) && !empty($latest_memo_item)) : ?>
         <?php
         $home_memo_excerpt = trim((string) ($latest_memo_item['excerpt'] ?? ''));
         $home_memo_time = (int) ($latest_memo_item['created_timestamp'] ?? 0);
-        $home_memo_time_text = $home_memo_time > 0 ? wp_date('Y/m/d H:i', $home_memo_time) : '';
+        $home_memo_time_text = $home_memo_time > 0
+            ? sprintf(__('%s前', 'lared'), human_time_diff($home_memo_time, current_time('timestamp')))
+            : '';
         ?>
         <section class="home-memo-strip" aria-label="<?php esc_attr_e('最新 Memos', 'lared'); ?>">
             <a class="home-memo-strip-link" href="<?php echo esc_url($memos_page_url); ?>">
-                <span class="home-memo-strip-bird-track" aria-hidden="true">
-                    <span class="home-memo-strip-icon">
-                        <i class="fa-solid fa-dove"></i>
-                    </span>
+                <span class="home-memo-strip-bird-track"><?php
+                    $lared_music_raw = trim((string) get_option('lared_music_playlist', ''));
+                    if ('' !== $lared_music_raw) :
+                        $lared_music_lines = array_filter(array_map('trim', explode("\n", $lared_music_raw)));
+                        $lared_music_tracks = [];
+                        foreach ($lared_music_lines as $line) {
+                            $parts = array_map('trim', explode('|', $line, 3));
+                            if (count($parts) >= 2 && '' !== $parts[1]) {
+                                $lared_music_tracks[] = [
+                                    'name' => $parts[0],
+                                    'url'  => $parts[1],
+                                    'lrc'  => isset($parts[2]) ? $parts[2] : '',
+                                ];
+                            }
+                        }
+                        if (!empty($lared_music_tracks)) :
+                    ?>
+                    <div class="lared-music-player" id="lared-music-player" data-tracks="<?php echo esc_attr(wp_json_encode($lared_music_tracks)); ?>">
+                        <div class="lared-music-controls" data-music="controls">
+                            <button type="button" class="lared-music-btn" data-music="prev" title="<?php esc_attr_e('上一首', 'lared'); ?>">
+                                <i class="fa-solid fa-backward-step" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="lared-music-btn" data-music="toggle" title="<?php esc_attr_e('播放/暂停', 'lared'); ?>">
+                                <i class="fa-solid fa-play" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="lared-music-btn" data-music="next" title="<?php esc_attr_e('下一首', 'lared'); ?>">
+                                <i class="fa-solid fa-forward-step" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="lared-music-viz" data-music="viz">
+                            <span class="lared-music-bar"></span>
+                            <span class="lared-music-bar"></span>
+                            <span class="lared-music-bar"></span>
+                            <span class="lared-music-bar"></span>
+                            <span class="lared-music-bar"></span>
+                            <span class="lared-music-time" data-music="time">0:00</span>
+                        </div>
+                        <span class="lared-music-track-name" data-music="name"><?php echo esc_html($lared_music_tracks[0]['name']); ?></span>
+                        <div class="lared-music-progress" data-music="progress">
+                            <div class="lared-music-progress-fill" data-music="progress-fill"></div>
+                            <div class="lared-music-progress-dot" data-music="progress-dot"></div>
+                            <span class="lared-music-progress-tip" data-music="progress-tip"></span>
+                        </div>
+                    </div>
+                    <?php endif; endif; ?>
                 </span>
                 <span class="home-memo-strip-main">
+                    <span class="home-memo-strip-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733a4.67 4.67 0 0 0 2.048-2.578 9.3 9.3 0 0 1-2.958 1.13 4.66 4.66 0 0 0-7.938 4.25 13.229 13.229 0 0 1-9.602-4.868c-.4.69-.63 1.49-.63 2.342A4.66 4.66 0 0 0 3.96 9.824a4.647 4.647 0 0 1-2.11-.583v.06a4.66 4.66 0 0 0 3.737 4.568 4.692 4.692 0 0 1-2.104.08 4.661 4.661 0 0 0 4.352 3.234 9.348 9.348 0 0 1-5.786 1.995 9.5 9.5 0 0 1-1.112-.065 13.175 13.175 0 0 0 7.14 2.093c8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602a9.47 9.47 0 0 0 2.323-2.41l.002-.003z" fill="#1DA1F2"/></svg>
+                    </span>
                     <span class="home-memo-strip-content"><?php echo esc_html($home_memo_excerpt); ?></span>
                     <?php if ('' !== $home_memo_time_text) : ?>
                         <time class="home-memo-strip-time"><?php echo esc_html($home_memo_time_text); ?></time>
@@ -488,6 +546,14 @@ get_header();
                                     <dt><?php esc_html_e('建站天数', 'lared'); ?></dt>
                                     <dd><?php echo esc_html((string) $site_days); ?></dd>
                                 </div>
+                                <div>
+                                    <dt><?php esc_html_e('全部访问', 'lared'); ?></dt>
+                                    <dd><?php echo esc_html(number_format_i18n($total_views)); ?></dd>
+                                </div>
+                                <div>
+                                    <dt><?php esc_html_e('全部字数', 'lared'); ?></dt>
+                                    <dd><?php echo esc_html(number_format_i18n($total_words)); ?></dd>
+                                </div>
                             </dl>
                         </div>
                     </section>
@@ -518,7 +584,7 @@ get_header();
             $post_time_full   = lared_date_en('Y/m/d H:i', $post_timestamp);
             $article_image_url = lared_get_post_image_url($post_id, 'large');
             if ('' === $article_image_url) {
-                $article_image_url = 'https://picsum.photos/seed/lared-post-' . $post_id . '/1600/900';
+                $article_image_url = 'https://img.et/1200/600?r=' . wp_rand(1, 999999);
             }
             $article_excerpt_raw = has_excerpt($post_id)
                 ? get_the_excerpt($post_id)
@@ -564,11 +630,9 @@ get_header();
 
                     <div class="home-article-featured">
                         <img
-                            class="home-article-featured-image"
-                            src="<?php echo esc_url($article_image_url); ?>"
+                            class="home-article-featured-image lazyload"
+                            data-src="<?php echo esc_url($article_image_url); ?>"
                             alt="<?php echo esc_attr(get_the_title($post_id)); ?>"
-                            loading="lazy"
-                            decoding="async"
                         />
                     </div>
 

@@ -4,9 +4,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-function lared_sanitize_memos_url(string $value): string
+function lared_sanitize_memos_url(?string $value): string
 {
-    $value = trim($value);
+    $value = trim((string) $value);
     if ('' === $value) {
         return '';
     }
@@ -14,9 +14,9 @@ function lared_sanitize_memos_url(string $value): string
     return esc_url_raw($value);
 }
 
-function lared_sanitize_memos_token(string $value): string
+function lared_sanitize_memos_token(?string $value): string
 {
-    $value = trim($value);
+    $value = trim((string) $value);
     if ('' === $value) {
         return '';
     }
@@ -155,7 +155,7 @@ function lared_memos_process_images(string $content): string
                 $url = untrailingslashit($site_url) . '/' . ltrim($url, '/');
             }
             
-            return '<img src="' . $url . '" alt="' . $alt . '" loading="lazy" />';
+            return '<img class="lazyload" data-src="' . $url . '" alt="' . $alt . '" />';
         },
         $content
     );
@@ -166,7 +166,7 @@ function lared_memos_process_images(string $content): string
         function ($matches) use ($site_url) {
             $url = esc_url($matches[1]);
             
-            return ' <img src="' . $url . '" alt="" loading="lazy" /> ';
+            return ' <img class="lazyload" data-src="' . $url . '" alt="" /> ';
         },
         $content
     );
@@ -178,7 +178,7 @@ function lared_memos_process_images(string $content): string
             $path = $matches[1];
             $url = $site_url ? untrailingslashit($site_url) . $path : $path;
             
-            return ' <img src="' . esc_url($url) . '" alt="" loading="lazy" /> ';
+            return ' <img class="lazyload" data-src="' . esc_url($url) . '" alt="" /> ';
         },
         $content
     );
@@ -414,7 +414,7 @@ function lared_get_memos_stats(): array
     if (is_array($cached) && !empty($cached['items'])) {
         // 检查缓存是否是今天的
         $cached_date = $cached['cached_date'] ?? '';
-        if ($cached_date === gmdate('Y-m-d')) {
+        if ($cached_date === wp_date('Y-m-d')) {
             return $cached;
         }
     }
@@ -429,7 +429,7 @@ function lared_get_memos_stats(): array
             'items' => [],
             'keyword_counts' => [],
             'daily_counts' => [],
-            'cached_date' => gmdate('Y-m-d'),
+            'cached_date' => wp_date('Y-m-d'),
         ];
     }
     
@@ -458,7 +458,7 @@ function lared_get_memos_stats(): array
             'items' => [],
             'keyword_counts' => [],
             'daily_counts' => [],
-            'cached_date' => gmdate('Y-m-d'),
+            'cached_date' => wp_date('Y-m-d'),
         ];
     }
     
@@ -470,7 +470,7 @@ function lared_get_memos_stats(): array
             'items' => [],
             'keyword_counts' => [],
             'daily_counts' => [],
-            'cached_date' => gmdate('Y-m-d'),
+            'cached_date' => wp_date('Y-m-d'),
         ];
     }
     
@@ -480,7 +480,7 @@ function lared_get_memos_stats(): array
             'items' => [],
             'keyword_counts' => [],
             'daily_counts' => [],
-            'cached_date' => gmdate('Y-m-d'),
+            'cached_date' => wp_date('Y-m-d'),
         ];
     }
     
@@ -508,7 +508,7 @@ function lared_get_memos_stats(): array
         }
         
         $created = lared_memos_parse_timestamp($memo['createTime'] ?? ($memo['createdTs'] ?? ($memo['createdAt'] ?? 0)));
-        $date_key = $created > 0 ? gmdate('Y-m-d', $created) : '';
+        $date_key = $created > 0 ? wp_date('Y-m-d', $created) : '';
         
         // 统计每日数量
         if ('' !== $date_key) {
@@ -549,7 +549,7 @@ function lared_get_memos_stats(): array
         'items' => $items,
         'keyword_counts' => $keyword_counts,
         'daily_counts' => $daily_counts,
-        'cached_date' => gmdate('Y-m-d'),
+        'cached_date' => wp_date('Y-m-d'),
     ];
     
     // 缓存24小时
@@ -587,7 +587,7 @@ function lared_get_memos_heatmap_data(int $days = 60): array
     foreach ($items as $item) {
         $created = (int) ($item['created_timestamp'] ?? 0);
         if ($created > 0) {
-            $date = gmdate('Y-m-d', $created);
+            $date = wp_date('Y-m-d', $created);
             $daily_counts[$date] = ($daily_counts[$date] ?? 0) + 1;
         }
     }
@@ -679,13 +679,13 @@ function lared_get_memos_calendar_data(int $year, int $month): array
     foreach ($items as $item) {
         $created = (int) ($item['created_timestamp'] ?? 0);
         if ($created > 0) {
-            $date = gmdate('Y-m-d', $created);
+            $date = wp_date('Y-m-d', $created);
             $daily_counts[$date] = ($daily_counts[$date] ?? 0) + 1;
         }
     }
     
     $days = [];
-    $days_in_month = gmdate('t', strtotime("$year-$month-01"));
+    $days_in_month = (int) wp_date('t', strtotime("$year-$month-01"));
     
     for ($day = 1; $day <= $days_in_month; $day++) {
         $date = sprintf('%04d-%02d-%02d', $year, $month, $day);
@@ -736,19 +736,7 @@ add_action('wp_ajax_nopriv_lared_get_memos_calendar', 'lared_ajax_get_memos_cale
  */
 function lared_get_memos_cache_dir(): string
 {
-    $upload_dir = wp_upload_dir();
-    $cache_dir = $upload_dir['basedir'] . '/memos-cache';
-    
-    if (!is_dir($cache_dir)) {
-        wp_mkdir_p($cache_dir);
-        // 创建保护文件防止直接访问
-        $htaccess = $cache_dir . '/.htaccess';
-        if (!file_exists($htaccess)) {
-            file_put_contents($htaccess, "Options -Indexes\ndeny from all\n");
-        }
-    }
-    
-    return $cache_dir;
+    return get_template_directory() . '/data';
 }
 
 function lared_get_memos_json_cache_file(): string
@@ -923,25 +911,20 @@ function lared_get_home_memos(int $limit = 1): array
  */
 function lared_schedule_memos_cache_refresh(): void
 {
-    // 清除旧的计划任务
-    wp_clear_scheduled_hook('lared_memos_daily_cache_refresh');
-    wp_clear_scheduled_hook('lared_memos_json_cache_refresh');
-    
-    // 注册新的每日 12:00 任务
-    if (!wp_next_scheduled('lared_memos_json_cache_refresh')) {
-        // 计算下一个 12:00 的时间戳
-        $now = current_time('timestamp');
-        $today_noon = strtotime(date('Y-m-d 12:00:00', $now));
-        
-        if ($today_noon <= $now) {
-            // 如果今天 12:00 已过，安排到明天 12:00
-            $next_run = strtotime('+1 day', $today_noon);
-        } else {
-            $next_run = $today_noon;
-        }
-        
-        wp_schedule_event($next_run, 'daily', 'lared_memos_json_cache_refresh');
+    // 清除废弃的旧钩子（仅一次性清理）
+    if (wp_next_scheduled('lared_memos_daily_cache_refresh')) {
+        wp_clear_scheduled_hook('lared_memos_daily_cache_refresh');
     }
+
+    if (wp_next_scheduled('lared_memos_json_cache_refresh')) {
+        return;
+    }
+
+    $now = current_time('timestamp');
+    $today_noon = strtotime(date('Y-m-d 12:00:00', $now));
+    $next_run = ($today_noon <= $now) ? strtotime('+1 day', $today_noon) : $today_noon;
+
+    wp_schedule_event($next_run, 'daily', 'lared_memos_json_cache_refresh');
 }
 add_action('wp', 'lared_schedule_memos_cache_refresh');
 
@@ -1201,7 +1184,7 @@ function lared_get_memos_by_date(string $date): array
     foreach ($items as $item) {
         $created = (int) ($item['created_timestamp'] ?? 0);
         if ($created > 0) {
-            $item_date = gmdate('Y-m-d', $created);
+            $item_date = wp_date('Y-m-d', $created);
             if ($item_date === $date) {
                 $filtered[] = $item;
             }
@@ -1339,12 +1322,10 @@ function lared_render_memo_card(array $item): void
                         <?php foreach ($keywords as $keyword) : ?>
                             <span class="memos-card-keyword" data-keyword="<?php echo esc_attr($keyword); ?>">#<?php echo esc_html((string) $keyword); ?></span>
                         <?php endforeach; ?>
-                    <?php else : ?>
-                        <span class="memos-card-keyword memos-card-keyword-empty"><?php esc_html_e('无关键词', 'lared'); ?></span>
                     <?php endif; ?>
                 </div>
                 <?php if ('' !== $time_human && $time_source > 0) : ?>
-                    <time class="memos-card-time" datetime="<?php echo esc_attr(gmdate('c', $time_source)); ?>"><?php echo esc_html($time_human); ?></time>
+                    <time class="memos-card-time" datetime="<?php echo esc_attr(wp_date('c', $time_source)); ?>"><?php echo esc_html($time_human); ?></time>
                 <?php endif; ?>
             </div>
             <!-- 第二行：内容 -->

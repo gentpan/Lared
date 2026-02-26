@@ -26,9 +26,9 @@ if (have_posts()) :
         
         $source_count = $stats['source_count'] ?? 0;
         $item_count = $stats['item_count'] ?? 0;
-        $latest_timestamp = $stats['latest_timestamp'] ?? 0;
-        $latest_updated = $latest_timestamp > 0
-            ? wp_date('Y-m-d H:i:s', $latest_timestamp)
+        $cached_at_gmt = $stats['cached_at'] ?? '';
+        $latest_updated = '' !== $cached_at_gmt
+            ? wp_date('Y-m-d H:i', strtotime($cached_at_gmt . ' UTC'))
             : __('暂无更新', 'lared');
         ?>
 
@@ -38,18 +38,21 @@ if (have_posts()) :
                     <span class="listing-head-accent" aria-hidden="true"></span>
                     <div class="listing-head-main">
                         <div class="listing-head-title-row">
-                            <h1 class="listing-head-title"><?php the_title(); ?></h1>
-                            <p class="listing-head-side-stat">
-                                <?php
-                                printf(
-                                    /* translators: 1: sources count, 2: items count, 3: latest updated */
-                                    esc_html__('已订阅 %1$d 个站点，聚合 %2$d 条内容。最后更新：%3$s', 'lared'),
-                                    $source_count,
-                                    $item_count,
-                                    $latest_updated
-                                );
-                                ?>
-                            </p>
+                            <h1 class="listing-head-title"><i class="fa-sharp fa-thin fa-square-rss" aria-hidden="true"></i><?php the_title(); ?></h1>
+                            <div class="feed-head-stats" aria-label="<?php esc_attr_e('订阅统计', 'lared'); ?>">
+                                <span class="feed-head-stat">
+                                    <b><?php echo esc_html(number_format_i18n($source_count)); ?></b>
+                                    <em><?php esc_html_e('个站点', 'lared'); ?></em>
+                                </span>
+                                <span class="feed-head-stat">
+                                    <b><?php echo esc_html(number_format_i18n($item_count)); ?></b>
+                                    <em><?php esc_html_e('条内容', 'lared'); ?></em>
+                                </span>
+                                <span class="feed-head-stat feed-head-stat-time">
+                                    <em><?php esc_html_e('更新', 'lared'); ?></em>
+                                    <b><?php echo esc_html($latest_updated); ?></b>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -73,9 +76,26 @@ if (have_posts()) :
                         ?>
                     </div>
                     
-                    <!-- 加载动画 -->
-                    <div class="feed-loading-spinner" id="feed-loading-spinner" style="display: none;">
-                        <span class="feed-spinner"></span>
+                    <!-- 骨架屏加载占位 -->
+                    <div class="feed-skeleton-row" id="feed-skeleton" style="display: none;">
+                        <div class="feed-skeleton-card">
+                            <span class="feed-skeleton-line is-title"></span>
+                            <span class="feed-skeleton-line is-text"></span>
+                            <span class="feed-skeleton-line is-text-short"></span>
+                            <span class="feed-skeleton-line is-meta"></span>
+                        </div>
+                        <div class="feed-skeleton-card">
+                            <span class="feed-skeleton-line is-title"></span>
+                            <span class="feed-skeleton-line is-text"></span>
+                            <span class="feed-skeleton-line is-text-short"></span>
+                            <span class="feed-skeleton-line is-meta"></span>
+                        </div>
+                        <div class="feed-skeleton-card">
+                            <span class="feed-skeleton-line is-title"></span>
+                            <span class="feed-skeleton-line is-text"></span>
+                            <span class="feed-skeleton-line is-text-short"></span>
+                            <span class="feed-skeleton-line is-meta"></span>
+                        </div>
                     </div>
                     
                     <!-- 加载更多按钮 -->
@@ -108,7 +128,7 @@ if (have_posts()) :
         <script>
         (function() {
             var grid = document.getElementById('rss-feed-grid');
-            var spinner = document.getElementById('feed-loading-spinner');
+            var skeleton = document.getElementById('feed-skeleton');
             var loadMoreWrap = document.getElementById('feed-load-more-wrap');
             var loadMoreBtn = document.getElementById('feed-load-more-btn');
             var noMore = document.getElementById('feed-no-more');
@@ -121,6 +141,7 @@ if (have_posts()) :
             var isLoading = false;
             var autoLoadCount = 0; // 自动加载次数（0 = 还没自动加载过）
             var maxAutoLoad = 1;   // 只自动加载1次
+            var MIN_LOADING_MS = 1000; // 最少加载动画时长
             
             // 加载数据函数
             function loadFeedItems(isManual) {
@@ -132,62 +153,78 @@ if (have_posts()) :
                 }
                 
                 isLoading = true;
+                var startTime = Date.now();
                 
-                // 显示 loading 动画
-                if (spinner) spinner.style.display = 'flex';
+                // 显示骨架屏
+                if (skeleton) skeleton.style.display = 'grid';
+                if (loadMoreWrap) loadMoreWrap.style.display = 'none';
                 if (isManual && loadMoreBtn) {
                     loadMoreBtn.disabled = true;
                     loadMoreBtn.innerHTML = '<span class="feed-spinner-small"></span>';
                 }
                 
-                // 延迟1秒后加载（确保 loading 动画可见）
-                setTimeout(function() {
-                    var formData = new FormData();
-                    formData.append('action', 'lared_get_feed_items');
-                    formData.append('nonce', '<?php echo wp_create_nonce('lared_feed_nonce'); ?>');
-                    formData.append('offset', offset);
-                    formData.append('limit', limit);
+                var formData = new FormData();
+                formData.append('action', 'lared_get_feed_items');
+                formData.append('nonce', '<?php echo wp_create_nonce('lared_feed_nonce'); ?>');
+                formData.append('offset', offset);
+                formData.append('limit', limit);
+                
+                fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    // 确保骨架屏至少显示 MIN_LOADING_MS
+                    var elapsed = Date.now() - startTime;
+                    var remaining = Math.max(0, MIN_LOADING_MS - elapsed);
                     
-                    fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', {
-                        method: 'POST',
-                        body: formData,
-                        credentials: 'same-origin'
-                    })
-                    .then(function(response) { return response.json(); })
-                    .then(function(data) {
+                    setTimeout(function() {
+                        if (skeleton) skeleton.style.display = 'none';
+                        
                         if (data.success && data.data.html) {
-                            // 插入新内容
                             var tempDiv = document.createElement('div');
                             tempDiv.innerHTML = data.data.html;
                             var newItems = tempDiv.querySelectorAll('.rss-feed-card');
-                            newItems.forEach(function(item) {
+                            
+                            // 插入新卡片并添加入场动画
+                            newItems.forEach(function(item, idx) {
+                                item.classList.add('is-entering');
                                 grid.appendChild(item);
+                                // 逐个延迟显示，每张卡片间隔 60ms
+                                setTimeout(function() {
+                                    item.classList.add('is-visible');
+                                }, 30 + idx * 60);
                             });
                             
-                            // 更新偏移量
                             offset += newItems.length;
                             grid.setAttribute('data-offset', offset);
                             
-                            // 检查是否还有更多
                             if (!data.data.has_more || offset >= total) {
                                 if (loadMoreWrap) loadMoreWrap.style.display = 'none';
                                 if (noMore) noMore.style.display = 'block';
+                            } else {
+                                if (loadMoreWrap) loadMoreWrap.style.display = 'flex';
                             }
                         }
-                    })
-                    .catch(function() {
-                        // 出错时显示加载更多按钮
-                        if (loadMoreWrap) loadMoreWrap.style.display = 'block';
-                    })
-                    .finally(function() {
+                        
                         isLoading = false;
-                        if (spinner) spinner.style.display = 'none';
                         if (isManual && loadMoreBtn) {
                             loadMoreBtn.disabled = false;
                             loadMoreBtn.innerHTML = '<span><?php esc_html_e('加载更多', 'lared'); ?></span><i class="fa-solid fa-chevron-down"></i>';
                         }
-                    });
-                }, 1000);
+                    }, remaining);
+                })
+                .catch(function() {
+                    if (skeleton) skeleton.style.display = 'none';
+                    if (loadMoreWrap) loadMoreWrap.style.display = 'flex';
+                    isLoading = false;
+                    if (isManual && loadMoreBtn) {
+                        loadMoreBtn.disabled = false;
+                        loadMoreBtn.innerHTML = '<span><?php esc_html_e('加载更多', 'lared'); ?></span><i class="fa-solid fa-chevron-down"></i>';
+                    }
+                });
             }
             
             // 手动加载按钮点击

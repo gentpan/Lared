@@ -150,7 +150,7 @@ $heatmap_month_labels = array_values($month_labels);
             <span class="listing-head-accent" aria-hidden="true"></span>
             <div class="listing-head-main">
                 <div class="listing-head-title-row archive-head-title-row">
-                    <h1 class="listing-head-title"><?php echo esc_html(get_the_title()); ?></h1>
+                    <h1 class="listing-head-title"><i class="fa-sharp fa-thin fa-books" aria-hidden="true"></i><?php echo esc_html(get_the_title()); ?></h1>
 
                     <div class="archive-head-stats" aria-label="归档统计">
                         <span class="archive-head-stat">
@@ -244,6 +244,72 @@ $heatmap_month_labels = array_values($month_labels);
                 <span><?php esc_html_e('多', 'lared'); ?></span>
             </div>
         </section>
+
+        <?php
+        // ── 分类归档 ──
+        $archive_categories = get_categories([
+            'orderby'    => 'count',
+            'order'      => 'DESC',
+            'hide_empty' => true,
+        ]);
+        ?>
+        <?php if (!empty($archive_categories)) : ?>
+            <section class="archive-taxonomy-section" aria-label="<?php esc_attr_e('分类归档', 'lared'); ?>">
+                <div class="archive-taxonomy-head">
+                    <h2 class="archive-taxonomy-title">
+                        <i class="fa-solid fa-folder" aria-hidden="true"></i>
+                        <?php esc_html_e('分类归档', 'lared'); ?>
+                    </h2>
+                    <span class="archive-taxonomy-total"><?php echo esc_html(sprintf(__('共 %d 个分类', 'lared'), count($archive_categories))); ?></span>
+                </div>
+                <div class="archive-category-grid">
+                    <?php foreach ($archive_categories as $archive_cat) :
+                        $cat_icon = lared_get_category_icon_html((int) $archive_cat->term_id);
+                        $cat_link = get_category_link($archive_cat->term_id);
+                    ?>
+                        <a class="archive-category-card" href="<?php echo esc_url($cat_link); ?>">
+                            <?php if ('' !== $cat_icon) : ?>
+                                <span class="archive-category-card-icon"><?php echo wp_kses_post($cat_icon); ?></span>
+                            <?php else : ?>
+                                <span class="archive-category-card-icon"><i class="fa-solid fa-folder" aria-hidden="true"></i></span>
+                            <?php endif; ?>
+                            <span class="archive-category-card-name"><?php echo esc_html($archive_cat->name); ?></span>
+                            <span class="archive-category-card-count"><?php echo esc_html((string) $archive_cat->count); ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
+        <?php
+        // ── 标签归档 ──
+        $archive_tags = get_tags([
+            'orderby'    => 'count',
+            'order'      => 'DESC',
+            'hide_empty' => true,
+        ]);
+        ?>
+        <?php if (!empty($archive_tags) && !is_wp_error($archive_tags)) : ?>
+            <section class="archive-taxonomy-section" aria-label="<?php esc_attr_e('标签归档', 'lared'); ?>">
+                <div class="archive-taxonomy-head">
+                    <h2 class="archive-taxonomy-title">
+                        <i class="fa-solid fa-tags" aria-hidden="true"></i>
+                        <?php esc_html_e('标签归档', 'lared'); ?>
+                    </h2>
+                    <span class="archive-taxonomy-total"><?php echo esc_html(sprintf(__('共 %d 个标签', 'lared'), count($archive_tags))); ?></span>
+                </div>
+                <div class="archive-tag-cloud">
+                    <?php foreach ($archive_tags as $archive_tag) :
+                        $tag_link = get_tag_link($archive_tag->term_id);
+                    ?>
+                        <a class="archive-tag-item" href="<?php echo esc_url($tag_link); ?>">
+                            <span class="archive-tag-name"><?php echo esc_html($archive_tag->name); ?></span>
+                            <span class="archive-tag-count"><?php echo esc_html((string) $archive_tag->count); ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <?php if (!empty($archive_tree)) : ?>
             <div class="archive-timeline">

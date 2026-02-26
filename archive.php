@@ -5,6 +5,8 @@ if (!defined('ABSPATH')) {
 
 get_header();
 
+global $wp_query;
+
 $archive_title = get_the_archive_title();
 $archive_desc  = get_the_archive_description();
 $archive_found_posts = (int) $wp_query->found_posts;
@@ -16,7 +18,7 @@ $archive_found_posts = (int) $wp_query->found_posts;
             <span class="listing-head-accent" aria-hidden="true"></span>
             <div class="listing-head-main">
                 <div class="listing-head-title-row">
-                    <h1 class="listing-head-title"><?php echo esc_html(wp_strip_all_tags((string) $archive_title)); ?></h1>
+                    <h1 class="listing-head-title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><?php echo esc_html(wp_strip_all_tags((string) $archive_title)); ?></h1>
                     <p class="listing-head-side-stat"><?php printf(esc_html__('%d 篇文章', 'lared'), $archive_found_posts); ?></p>
                 </div>
                 <?php if ('' !== trim((string) $archive_desc)) : ?>
@@ -43,11 +45,9 @@ $archive_found_posts = (int) $wp_query->found_posts;
                             <div class="listing-card-image-wrap">
                                 <?php if ('' !== $image_url) : ?>
                                     <img
-                                        class="listing-card-image"
-                                        src="<?php echo esc_url($image_url); ?>"
+                                        class="listing-card-image lazyload"
+                                        data-src="<?php echo esc_url($image_url); ?>"
                                         alt="<?php the_title_attribute(); ?>"
-                                        loading="lazy"
-                                        decoding="async"
                                     />
                                 <?php else : ?>
                                     <span class="listing-card-image-fallback" aria-hidden="true"></span>

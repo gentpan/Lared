@@ -6,9 +6,6 @@ if (!defined('ABSPATH')) {
 
 // ====== CDN 配置常量 ======
 // 可在 wp-config.php 中使用 define() 覆盖这些值
-if (!defined('PAN_CDN_FONTS')) {
-    define('PAN_CDN_FONTS', 'https://fonts.bluecdn.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
-}
 if (!defined('PAN_CDN_FONTAWESOME')) {
     define('PAN_CDN_FONTAWESOME', 'https://icons.bluecdn.com/fontawesome-pro/css/all.css');
 }
@@ -17,11 +14,18 @@ if (!defined('PAN_CDN_STATIC')) {
 }
 // =========================
 
+require_once get_template_directory() . '/inc/inc-image.php';
+require_once get_template_directory() . '/inc/inc-hero.php';
+require_once get_template_directory() . '/inc/inc-editor.php';
+require_once get_template_directory() . '/inc/inc-download.php';
 require_once get_template_directory() . '/inc/inc-rss.php';
 require_once get_template_directory() . '/inc/inc-memos.php';
 require_once get_template_directory() . '/inc/inc-code-runner.php';
-require_once get_template_directory() . '/inc/inc-download-button.php';
-// require_once get_template_directory() . '/inc/inc-comment-levels.php';
+require_once get_template_directory() . '/inc/inc-ai-summary.php';
+require_once get_template_directory() . '/inc/inc-comments.php';
+require_once get_template_directory() . '/inc/inc-email.php';
+require_once get_template_directory() . '/inc/inc-about.php';
+require_once get_template_directory() . '/inc/inc-theme-settings.php';
 
 function lared_setup(): void
 {
@@ -37,10 +41,60 @@ function lared_setup(): void
 }
 add_action('after_setup_theme', 'lared_setup');
 
+/**
+ * 主题激活时自动创建缓存目录并设置写入权限。
+ * 目录：data（Memos / 表情 缓存）、data/rss（RSS 缓存）
+ */
+function lared_activate_create_cache_dirs(): void
+{
+    $dirs = [
+        get_template_directory() . '/data',
+        get_template_directory() . '/data/rss',
+    ];
+
+    foreach ($dirs as $dir) {
+        if (!is_dir($dir)) {
+            wp_mkdir_p($dir);
+        }
+        // 确保 Web 服务器可写（0755 权限）
+        if (is_dir($dir) && !wp_is_writable($dir)) {
+            chmod($dir, 0755);
+        }
+    }
+}
+add_action('after_switch_theme', 'lared_activate_create_cache_dirs');
+
+/**
+ * 主题激活时自动重建所有评论者等级缓存
+ */
+function lared_activate_rebuild_levels(): void
+{
+    if (function_exists('lared_refresh_all_commenter_levels')) {
+        $result = lared_refresh_all_commenter_levels();
+        error_log(sprintf(
+            '[Lared] 主题激活：已重建 %d 位评论者等级（%d 个错误）',
+            $result['updated'],
+            $result['errors']
+        ));
+    }
+}
+add_action('after_switch_theme', 'lared_activate_rebuild_levels');
+
 function lared_primary_menu_fallback(): void
 {
     echo '<ul class="nav"><li><a href="' . esc_url(home_url('/')) . '">' . esc_html__('首页', 'lared') . '</a></li></ul>';
 }
+
+/**
+ * 全局强制 Gravatar 请求尺寸为 128px，以便在高分屏下保持高清。
+ * 实际显示大小仍由 CSS / HTML 属性控制。
+ */
+function lared_force_avatar_hd(array $args): array
+{
+    $args['size'] = 128;
+    return $args;
+}
+add_filter('pre_get_avatar_data', 'lared_force_avatar_hd');
 
 function lared_disable_page_comments(): void
 {
@@ -60,396 +114,6 @@ function lared_force_page_comments_closed(bool $open, int $post_id): bool
 add_filter('comments_open', 'lared_force_page_comments_closed', 10, 2);
 add_filter('pings_open', 'lared_force_page_comments_closed', 10, 2);
 
-// ====== APlayer 播放列表管理 ======
-
-function lared_normalize_aplayer_playlist(array $playlist): array
-{
-    $normalized = [];
-
-    foreach ($playlist as $track) {
-        if (!is_array($track)) {
-            continue;
-        }
-
-        $name = isset($track['name']) ? sanitize_text_field((string) $track['name']) : '';
-        $artist = isset($track['artist']) ? sanitize_text_field((string) $track['artist']) : '';
-        $url = isset($track['url']) ? esc_url_raw((string) $track['url']) : '';
-        $cover = isset($track['cover']) ? esc_url_raw((string) $track['cover']) : '';
-        $lrc = isset($track['lrc']) ? esc_url_raw((string) $track['lrc']) : '';
-
-        if ('' === $url) {
-            continue;
-        }
-
-        $normalized[] = [
-            'name' => '' !== $name ? $name : __('Unknown Title', 'lared'),
-            'artist' => '' !== $artist ? $artist : __('Unknown Artist', 'lared'),
-            'url' => $url,
-            'cover' => $cover,
-            'lrc' => $lrc,
-        ];
-    }
-
-    return $normalized;
-}
-
-function lared_get_aplayer_playlist(): array
-{
-    $default_playlist = [[
-        'name' => 'Lared Radio',
-        'artist' => get_bloginfo('name'),
-        'url' => 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-        'cover' => '',
-        'lrc' => '',
-    ]];
-
-    $raw_json = (string) get_option('lared_aplayer_playlist_json', '');
-    if ('' === trim($raw_json)) {
-        return $default_playlist;
-    }
-
-    $decoded = json_decode($raw_json, true);
-    if (!is_array($decoded)) {
-        return $default_playlist;
-    }
-
-    $normalized = lared_normalize_aplayer_playlist($decoded);
-    return !empty($normalized) ? $normalized : $default_playlist;
-}
-
-function lared_sanitize_aplayer_playlist_json(string $value): string
-{
-    $value = trim($value);
-    if ('' === $value) {
-        return '';
-    }
-
-    $decoded = json_decode($value, true);
-    if (!is_array($decoded)) {
-        return '';
-    }
-
-    $normalized = lared_normalize_aplayer_playlist($decoded);
-    if (empty($normalized)) {
-        return '';
-    }
-
-    return (string) wp_json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-}
-
-// ====== 音乐歌单 URL 管理 ======
-
-function lared_sanitize_music_playlist_urls(string $value): string
-{
-    $value = trim($value);
-    if ('' === $value) {
-        return '';
-    }
-
-    $lines = preg_split('/\r\n|\r|\n/', $value);
-    if (!is_array($lines)) {
-        return '';
-    }
-
-    $urls = [];
-    foreach ($lines as $line) {
-        $line = trim((string) $line);
-        if ('' === $line) {
-            continue;
-        }
-
-        $url = esc_url_raw($line);
-        if ('' !== $url) {
-            $urls[] = $url;
-            continue;
-        }
-
-        if (preg_match('/^[a-zA-Z0-9]+$/', $line)) {
-            $urls[] = $line;
-        }
-    }
-
-    if (empty($urls)) {
-        return '';
-    }
-
-    return implode("\n", array_values(array_unique($urls)));
-}
-
-function lared_get_music_playlist_urls(): array
-{
-    $raw = (string) get_option('lared_music_playlist_urls', '');
-    if ('' === trim($raw)) {
-        return [];
-    }
-
-    $lines = preg_split('/\r\n|\r|\n/', $raw);
-    if (!is_array($lines)) {
-        return [];
-    }
-
-    $urls = [];
-    foreach ($lines as $line) {
-        $line = trim((string) $line);
-        if ('' === $line) {
-            continue;
-        }
-
-        $url = esc_url_raw($line);
-        if ('' !== $url) {
-            $urls[] = $url;
-            continue;
-        }
-
-        if (preg_match('/^[a-zA-Z0-9]+$/', $line)) {
-            $urls[] = $line;
-        }
-    }
-
-    return array_values(array_unique($urls));
-}
-
-function lared_parse_music_playlist_url(string $url): ?array
-{
-    $url = trim($url);
-    if ('' === $url) {
-        return null;
-    }
-
-    if (!str_contains($url, '://') && preg_match('/^[a-zA-Z0-9]+$/', $url)) {
-        $server = ctype_digit($url) ? 'netease' : 'tencent';
-
-        return [
-            'server' => $server,
-            'type' => 'playlist',
-            'id' => $url,
-            'url' => $url,
-        ];
-    }
-
-    $parts = wp_parse_url($url);
-    if (!is_array($parts)) {
-        return null;
-    }
-
-    $host = strtolower((string) ($parts['host'] ?? ''));
-    $path = (string) ($parts['path'] ?? '');
-    $query = [];
-
-    if (!empty($parts['query'])) {
-        parse_str((string) $parts['query'], $query);
-    }
-
-    $fragment = (string) ($parts['fragment'] ?? '');
-    if ('' !== $fragment) {
-        if (str_contains($fragment, '?')) {
-            [$fragment_path, $fragment_query] = explode('?', $fragment, 2);
-            if ('' !== trim($fragment_path)) {
-                $path = trim($fragment_path);
-            }
-
-            if ('' !== trim($fragment_query)) {
-                $fragment_query_data = [];
-                parse_str($fragment_query, $fragment_query_data);
-                if (is_array($fragment_query_data)) {
-                    $query = array_merge($query, $fragment_query_data);
-                }
-            }
-        } elseif (str_starts_with(trim($fragment), '/')) {
-            $path = trim($fragment);
-        }
-    }
-
-    $playlist_id = '';
-    $server = '';
-
-    if (str_contains($host, 'music.163.com')) {
-        $server = 'netease';
-        $playlist_id = isset($query['id']) ? (string) $query['id'] : '';
-
-        if ('' === $playlist_id && preg_match('#/playlist/(\d+)#', $path, $matches)) {
-            $playlist_id = (string) $matches[1];
-        }
-    } elseif (str_contains($host, 'y.qq.com') || str_contains($host, 'qq.com')) {
-        $server = 'tencent';
-        $playlist_id = isset($query['id']) ? (string) $query['id'] : '';
-
-        if ('' === $playlist_id && preg_match('#/playlist/([a-zA-Z0-9]+)#', $path, $matches)) {
-            $playlist_id = (string) $matches[1];
-        }
-    }
-
-    $playlist_id = trim($playlist_id);
-    if ('' === $server || '' === $playlist_id) {
-        return null;
-    }
-
-    if (!preg_match('/^[a-zA-Z0-9]+$/', $playlist_id)) {
-        return null;
-    }
-
-    return [
-        'server' => $server,
-        'type' => 'playlist',
-        'id' => $playlist_id,
-        'url' => $url,
-    ];
-}
-
-function lared_get_music_playlist_sources(): array
-{
-    $urls = lared_get_music_playlist_urls();
-    if (empty($urls)) {
-        return [];
-    }
-
-    $sources = [];
-    foreach ($urls as $url) {
-        $parsed = lared_parse_music_playlist_url((string) $url);
-        if (!is_array($parsed)) {
-            continue;
-        }
-
-        $source_key = $parsed['server'] . '|' . $parsed['id'];
-        $sources[$source_key] = $parsed;
-    }
-
-    return array_values($sources);
-}
-
-// ====== Meting API 管理 ======
-
-function lared_sanitize_meting_api_template(string $value): string
-{
-    $value = trim($value);
-    if ('' === $value) {
-        return '';
-    }
-
-    $value = esc_url_raw($value);
-    if ('' === $value || !str_contains($value, ':server') || !str_contains($value, ':type') || !str_contains($value, ':id')) {
-        return '';
-    }
-
-    return $value;
-}
-
-function lared_get_meting_api_template(): string
-{
-    $saved = (string) get_option('lared_music_meting_api_template', '');
-    $saved = lared_sanitize_meting_api_template($saved);
-    if ('' !== $saved) {
-        return $saved;
-    }
-
-    $local = lared_get_local_meting_api_template();
-    if ('' !== $local) {
-        return $local;
-    }
-
-    return lared_get_external_meting_api_template();
-}
-
-function lared_get_external_meting_api_template(): string
-{
-    return 'https://api.injahow.cn/meting/?server=:server&type=:type&id=:id&r=:r';
-}
-
-function lared_get_local_meting_api_template(): string
-{
-    $local_entry = get_template_directory() . '/assets/music/meting-api-1.2.0/index.php';
-    if (!file_exists($local_entry)) {
-        return '';
-    }
-
-    return trailingslashit(get_template_directory_uri()) . 'assets/music/meting-api-1.2.0/index.php?server=:server&type=:type&id=:id&r=:r';
-}
-
-function lared_get_meting_api_fallback_template(?string $primary = null): string
-{
-    $primary_value = is_string($primary) ? trim($primary) : '';
-    $local = lared_get_local_meting_api_template();
-    $external = lared_get_external_meting_api_template();
-
-    if ('' !== $local && $primary_value === $local) {
-        return $external;
-    }
-
-    if ('' !== $local) {
-        return $local;
-    }
-
-    return $external;
-}
-
-// ====== 各种 Sanitize 回调 ======
-
-function lared_sanitize_umami_script(string $value): string
-{
-    $value = trim($value);
-    if ('' === $value) {
-        return '';
-    }
-
-    $sanitized = wp_kses($value, [
-        'script' => [
-            'src' => true,
-            'async' => true,
-            'defer' => true,
-            'id' => true,
-            'type' => true,
-            'data-website-id' => true,
-            'data-host-url' => true,
-            'data-domains' => true,
-            'data-tag' => true,
-            'data-auto-track' => true,
-            'data-do-not-track' => true,
-            'data-cache' => true,
-        ],
-    ]);
-
-    return is_string($sanitized) ? trim($sanitized) : '';
-}
-
-function lared_sanitize_ten_year_start_date(string $value): string
-{
-    $value = trim($value);
-    if ('' === $value) {
-        return '';
-    }
-
-    $date = DateTimeImmutable::createFromFormat('Y-m-d', $value);
-    if (!$date instanceof DateTimeImmutable) {
-        return '';
-    }
-
-    return $date->format('Y-m-d');
-}
-
-function lared_sanitize_image_url(string $value): string
-{
-    $value = trim($value);
-    if ('' === $value) {
-        return '';
-    }
-    return esc_url_raw($value);
-}
-
-function lared_sanitize_image_api_url(string $value): string
-{
-    $value = trim($value);
-    if ('' === $value) {
-        return '';
-    }
-    return esc_url_raw($value);
-}
-
-function lared_sanitize_image_animation(string $value): string
-{
-    $allowed = ['none', 'fade', 'blur', 'pixelate'];
-    return in_array($value, $allowed, true) ? $value : 'none';
-}
-
 /**
  * 始终输出英文日期（不受 WordPress 语言设置影响）
  * 使用站点时区，格式字符同 PHP date()
@@ -464,17 +128,8 @@ function lared_date_en(string $format, int $utc_timestamp): string
 function lared_assets(): void
 {
     // CDN 配置（默认从常量，可在 wp-config.php 覆盖）
-    $cdn_fonts = PAN_CDN_FONTS;
     $cdn_icons = PAN_CDN_FONTAWESOME;
     $cdn_static = PAN_CDN_STATIC;
-
-    // 字体
-    wp_enqueue_style(
-        'lared-fonts',
-        $cdn_fonts,
-        [],
-        null
-    );
 
     // Tailwind CSS v4（本地编译版，包含主题所有工具类）
     wp_enqueue_style(
@@ -487,9 +142,9 @@ function lared_assets(): void
     // 主题样式（使用文件修改时间作为版本号，避免浏览器缓存旧样式）
     wp_enqueue_style(
         'lared-style',
-        get_stylesheet_uri(),
-        ['lared-tailwind'],
-        (string) filemtime(get_stylesheet_directory() . '/style.css')
+        get_template_directory_uri() . '/assets/css/main.css',
+        ['lared-tailwind', 'lared-plyr'],
+        (string) filemtime(get_template_directory() . '/assets/css/main.css')
     );
 
     // Font Awesome Pro
@@ -500,12 +155,20 @@ function lared_assets(): void
         null
     );
 
-    // APlayer CSS
+    // Flag Icons CSS
     wp_enqueue_style(
-        'lared-aplayer',
-        $cdn_static . '/aplayer@1.10.1/dist/APlayer.min.css',
+        'lared-flag-icons',
+        'https://flagcdn.io/css/flag-icons.min.css',
         [],
-        '1.10.1'
+        null
+    );
+
+    // Plyr CSS（依赖 tailwind，确保在其之后加载，避免被重置覆盖）
+    wp_enqueue_style(
+        'lared-plyr',
+        $cdn_static . '/plyr@3.7.8/dist/plyr.css',
+        ['lared-tailwind'],
+        '3.7.8'
     );
 
     // PrismJS Dracula Theme (from prism-themes package)
@@ -520,7 +183,7 @@ function lared_assets(): void
     wp_enqueue_script(
         'lared-theme',
         get_template_directory_uri() . '/assets/js/app.js',
-        [],
+        ['lared-plyr', 'lared-prism-autoloader'],
         (string) filemtime(get_template_directory() . '/assets/js/app.js'),
         true
     );
@@ -534,12 +197,12 @@ function lared_assets(): void
         true
     );
 
-    // APlayer JS
+    // Plyr JS
     wp_enqueue_script(
-        'lared-aplayer',
-        $cdn_static . '/aplayer@1.10.1/dist/APlayer.min.js',
+        'lared-plyr',
+        $cdn_static . '/plyr@3.7.8/dist/plyr.min.js',
         [],
-        '1.10.1',
+        '3.7.8',
         true
     );
 
@@ -561,6 +224,15 @@ function lared_assets(): void
         true
     );
 
+    // lazysizes - 高性能图片懒加载
+    wp_enqueue_script(
+        'lared-lazysizes',
+        get_template_directory_uri() . '/assets/js/lazysizes.min.js',
+        [],
+        '5.3.2',
+        false  // 在 head 加载，尽早接管懒加载
+    );
+
     // ViewImage - lightweight image lightbox
     wp_enqueue_script(
         'lared-view-image',
@@ -570,78 +242,62 @@ function lared_assets(): void
         true
     );
 
-    // WordPress 内置回复脚本（moveForm）
-    if (is_singular() && comments_open() && get_option('thread_comments')) {
-        wp_enqueue_script('comment-reply');
-    }
+    // WordPress 内置回复脚本（moveForm）— 因使用 PJAX，需始终加载，
+    // 否则从非 singular 页面导航到文章页时 window.addComment 不存在
+    wp_enqueue_script('comment-reply');
 }
 add_action('wp_enqueue_scripts', 'lared_assets');
 
-function lared_append_content_link_icon(string $content): string
-{
-    if (is_admin() || !is_single() && !is_page() && !is_home() && !is_front_page() || '' === trim($content)) {
-        return $content;
-    }
-
-    $link_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
-
-    return preg_replace_callback(
-        '/<a([^>]*?)href="([^"]*?)"([^>]*?)>(.*?)<\/a>/i',
-        function ($matches) use ($link_icon) {
-            $attrs_before = $matches[1];
-            $url = $matches[2];
-            $attrs_after = $matches[3];
-            $text = $matches[4];
-
-            if (
-                str_contains(strtolower($url), 'javascript:') ||
-                str_contains($url, '#') ||
-                str_contains(strtolower($attrs_before . $attrs_after), 'no-arrow') ||
-                str_contains(strtolower($attrs_before . $attrs_after), 'dl-button') ||
-                str_contains(strtolower($text), '<img')
-            ) {
-                return $matches[0];
-            }
-
-            $all_attrs = $attrs_before . $attrs_after;
-            if (!str_contains($all_attrs, 'target="_blank"')) {
-                $attrs_after .= ' target="_blank"';
-            }
-            if (!str_contains($all_attrs, 'rel=')) {
-                $attrs_after .= ' rel="noopener noreferrer"';
-            }
-
-            return '<a' . $attrs_before . 'href="' . $url . '"' . trim($attrs_after) . '>' . $text . ' <span class="lared-inline-link-icon">' . $link_icon . '</span></a>';
-        },
-        $content
-    ) ?? $content;
-}
-add_filter('the_content', 'lared_append_content_link_icon', 20);
-
-function lared_add_target_blank_to_content_links(string $content): string
+/**
+ * 统一处理文章内容中的链接：
+ * 1. 外部链接自动添加 target="_blank" 和 rel="noopener noreferrer"
+ * 2. 在文章/页面/首页中为非排除链接追加箭头图标
+ */
+function lared_process_content_links(string $content): string
 {
     if (is_admin() || '' === trim($content)) {
         return $content;
     }
 
-    $home_url = home_url();
+    $home_url  = home_url();
+    $add_icon  = is_single() || is_page() || is_home() || is_front_page();
+    $link_icon = '<i class="fa-sharp fa-thin fa-square-arrow-up-right"></i>';
+
     $content = preg_replace_callback(
-        '/<a([^>]+)href="([^"]+)"([^>]*)>([^<]*)<\/a>/i',
-        function ($matches) use ($home_url) {
+        '/<a([^>]*?)href="([^"]*?)"([^>]*?)>(.*?)<\/a>/i',
+        function ($matches) use ($home_url, $add_icon, $link_icon) {
             $before = $matches[1];
-            $url = $matches[2];
-            $after = $matches[3];
-            $text = $matches[4];
+            $url    = $matches[2];
+            $after  = $matches[3];
+            $text   = $matches[4];
 
-            $is_external = !str_starts_with($url, $home_url) && !preg_match('/^(\/|#|javascript:)/i', $url);
+            $all_attrs  = $before . $after;
+            $url_lower  = strtolower($url);
 
+            // 跳过特殊链接
+            $skip_icon = str_contains($url_lower, 'javascript:')
+                || str_contains($url, '#')
+                || str_contains(strtolower($all_attrs), 'no-arrow')
+                || str_contains(strtolower($all_attrs), 'dl-button')
+                || str_contains(strtolower($text), '<img');
+
+            // 判断是否为外部链接
+            $is_external = !str_starts_with($url, $home_url)
+                && !preg_match('/^(\/|#|javascript:)/i', $url);
+
+            // 外部链接添加 target 和 rel
             if ($is_external) {
-                if (!str_contains($before . $after, 'target=')) {
+                if (!str_contains($all_attrs, 'target=')) {
                     $after .= ' target="_blank"';
                 }
-                if (!str_contains($before . $after, 'rel=')) {
+                if (!str_contains($all_attrs, 'rel=')) {
                     $after .= ' rel="noopener noreferrer"';
                 }
+            }
+
+            // 追加图标（符合条件时）
+            if ($add_icon && !$skip_icon) {
+                return '<a' . $before . 'href="' . $url . '"' . trim($after) . '>' . $text . ' <span class="lared-inline-link-icon">' . $link_icon . '</span></a>';
             }
 
             return '<a' . $before . 'href="' . $url . '"' . $after . '>' . $text . '</a>';
@@ -651,7 +307,7 @@ function lared_add_target_blank_to_content_links(string $content): string
 
     return $content;
 }
-add_filter('the_content', 'lared_add_target_blank_to_content_links', 999);
+add_filter('the_content', 'lared_process_content_links', 20);
 
 function lared_archive_per_page(): int
 {
@@ -659,249 +315,42 @@ function lared_archive_per_page(): int
 }
 add_filter('lared_archive_posts_per_page', 'lared_archive_per_page');
 
-function lared_load_aplayer_config(): void
-{
-    $shared_music_base_path = trailingslashit(get_template_directory_uri() . '/assets/music');
-
-    $config = [
-        'playlist' => lared_get_aplayer_playlist(),
-        'musicBasePath' => $shared_music_base_path,
-        'defaultCover' => $shared_music_base_path . 'img/lizhi.jpg',
-        'autoplay' => false,
-        'loop' => 'all',
-        'order' => 'list',
-        'volume' => 0.7,
-    ];
-
-    $config = apply_filters('lared_aplayer_config', $config);
-
-    wp_localize_script('lared-theme', 'LaredAPlayerConfig', $config);
-}
-add_action('wp_enqueue_scripts', 'lared_load_aplayer_config', 20);
-
 /**
- * 为指定查询条件获取 4 种排序文章（最新/热门/热评/随机），每种取 1 篇。
- *
- * @param array $base_args WP_Query 基础参数（可含 tax_query / p 等），无需填写排序/条数。
- * @return array 最多 4 个元素，每个含 post_id/title/image/permalink/type_key/type_label/type_icon。
+ * 获取所有管理员用户 ID（带缓存）
  */
-function lared_hero_fetch_four_articles(array $base_args): array
+function lared_get_admin_user_ids(): array
 {
-    $type_defs = [
-        [
-            'key'     => 'latest',
-            'label'   => __('最新文章', 'lared'),
-            'icon'    => 'fa-solid fa-clock',
-            'orderby' => 'date',
-            'order'   => 'DESC',
-        ],
-        [
-            'key'      => 'popular',
-            'label'    => __('热门文章', 'lared'),
-            'icon'     => 'fa-solid fa-fire',
-            'orderby'  => 'meta_value_num',
-            'order'    => 'DESC',
-            'meta_key' => 'post_views',
-        ],
-        [
-            'key'     => 'comment',
-            'label'   => __('热评文章', 'lared'),
-            'icon'    => 'fa-solid fa-comments',
-            'orderby' => 'comment_count',
-            'order'   => 'DESC',
-        ],
-        [
-            'key'     => 'random',
-            'label'   => __('随机文章', 'lared'),
-            'icon'    => 'fa-solid fa-shuffle',
-            'orderby' => 'rand',
-            'order'   => 'DESC',
-        ],
-    ];
-
-    $articles = [];
-
-    foreach ($type_defs as $type) {
-        $query = array_merge($base_args, [
-            'posts_per_page' => 1,
-            'post_status'    => 'publish',
-            'no_found_rows'  => true,
-            'orderby'        => $type['orderby'],
-            'order'          => $type['order'],
-        ]);
-        if (isset($type['meta_key'])) {
-            $query['meta_key'] = $type['meta_key'];
-        }
-
-        $posts = get_posts($query);
-        if (empty($posts)) {
-            continue;
-        }
-
-        $pid   = (int) $posts[0]->ID;
-        $image = lared_get_post_image_url($pid, 'large');
-        if ('' === $image) {
-            $image = 'https://picsum.photos/1600/800?random=' . wp_rand(100000, 999999);
-        }
-
-        $articles[] = [
-            'post_id'    => $pid,
-            'title'      => get_the_title($pid),
-            'image'      => $image,
-            'permalink'  => get_permalink($pid),
-            'type_key'   => $type['key'],
-            'type_label' => $type['label'],
-            'type_icon'  => $type['icon'],
-        ];
+    static $ids = null;
+    if (null === $ids) {
+        $admins = get_users(['role' => 'administrator', 'fields' => 'ID']);
+        $ids = array_map('intval', $admins);
     }
-
-    return $articles;
-}
-
-function lared_get_hero_items(): array
-{
-    $items = [];
-
-    // ── 第一行：固定"全部"（全站 4 种排序各取一篇）──
-    $all_articles = lared_hero_fetch_four_articles([]);
-    if (!empty($all_articles)) {
-        $all_start     = wp_rand(0, count($all_articles) - 1);
-        $all_start_art = $all_articles[$all_start];
-        $items[] = [
-            'post_id'    => $all_start_art['post_id'],
-            'item_url'   => home_url('/'),
-            'cat_label'  => __('全部', 'lared'),
-            'icon'       => 'fa-regular fa-grid-2',
-            'icon_html'  => '<i class="fa-regular fa-grid-2" aria-hidden="true"></i>',
-            'count'      => (int) wp_count_posts('post')->publish,
-            'type_key'   => $all_start_art['type_key'],
-            'type_label' => $all_start_art['type_label'],
-            'type_icon'  => $all_start_art['type_icon'],
-            'taxonomy'   => '',
-            'term_id'    => 0,
-            'articles'   => $all_articles,
-            'start'      => $all_start,
-        ];
-    }
-
-    // ── 从 hero_sidebar 菜单读取顶级项（最多 4 个）──
-    $locations  = get_nav_menu_locations();
-    $menu_items = [];
-
-    if (!empty($locations['hero_sidebar'])) {
-        $nav_menu_items = wp_get_nav_menu_items((int) $locations['hero_sidebar']);
-        if (is_array($nav_menu_items)) {
-            foreach ($nav_menu_items as $nav_item) {
-                if ((int) $nav_item->menu_item_parent === 0) {
-                    $menu_items[] = $nav_item;
-                    if (count($menu_items) >= 4) {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    foreach ($menu_items as $nav_item) {
-        $item_url       = esc_url($nav_item->url);
-        $item_count     = 0;
-        $item_icon_html = '';
-        $base_args      = [];
-
-        // 优先从菜单项 CSS 类提取 FA icon
-        $nav_fa = lared_extract_fa_classes((array) $nav_item->classes);
-        if ('' !== $nav_fa) {
-            $item_icon_html = '<i class="' . esc_attr($nav_fa) . '" aria-hidden="true"></i>';
-        }
-
-        if (in_array($nav_item->object, ['category', 'post_tag'], true)) {
-            $taxonomy = 'category' === $nav_item->object ? 'category' : 'post_tag';
-            $term_id  = (int) $nav_item->object_id;
-            $term_obj = get_term($term_id, $taxonomy);
-            if ($term_obj instanceof WP_Term) {
-                $item_count = (int) $term_obj->count;
-            }
-            // 若菜单 CSS 类没有 icon，降级到 lared_get_category_icon_html
-            if ('' === $item_icon_html) {
-                $item_icon_html = lared_get_category_icon_html($term_id);
-            }
-            $base_args = [
-                'tax_query' => [[
-                    'taxonomy' => $taxonomy,
-                    'field'    => 'term_id',
-                    'terms'    => $term_id,
-                ]],
-            ];
-        } else {
-            $resolved = url_to_postid($nav_item->url);
-            if ($resolved > 0) {
-                $base_args = ['p' => $resolved];
-            }
-        }
-
-        $articles = lared_hero_fetch_four_articles($base_args);
-
-        // 兜底：若该分类/链接下无结果，降级为全站查询
-        if (empty($articles)) {
-            $articles = lared_hero_fetch_four_articles([]);
-        }
-
-        if (empty($articles)) {
-            continue;
-        }
-
-        $start     = wp_rand(0, count($articles) - 1);
-        $start_art = $articles[$start];
-
-        $hero_taxonomy = '';
-        $hero_term_id  = 0;
-        if (in_array($nav_item->object, ['category', 'post_tag'], true)) {
-            $hero_taxonomy = 'category' === $nav_item->object ? 'category' : 'post_tag';
-            $hero_term_id  = (int) $nav_item->object_id;
-        }
-
-        $items[] = [
-            'post_id'    => $start_art['post_id'],
-            'item_url'   => $item_url,
-            'cat_label'  => $nav_item->title,
-            'icon'       => '',
-            'icon_html'  => $item_icon_html,
-            'count'      => $item_count,
-            'type_key'   => $start_art['type_key'],
-            'type_label' => $start_art['type_label'],
-            'type_icon'  => $start_art['type_icon'],
-            'taxonomy'   => $hero_taxonomy,
-            'term_id'    => $hero_term_id,
-            'articles'   => $articles,
-            'start'      => $start,
-        ];
-    }
-
-    return $items;
+    return $ids;
 }
 
 function lared_count_unique_approved_commenters(int $post_id): int
 {
-    $comments = get_comments([
-        'post_id' => $post_id,
-        'status' => 'approve',
-        'type' => 'comment',
-    ]);
+    global $wpdb;
 
-    $unique = [];
-    foreach ($comments as $comment) {
-        $key = '';
-        if ((int) $comment->user_id > 0) {
-            $key = 'user:' . $comment->user_id;
-        } elseif ('' !== trim((string) $comment->comment_author_email)) {
-            $key = 'email:' . strtolower(trim($comment->comment_author_email));
-        } else {
-            $key = 'name:' . strtolower(trim((string) $comment->comment_author));
-        }
-        $unique[$key] = true;
-    }
+    // 使用 SQL 直接统计唯一评论者，避免加载所有评论对象
+    // 优先按 user_id 去重，其次按 email，最后按 author name
+    $count = (int) $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM (
+            SELECT CASE
+                WHEN user_id > 0 THEN CONCAT('user:', user_id)
+                WHEN comment_author_email != '' THEN CONCAT('email:', LOWER(TRIM(comment_author_email)))
+                ELSE CONCAT('name:', LOWER(TRIM(comment_author)))
+            END AS commenter_key
+            FROM {$wpdb->comments}
+            WHERE comment_post_ID = %d
+              AND comment_approved = '1'
+              AND comment_type = 'comment'
+            GROUP BY commenter_key
+        ) AS unique_commenters",
+        $post_id
+    ));
 
-    return count($unique);
+    return $count;
 }
 
 function lared_ajax_submit_comment(): void
@@ -954,7 +403,7 @@ function lared_ajax_submit_comment(): void
     // 防重复提交：同一作者 + 同一内容 60 秒内不允许重复
     global $wpdb;
     $recent_dup = $wpdb->get_var($wpdb->prepare(
-        "SELECT comment_ID FROM {$wpdb->comments} WHERE comment_post_ID = %d AND comment_author_email = %s AND comment_content = %s AND comment_date > %s LIMIT 1",
+        "SELECT comment_ID FROM {$wpdb->comments} WHERE comment_post_ID = %d AND comment_author_email = %s AND comment_content = %s AND comment_date_gmt > %s LIMIT 1",
         $comment_post_id,
         $comment_author_email,
         $comment_content,
@@ -1101,115 +550,51 @@ add_action('wp_ajax_lared_edit_comment', 'lared_ajax_edit_comment');
 add_action('wp_ajax_nopriv_lared_edit_comment', 'lared_ajax_edit_comment');
 
 /**
- * AJAX: Hero 区域随机获取一篇文章（从 4 种排序方式中随机选一种）
+ * AJAX 登录
  */
-function lared_hero_random_article(): void
+function lared_ajax_login(): void
 {
-    check_ajax_referer('lared_ajax_nonce', 'nonce');
+    check_ajax_referer('lared_login_nonce', 'nonce');
 
-    $taxonomy = sanitize_text_field(wp_unslash($_POST['taxonomy'] ?? ''));
-    $term_id  = (int) ($_POST['term_id'] ?? 0);
+    $username   = sanitize_text_field(wp_unslash($_POST['log'] ?? ''));
+    $password   = $_POST['pwd'] ?? '';
+    $remember   = !empty($_POST['rememberme']);
 
-    $base_args = [];
-    if ('' !== $taxonomy && $term_id > 0) {
-        $base_args = [
-            'tax_query' => [[
-                'taxonomy' => $taxonomy,
-                'field'    => 'term_id',
-                'terms'    => $term_id,
-            ]],
-        ];
+    if ('' === $username || '' === $password) {
+        wp_send_json_error(['message' => __('请填写用户名和密码', 'lared')]);
     }
 
-    // 四种排序方式
-    $type_defs = [
-        [
-            'key'     => 'latest',
-            'label'   => __('最新文章', 'lared'),
-            'icon'    => 'fa-solid fa-clock',
-            'orderby' => 'date',
-            'order'   => 'DESC',
-        ],
-        [
-            'key'      => 'popular',
-            'label'    => __('热门文章', 'lared'),
-            'icon'     => 'fa-solid fa-fire',
-            'orderby'  => 'meta_value_num',
-            'order'    => 'DESC',
-            'meta_key' => 'post_views',
-        ],
-        [
-            'key'     => 'comment',
-            'label'   => __('热评文章', 'lared'),
-            'icon'    => 'fa-solid fa-comments',
-            'orderby' => 'comment_count',
-            'order'   => 'DESC',
-        ],
-        [
-            'key'     => 'random',
-            'label'   => __('随机文章', 'lared'),
-            'icon'    => 'fa-solid fa-shuffle',
-            'orderby' => 'rand',
-            'order'   => 'DESC',
-        ],
+    $creds = [
+        'user_login'    => $username,
+        'user_password' => $password,
+        'remember'      => $remember,
     ];
 
-    // 随机选一种排序方式
-    $type = $type_defs[wp_rand(0, count($type_defs) - 1)];
+    $user = wp_signon($creds, is_ssl());
 
-    $query = array_merge($base_args, [
-        'posts_per_page' => 1,
-        'post_type'      => 'post',
-        'post_status'    => 'publish',
-        'no_found_rows'  => true,
-        'orderby'        => $type['orderby'],
-        'order'          => $type['order'],
-    ]);
-    if (isset($type['meta_key'])) {
-        $query['meta_key'] = $type['meta_key'];
+    if (is_wp_error($user)) {
+        wp_send_json_error(['message' => __('用户名或密码错误', 'lared')]);
     }
 
-    $posts = get_posts($query);
-
-    if (empty($posts)) {
-        // 兜底：全站随机
-        $posts = get_posts([
-            'posts_per_page' => 1,
-            'post_type'      => 'post',
-            'post_status'    => 'publish',
-            'no_found_rows'  => true,
-            'orderby'        => 'rand',
-        ]);
-    }
-
-    if (empty($posts)) {
-        wp_send_json_error('no_posts');
-    }
-
-    $pid   = (int) $posts[0]->ID;
-    $image = lared_get_post_image_url($pid, 'large');
-    if ('' === $image) {
-        $image = 'https://picsum.photos/1600/800?random=' . wp_rand(100000, 999999);
-    }
+    wp_set_current_user($user->ID);
 
     wp_send_json_success([
-        'title'      => get_the_title($pid),
-        'image'      => $image,
-        'permalink'  => get_permalink($pid),
-        'type_key'   => $type['key'],
-        'type_label' => $type['label'],
-        'type_icon'  => $type['icon'],
+        'message'    => __('登录成功', 'lared'),
+        'avatar'     => get_avatar_url($user->ID, ['size' => 60]),
+        'name'       => $user->display_name,
+        'admin_url'  => admin_url(),
+        'logout_url' => wp_logout_url(home_url()),
     ]);
 }
-add_action('wp_ajax_lared_hero_random_article', 'lared_hero_random_article');
-add_action('wp_ajax_nopriv_lared_hero_random_article', 'lared_hero_random_article');
+add_action('wp_ajax_nopriv_lared_ajax_login', 'lared_ajax_login');
+add_action('wp_ajax_lared_ajax_login', 'lared_ajax_login');
 
 /**
  * AJAX 搜索 - 实时搜索文章
  */
 function lared_ajax_search(): void
 {
-    check_ajax_referer('lared_ajax_nonce', 'nonce');
+    // 公开只读接口，不强制 nonce
 
     $keyword = isset($_POST['keyword']) ? sanitize_text_field(wp_unslash($_POST['keyword'])) : '';
     if ('' === $keyword || mb_strlen($keyword) < 2) {
@@ -1283,19 +668,30 @@ function lared_localize_script(): void
     wp_localize_script('lared-theme', 'LaredAjax', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('lared_ajax_nonce'),
+        'loginNonce' => wp_create_nonce('lared_login_nonce'),
+        'logoutUrl' => wp_logout_url(home_url()),
+        'adminUrl' => admin_url(),
+        'isLoggedIn' => is_user_logged_in(),
         'memosFilterNonce' => wp_create_nonce('lared_memos_filter_nonce'),
         'memosPublishNonce' => wp_create_nonce('lared_memos_publish_nonce'),
         'commentSubmitNonce' => wp_create_nonce('lared_comment_submit'),
         'commentEditNonce' => wp_create_nonce('lared_comment_edit'),
+        'friendLinkNonce' => wp_create_nonce('lared_friend_link_nonce'),
         'levelNonce' => wp_create_nonce('lared_level_nonce'),
         'themeUrl' => get_template_directory_uri(),
         'avatarBaseUrl' => 'https://' . $avatar_host . '/avatar/',
+        'homeUrl' => trailingslashit(home_url()),
     ]);
 }
 add_action('wp_enqueue_scripts', 'lared_localize_script', 20);
 
 function lared_get_site_running_days_from_first_post(): int
 {
+    $cached = get_transient('lared_site_running_days');
+    if (false !== $cached) {
+        return (int) $cached;
+    }
+
     $first_post = get_posts([
         'post_type' => 'post',
         'post_status' => 'publish',
@@ -1316,13 +712,22 @@ function lared_get_site_running_days_from_first_post(): int
     }
     $now_timestamp = current_datetime()->getTimestamp();
     $days = (int) round(($now_timestamp - $first_timestamp) / DAY_IN_SECONDS);
+    $days = max(0, $days);
 
-    return max(0, $days);
+    // 缓存 12 小时，每天自然过期后重新计算
+    set_transient('lared_site_running_days', $days, 12 * HOUR_IN_SECONDS);
+
+    return $days;
 }
 
 function lared_remove_latex_backslashes(string $content): string
 {
     if (is_admin() || '' === trim($content)) {
+        return $content;
+    }
+
+    // 快速检测：内容中没有反斜杠则无需处理
+    if (!str_contains($content, '\\')) {
         return $content;
     }
 
@@ -1467,8 +872,23 @@ function lared_get_ten_year_progress_data(): array
     ];
 
     $start_raw = (string) get_option('lared_ten_year_start_date', '');
+
+    // 后台未设置时，fallback 到第一篇文章的发布日期
     if ('' === $start_raw) {
-        return $empty;
+        $first_post = get_posts([
+            'numberposts'      => 1,
+            'orderby'          => 'date',
+            'order'            => 'ASC',
+            'post_type'        => 'post',
+            'post_status'      => 'publish',
+            'suppress_filters' => true,
+        ]);
+        if (!empty($first_post)) {
+            $start_raw = get_the_date('Y-m-d', $first_post[0]);
+        }
+        if ('' === $start_raw) {
+            return $empty;
+        }
     }
 
     $tz    = wp_timezone();
@@ -1501,287 +921,6 @@ function lared_get_ten_year_progress_data(): array
     ];
 }
 
-function lared_add_theme_settings_page(): void
-{
-    add_theme_page(
-        __('主题设置', 'lared'),
-        __('主题设置', 'lared'),
-        'manage_options',
-        'lared-theme-settings',
-        'lared_render_theme_settings_page'
-    );
-}
-add_action('admin_menu', 'lared_add_theme_settings_page');
-
-function lared_register_theme_settings(): void
-{
-    register_setting('lared_theme_settings_group', 'lared_aplayer_playlist_json', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_aplayer_playlist_json',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_music_playlist_urls', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_music_playlist_urls',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_music_meting_api_template', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_meting_api_template',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_memos_site_url', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_memos_url',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_memos_api_url', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_memos_url',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_memos_api_token', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_memos_token',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_memos_page_size', [
-        'type' => 'integer',
-        'sanitize_callback' => 'lared_sanitize_memos_page_size',
-        'default' => 20,
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_umami_script', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_umami_script',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_ten_year_start_date', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_ten_year_start_date',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_default_featured_image', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_image_url',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_featured_image_api', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_image_api_url',
-        'default' => '',
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_enable_lazyload', [
-        'type' => 'boolean',
-        'sanitize_callback' => 'rest_sanitize_boolean',
-        'default' => true,
-    ]);
-
-    register_setting('lared_theme_settings_group', 'lared_image_load_animation', [
-        'type' => 'string',
-        'sanitize_callback' => 'lared_sanitize_image_animation',
-        'default' => 'none',
-    ]);
-}
-add_action('admin_init', 'lared_register_theme_settings');
-
-function lared_render_theme_settings_page(): void
-{
-    if (!current_user_can('manage_options')) {
-        return;
-    }
-
-    $playlist_json = (string) get_option('lared_aplayer_playlist_json', '');
-    $music_playlist_urls = (string) get_option('lared_music_playlist_urls', '');
-    $meting_api_template = (string) get_option('lared_music_meting_api_template', lared_get_meting_api_template());
-    $memos_site_url = (string) get_option('lared_memos_site_url', '');
-    $memos_api_url = (string) get_option('lared_memos_api_url', lared_get_memos_api_url());
-    $memos_api_token = (string) get_option('lared_memos_api_token', '');
-    $memos_page_size = (int) get_option('lared_memos_page_size', 20);
-    $umami_script = (string) get_option('lared_umami_script', '');
-    $ten_year_start_date = (string) get_option('lared_ten_year_start_date', '');
-    $ten_year_start_default = lared_get_first_post_date_ymd();
-    $default_featured_image = (string) get_option('lared_default_featured_image', '');
-    $featured_image_api = (string) get_option('lared_featured_image_api', '');
-    $enable_lazyload = (bool) get_option('lared_enable_lazyload', true);
-    $image_load_animation = (string) get_option('lared_image_load_animation', 'none');
-    $rss_cache_status = isset($_GET['lared_rss_cache']) ? sanitize_key((string) $_GET['lared_rss_cache']) : '';
-    $rss_cache_removed = isset($_GET['lared_rss_removed']) ? max(0, (int) $_GET['lared_rss_removed']) : 0;
-    ?>
-    <div class="wrap">
-        <h1><?php esc_html_e('主题设置', 'lared'); ?></h1>
-        <?php if ('cleared' === $rss_cache_status) : ?>
-            <div class="notice notice-success is-dismissible"><p><?php echo esc_html(sprintf(__('RSS 缓存已刷新，清理 %d 个缓存文件。', 'lared'), $rss_cache_removed)); ?></p></div>
-        <?php elseif ('failed' === $rss_cache_status) : ?>
-            <div class="notice notice-error is-dismissible"><p><?php esc_html_e('RSS 缓存刷新失败，请检查 data/rss 目录权限。', 'lared'); ?></p></div>
-        <?php endif; ?>
-        <p><?php esc_html_e('配置 APlayer 播放列表（JSON 数组）。每一项支持 name、artist、url、cover、lrc。', 'lared'); ?></p>
-        <form method="post" action="options.php">
-            <?php settings_fields('lared_theme_settings_group'); ?>
-            <table class="form-table" role="presentation">
-                <tr>
-                    <th scope="row"><label for="lared_aplayer_playlist_json"><?php esc_html_e('APlayer Playlist JSON', 'lared'); ?></label></th>
-                    <td>
-                        <textarea id="lared_aplayer_playlist_json" name="lared_aplayer_playlist_json" rows="16" class="large-text code"><?php echo esc_textarea($playlist_json); ?></textarea>
-                        <p class="description"><?php esc_html_e('示例：[{"name":"Song A","artist":"Pan","url":"https://example.com/a.mp3","cover":"https://example.com/a.jpg"}]', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_music_playlist_urls"><?php esc_html_e('音乐页歌单地址', 'lared'); ?></label></th>
-                    <td>
-                        <textarea id="lared_music_playlist_urls" name="lared_music_playlist_urls" rows="6" class="large-text code" placeholder="https://music.163.com/#/playlist?id=xxxx&#10;https://y.qq.com/n/ryqq/playlist/xxxx"><?php echo esc_textarea($music_playlist_urls); ?></textarea>
-                        <p class="description"><?php esc_html_e('用于"Music Page"独立页面。每行一个歌单地址，支持网易云与 QQ 音乐链接。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_music_meting_api_template"><?php esc_html_e('Meting API 模板', 'lared'); ?></label></th>
-                    <td>
-                        <input id="lared_music_meting_api_template" name="lared_music_meting_api_template" type="text" class="large-text code" value="<?php echo esc_attr($meting_api_template); ?>" placeholder="<?php echo esc_attr(lared_get_local_meting_api_template() ?: lared_get_external_meting_api_template()); ?>" />
-                        <p class="description"><?php esc_html_e('用于解析歌单到可播放链接。留空时自动优先使用主题内本地 meting-api（assets/music/meting-api-1.2.0），失败再走外部兜底。需包含 :server、:type、:id 占位符。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_memos_site_url"><?php esc_html_e('Memos 站点地址', 'lared'); ?></label></th>
-                    <td>
-                        <input id="lared_memos_site_url" name="lared_memos_site_url" type="url" class="large-text code" value="<?php echo esc_attr($memos_site_url); ?>" placeholder="https://memos.example.com" />
-                        <p class="description"><?php esc_html_e('用于拼接动态详情链接。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_memos_api_url"><?php esc_html_e('Memos API 地址', 'lared'); ?></label></th>
-                    <td>
-                        <input id="lared_memos_api_url" name="lared_memos_api_url" type="url" class="large-text code" value="<?php echo esc_attr($memos_api_url); ?>" placeholder="https://memos.example.com/api/v1/memos" />
-                        <p class="description"><?php esc_html_e('例如：/api/v1/memos；若留空则按"站点地址 + /api/v1/memos"自动推导。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_memos_api_token"><?php esc_html_e('Memos API Token', 'lared'); ?></label></th>
-                    <td>
-                        <input id="lared_memos_api_token" name="lared_memos_api_token" type="text" class="large-text code" value="<?php echo esc_attr($memos_api_token); ?>" placeholder="可选" />
-                        <p class="description"><?php esc_html_e('私有实例可填写 Token，会自动附带 Authorization 与 X-Api-Key 头。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_memos_page_size"><?php esc_html_e('Memos 拉取数量', 'lared'); ?></label></th>
-                    <td>
-                        <input id="lared_memos_page_size" name="lared_memos_page_size" type="number" min="1" max="100" class="small-text" value="<?php echo esc_attr((string) $memos_page_size); ?>" />
-                        <p class="description"><?php esc_html_e('每次请求的最大条数，建议 20-50。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_umami_script"><?php esc_html_e('Umami 统计代码', 'lared'); ?></label></th>
-                    <td>
-                        <textarea id="lared_umami_script" name="lared_umami_script" rows="5" class="large-text code" placeholder='<script defer src="https://umami.example.com/script.js" data-website-id="xxxx-xxxx-xxxx-xxxx"></script>'><?php echo esc_textarea($umami_script); ?></textarea>
-                        <p class="description"><?php esc_html_e('粘贴 Umami 官方 script 代码，保存后会自动输出到前台 head。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_ten_year_start_date"><?php esc_html_e('博客十年起始日期', 'lared'); ?></label></th>
-                    <td>
-                        <input id="lared_ten_year_start_date" name="lared_ten_year_start_date" type="date" class="regular-text" value="<?php echo esc_attr($ten_year_start_date); ?>" />
-                        <p class="description">
-                            <?php
-                            printf(
-                                esc_html__('留空将默认使用第一篇文章日期（%s）。', 'lared'),
-                                '' !== $ten_year_start_default ? esc_html($ten_year_start_default) : esc_html__('暂无文章', 'lared')
-                            );
-                            ?>
-                        </p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_default_featured_image"><?php esc_html_e('默认特色图片', 'lared'); ?></label></th>
-                    <td>
-                        <input id="lared_default_featured_image" name="lared_default_featured_image" type="url" class="large-text code" value="<?php echo esc_attr($default_featured_image); ?>" placeholder="https://example.com/default-image.jpg" />
-                        <p class="description"><?php esc_html_e('设置全站默认特色图片 URL，当文章没有特色图片且内容中无图片时使用。', 'lared'); ?></p>
-                        <?php if ('' !== $default_featured_image) : ?>
-                            <p class="description">
-                                <img src="<?php echo esc_url($default_featured_image); ?>" alt="<?php esc_attr_e('默认特色图片预览', 'lared'); ?>" style="max-width: 200px; max-height: 120px; margin-top: 8px; border-radius: 4px;" />
-                            </p>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_featured_image_api"><?php esc_html_e('特色图片 API', 'lared'); ?></label></th>
-                    <td>
-                        <input id="lared_featured_image_api" name="lared_featured_image_api" type="url" class="large-text code" value="<?php echo esc_attr($featured_image_api); ?>" placeholder="https://api.example.com/random-image" />
-                        <p class="description"><?php esc_html_e('输入随机图片 API 地址，系统将从此 API 获取图片作为文章特色图。API 应返回图片 URL 或可直接访问的图片。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php esc_html_e('图片懒加载', 'lared'); ?></th>
-                    <td>
-                        <label for="lared_enable_lazyload">
-                            <input id="lared_enable_lazyload" name="lared_enable_lazyload" type="checkbox" value="1" <?php checked($enable_lazyload); ?> />
-                            <?php esc_html_e('启用图片懒加载', 'lared'); ?>
-                        </label>
-                        <p class="description"><?php esc_html_e('开启后，页面中的图片将延迟加载，提升页面加载速度。', 'lared'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="lared_image_load_animation"><?php esc_html_e('图片加载动画', 'lared'); ?></label></th>
-                    <td>
-                        <select id="lared_image_load_animation" name="lared_image_load_animation" class="regular-text">
-                            <option value="none" <?php selected($image_load_animation, 'none'); ?>><?php esc_html_e('无动画', 'lared'); ?></option>
-                            <option value="fade" <?php selected($image_load_animation, 'fade'); ?>><?php esc_html_e('淡入效果', 'lared'); ?></option>
-                            <option value="blur" <?php selected($image_load_animation, 'blur'); ?>><?php esc_html_e('模糊淡入', 'lared'); ?></option>
-                            <option value="pixelate" <?php selected($image_load_animation, 'pixelate'); ?>><?php esc_html_e('像素化显现', 'lared'); ?></option>
-                        </select>
-                        <p class="description"><?php esc_html_e('选择图片加载时的动画效果。淡入效果柔和自然，像素化显现具有艺术感。', 'lared'); ?></p>
-                    </td>
-                </tr>
-            </table>
-            <?php submit_button(); ?>
-        </form>
-
-        <hr />
-        <h2><?php esc_html_e('RSS Cache', 'lared'); ?></h2>
-        <p><?php echo esc_html(sprintf(__('缓存目录：%s', 'lared'), lared_get_rss_cache_dir())); ?></p>
-        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-            <input type="hidden" name="action" value="lared_clear_rss_cache" />
-            <?php wp_nonce_field('lared_clear_rss_cache_action'); ?>
-            <?php submit_button(__('手动刷新缓存', 'lared'), 'secondary', 'submit', false); ?>
-        </form>
-    </div>
-    <?php
-}
-
-function lared_handle_clear_rss_cache(): void
-{
-    if (!current_user_can('manage_options')) {
-        wp_die(esc_html__('无权限执行该操作。', 'lared'));
-    }
-
-    check_admin_referer('lared_clear_rss_cache_action');
-
-    $result = function_exists('lared_clear_rss_cache_files')
-        ? lared_clear_rss_cache_files()
-        : ['removed' => 0, 'errors' => 1, 'dir' => ''];
-
-    $status = ((int) ($result['errors'] ?? 1) === 0) ? 'cleared' : 'failed';
-    $removed = max(0, (int) ($result['removed'] ?? 0));
-
-    $redirect_url = add_query_arg([
-        'page' => 'lared-theme-settings',
-        'lared_rss_cache' => $status,
-        'lared_rss_removed' => $removed,
-    ], admin_url('themes.php'));
-
-    wp_safe_redirect($redirect_url);
-    exit;
-}
-add_action('admin_post_lared_clear_rss_cache', 'lared_handle_clear_rss_cache');
-
 /**
  * 读取文章浏览量（post meta: post_views）
  */
@@ -1793,174 +932,47 @@ function lared_get_post_views(int $post_id): int
 /**
  * AJAX 自增文章浏览量
  * 由前端 JS 在单篇文章页触发（兼容 PJAX 导航）
+ * 使用 transient 节流（同一 IP 对同一篇文章 30 秒内只计一次）
+ * 使用 $wpdb 原子自增，避免竞态条件
  */
 function lared_track_post_views_ajax(): void
 {
-    check_ajax_referer('lared_ajax_nonce', 'nonce');
-
     $post_id = isset($_POST['post_id']) ? (int) $_POST['post_id'] : 0;
     if ($post_id < 1 || 'publish' !== get_post_status($post_id)) {
         wp_send_json_error(['message' => 'Invalid post']);
         return;
     }
 
-    $current = lared_get_post_views($post_id);
-    update_post_meta($post_id, 'post_views', $current + 1);
+    // 节流：同一 IP + 同一文章 30 秒内不重复计数
+    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? '');
+    $throttle_key = 'lared_pv_' . md5($ip . '_' . $post_id);
+    if (get_transient($throttle_key)) {
+        $current = lared_get_post_views($post_id);
+        wp_send_json_success(['tracked' => false, 'views' => $current]);
+        return;
+    }
+    set_transient($throttle_key, 1, 30);
 
-    wp_send_json_success(['tracked' => true, 'views' => $current + 1]);
+    // 原子自增
+    global $wpdb;
+    $meta_exists = metadata_exists('post', $post_id, 'post_views');
+    if ($meta_exists) {
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->postmeta} SET meta_value = meta_value + 1 WHERE post_id = %d AND meta_key = 'post_views' LIMIT 1",
+            $post_id
+        ));
+    } else {
+        add_post_meta($post_id, 'post_views', 1, true);
+    }
+
+    // 清理对象缓存
+    wp_cache_delete($post_id, 'post_meta');
+    $current = lared_get_post_views($post_id);
+
+    wp_send_json_success(['tracked' => true, 'views' => $current]);
 }
 add_action('wp_ajax_lared_track_views', 'lared_track_post_views_ajax');
 add_action('wp_ajax_nopriv_lared_track_views', 'lared_track_post_views_ajax');
-
-function lared_get_post_image_url(int $post_id, string $size = 'large'): string
-{
-    // 1. 优先使用文章特色图片
-    if (has_post_thumbnail($post_id)) {
-        $image_url = get_the_post_thumbnail_url($post_id, $size);
-        if ($image_url) {
-            return $image_url;
-        }
-    }
-
-    // 2. 从文章内容提取图片
-    $content = (string) get_post_field('post_content', $post_id);
-    if ('' !== trim($content)) {
-        if (preg_match('/<img[^>]*>/i', $content, $img_tag_match)) {
-            $img_tag = (string) $img_tag_match[0];
-
-            if (preg_match('/wp-image-([0-9]+)/i', $img_tag, $id_match)) {
-                $attachment_id = (int) $id_match[1];
-                if ($attachment_id > 0) {
-                    $image = wp_get_attachment_image_src($attachment_id, $size);
-                    if (is_array($image) && isset($image[0]) && '' !== trim((string) $image[0])) {
-                        return (string) $image[0];
-                    }
-                }
-            }
-
-            if (preg_match('/src=("|\')(.*?)\1/i', $img_tag, $src_match)) {
-                $src = (string) $src_match[2];
-                if ('' !== trim($src)) {
-                    return $src;
-                }
-            }
-        }
-    }
-
-    // 3. 使用 API 获取图片（如果设置了 API）
-    $api_url = (string) get_option('lared_featured_image_api', '');
-    if ('' !== $api_url) {
-        $api_image = lared_get_image_from_api($api_url, $post_id);
-        if ('' !== $api_image) {
-            return $api_image;
-        }
-    }
-
-    // 4. 使用主题设置的默认图片
-    $default_image = (string) get_option('lared_default_featured_image', '');
-    if ('' !== $default_image) {
-        return $default_image;
-    }
-
-    return '';
-}
-
-function lared_get_post_image_html(int $post_id, string $size = 'large', array $attrs = []): string
-{
-    if (has_post_thumbnail($post_id)) {
-        $attr_defaults = ['alt' => get_the_title($post_id)];
-        $attr_merged   = array_merge($attr_defaults, $attrs);
-        $html = get_the_post_thumbnail($post_id, $size, $attr_merged);
-        if ($html) {
-            return $html;
-        }
-    }
-
-    $image_url = lared_get_post_image_url($post_id, $size);
-    if ('' !== $image_url) {
-        $attr_str = '';
-        $merged = array_merge(['alt' => get_the_title($post_id)], $attrs);
-        foreach ($merged as $k => $v) {
-            $attr_str .= ' ' . esc_attr($k) . '="' . esc_attr($v) . '"';
-        }
-        return '<img src="' . esc_url($image_url) . '"' . $attr_str . '>';
-    }
-
-    return '';
-}
-
-function lared_get_category_icon_html(int $cat_id): string
-{
-    // cat_id = 0 表示"全部"，不对应任何分类，直接返回空
-    if ($cat_id <= 0) {
-        return '';
-    }
-
-    // ── 静态缓存：同一次请求中只扫描一次菜单 ──
-    static $icon_map = null;
-
-    if (null === $icon_map) {
-        $icon_map = [];
-
-        // 扫描所有已注册的导航菜单
-        $locations = get_nav_menu_locations();
-        foreach ($locations as $menu_id) {
-            if (empty($menu_id)) {
-                continue;
-            }
-            $nav_items = wp_get_nav_menu_items((int) $menu_id);
-            if (!is_array($nav_items)) {
-                continue;
-            }
-            foreach ($nav_items as $nav_item) {
-                // 只处理分类和标签类型的菜单项
-                if (!in_array($nav_item->object, ['category', 'post_tag'], true)) {
-                    continue;
-                }
-                $tid = (int) $nav_item->object_id;
-                if ($tid <= 0 || isset($icon_map[$tid])) {
-                    continue;
-                }
-                // 从菜单项的 CSS 类中提取 FontAwesome 类名
-                $fa_classes = lared_extract_fa_classes((array) $nav_item->classes);
-                if ('' !== $fa_classes) {
-                    $icon_map[$tid] = $fa_classes;
-                }
-            }
-        }
-    }
-
-    if (empty($icon_map[$cat_id])) {
-        return '';
-    }
-
-    return '<i class="' . esc_attr($icon_map[$cat_id]) . '" aria-hidden="true"></i>';
-}
-
-/**
- * 从 CSS 类名数组中提取 FontAwesome 图标类
- * 识别规则：fa-、fas、far、fal、fab、fad、fat 前缀
- */
-function lared_extract_fa_classes(array $classes): string
-{
-    $fa_prefixes = ['fa-', 'fas', 'far', 'fal', 'fab', 'fad', 'fat', 'fa '];
-    $matched = [];
-
-    foreach ($classes as $cls) {
-        $cls = trim((string) $cls);
-        if ('' === $cls) {
-            continue;
-        }
-        foreach ($fa_prefixes as $prefix) {
-            if (0 === strpos($cls, $prefix)) {
-                $matched[] = $cls;
-                break;
-            }
-        }
-    }
-
-    return implode(' ', $matched);
-}
 
 /**
  * 清理内联 code 标签中的反引号
@@ -2017,7 +1029,7 @@ function lared_render_comment_emojis(string $text): string
     static $emoji_map = null;
 
     if (null === $emoji_map) {
-        $json_path = get_template_directory() . '/assets/json/bilibili-emojis.json';
+        $json_path = get_template_directory() . '/data/bilibili-emojis.json';
         if (file_exists($json_path)) {
             $json = (string) file_get_contents($json_path);
             $emoji_map = json_decode($json, true);
@@ -2041,13 +1053,36 @@ function lared_render_comment_emojis(string $text): string
             . '" alt="' . esc_attr($emoji['name'])
             . '" title="' . esc_attr($emoji['name'])
             . '" data-code="' . esc_attr($code)
-            . '" loading="lazy">';
+            . '">';
         $text = str_replace($code, $img, $text);
     }
 
     return $text;
 }
 add_filter('comment_text', 'lared_render_comment_emojis', 20);
+
+/**
+ * 后台评论列表：限制表情图片尺寸（后台不加载主题 CSS）
+ */
+function lared_admin_comment_emoji_css(): void
+{
+    $screen = get_current_screen();
+    if (!$screen || 'edit-comments' !== $screen->id) {
+        return;
+    }
+    echo '<style>
+        .comment .lared-emoji,
+        .wp-list-table .lared-emoji {
+            display: inline-block;
+            width: 1.6em;
+            height: 1.6em;
+            vertical-align: text-bottom;
+            margin: 0 1px;
+        }
+    </style>';
+}
+add_action('admin_head', 'lared_admin_comment_emoji_css');
+
 
 /**
  * 自定义评论回调函数
@@ -2063,17 +1098,31 @@ function lared_custom_comment_callback(WP_Comment $comment, array $args, int $de
             } ?>
             <div class="comment-main">
                 <div class="comment-header">
-                    <span class="comment-author-name vcard"><?php comment_author_link($comment); ?></span>
-                    <?php if (user_can($comment->user_id, 'manage_options')) : ?>
-                        <span class="lared-admin-badge" title="<?php esc_attr_e('博主', 'lared'); ?>"><i class="fa-sharp fa-solid fa-crown"></i></span>
-                    <?php endif; ?>
-                    <span class="comment-metadata">
-                        <a href="<?php echo esc_url(get_comment_link($comment, $args)); ?>">
-                            <time datetime="<?php comment_time('c'); ?>">
-                                <?php echo esc_html(get_comment_date('', $comment) . ' ' . get_comment_time('H:i:s', true, true, $comment)); ?>
-                            </time>
-                        </a>
+                    <span class="comment-author-wrap">
+                        <span class="comment-author-name vcard"><?php comment_author_link($comment); ?></span><?php if (user_can($comment->user_id, 'manage_options')) : ?><span class="lared-admin-badge"><i class="fa-sharp fa-solid fa-crown"></i><span class="comment-tooltip"><?php esc_html_e('博主', 'lared'); ?></span></span><?php endif; ?><?php
+                        // 友链互动徽章
+                        $comment_author_url = (string) $comment->comment_author_url;
+                        if (!user_can($comment->user_id, 'manage_options') && lared_is_friend_link($comment_author_url)) : ?><span class="lared-friend-badge"><i class="fa-sharp fa-thin fa-circle-star"></i><span class="comment-tooltip"><?php esc_html_e('友链互动', 'lared'); ?></span></span><?php endif; ?><?php
+                        // 评论等级徽章（昵称后面）
+                        $comment_email = (string) $comment->comment_author_email;
+                        if ('' !== $comment_email && !user_can($comment->user_id, 'manage_options')) {
+                            $comment_stats = lared_get_user_comment_stats($comment_email);
+                            echo lared_get_level_badge_simple($comment_stats['level']);
+                        }
+                        ?>
                     </span>
+                    <span class="comment-metadata">
+                        <?php
+                        $comment_timestamp = get_comment_date('U', $comment);
+                        $exact_time = get_comment_date('Y/m/d H:i', $comment);
+                        $relative_time = sprintf(__('%s前', 'lared'), human_time_diff($comment_timestamp, current_time('timestamp')));
+                        ?>
+                        <time datetime="<?php comment_time('c'); ?>">
+                            <i class="fa-regular fa-clock fa-fw comment-ua-icon" aria-hidden="true"></i><?php echo esc_html($relative_time); ?>
+                            <span class="comment-tooltip"><?php echo esc_html($exact_time); ?></span>
+                        </time>
+                    </span>
+                    <?php echo lared_render_comment_ua_geo($comment); ?>
                     <?php
                     comment_reply_link(
                         array_merge($args, [
@@ -2163,24 +1212,7 @@ function lared_get_ten_year_start_date_ymd(): string
     return lared_get_first_post_date_ymd();
 }
 
-// ====== Umami 统计输出 ======
-
-function lared_output_umami_script(): void
-{
-    if (is_admin()) {
-        return;
-    }
-
-    $umami_script = lared_sanitize_umami_script((string) get_option('lared_umami_script', ''));
-    if ('' === $umami_script) {
-        return;
-    }
-
-    echo $umami_script . "\n";
-}
-add_action('wp_head', 'lared_output_umami_script', 99);
-
-// ====== 搜索结果不分页 ======
+// ====== 搜索结果一页全展示（上限 200） ======
 
 function lared_set_unlimited_search_results(WP_Query $query): void
 {
@@ -2189,252 +1221,11 @@ function lared_set_unlimited_search_results(WP_Query $query): void
     }
 
     if ($query->is_search()) {
-        $query->set('posts_per_page', -1);
-        $query->set('nopaging', true);
+        $query->set('posts_per_page', 200);
+        $query->set('nopaging', false);
     }
 }
 add_action('pre_get_posts', 'lared_set_unlimited_search_results');
-
-// ====== 图片 API 获取 ======
-
-/**
- * 从 API 获取图片 URL
- *
- * @param string $api_url API 地址
- * @param int    $post_id 文章 ID（用于缓存）
- * @return string 图片 URL
- */
-function lared_get_image_from_api(string $api_url, int $post_id): string
-{
-    $cache_key = 'lared_api_image_' . $post_id;
-    $cached_url = get_transient($cache_key);
-
-    if (false !== $cached_url) {
-        return is_string($cached_url) ? $cached_url : '';
-    }
-
-    $response = wp_remote_get($api_url, [
-        'timeout' => 10,
-        'sslverify' => false,
-    ]);
-
-    if (is_wp_error($response)) {
-        return '';
-    }
-
-    $body = wp_remote_retrieve_body($response);
-    if ('' === $body) {
-        return '';
-    }
-
-    // 尝试解析 JSON
-    $data = json_decode($body, true);
-    if (is_array($data)) {
-        $possible_keys = ['url', 'imgUrl', 'image', 'src', 'imageUrl', 'data', 'file'];
-        foreach ($possible_keys as $key) {
-            if (isset($data[$key]) && is_string($data[$key]) && '' !== trim($data[$key])) {
-                $image_url = esc_url_raw(trim($data[$key]));
-                set_transient($cache_key, $image_url, DAY_IN_SECONDS);
-                return $image_url;
-            }
-        }
-    }
-
-    // 如果返回的是纯 URL 文本
-    $url = trim($body);
-    if (filter_var($url, FILTER_VALIDATE_URL)) {
-        $image_url = esc_url_raw($url);
-        set_transient($cache_key, $image_url, DAY_IN_SECONDS);
-        return $image_url;
-    }
-
-    return '';
-}
-
-// ====== 图片懒加载 ======
-
-function lared_add_lazyload_to_images(string $content): string
-{
-    if (!get_option('lared_enable_lazyload', true)) {
-        return $content;
-    }
-
-    return preg_replace_callback('/<img([^>]+)>/i', static function ($matches) {
-        $img_tag = $matches[0];
-        $attributes = $matches[1];
-
-        if (preg_match('/\sloading\s*=/i', $attributes)) {
-            return $img_tag;
-        }
-
-        $lazy_attributes = ' loading="lazy" decoding="async"';
-
-        return preg_replace('/\s*\/?>$/', $lazy_attributes . ' />', $img_tag);
-    }, $content);
-}
-add_filter('the_content', 'lared_add_lazyload_to_images', 20);
-add_filter('post_thumbnail_html', 'lared_add_lazyload_to_images', 20);
-
-function lared_get_lazyload_attrs(): string
-{
-    if (!get_option('lared_enable_lazyload', true)) {
-        return '';
-    }
-    return ' loading="lazy" decoding="async"';
-}
-
-// ====== 图片加载动画包装 ======
-
-function lared_wrap_images_with_loader(string $content): string
-{
-    if (is_admin() || (!is_single() && !is_page())) {
-        return $content;
-    }
-
-    return preg_replace_callback(
-        '/<img([^>]+)>/i',
-        static function (array $matches): string {
-            $img_tag = $matches[0];
-            $attributes = $matches[1];
-
-            if (preg_match('/class=["\'][^"\']*img-loading-target/i', $attributes)) {
-                return $img_tag;
-            }
-
-            if (preg_match('/class=["\'][^"\']*(emoji|avatar)/i', $attributes)) {
-                return $img_tag;
-            }
-
-            $width = '';
-            $height = '';
-            if (preg_match('/width=["\'](\d+)["\']/i', $attributes, $w_match)) {
-                $width = $w_match[1];
-            }
-            if (preg_match('/height=["\'](\d+)["\']/i', $attributes, $h_match)) {
-                $height = $h_match[1];
-            }
-
-            $aspect_style = '';
-            if ($width && $height && (int)$height > 0) {
-                $aspect_style = ' style="aspect-ratio: ' . $width . '/' . $height . ';"';
-            }
-
-            if (preg_match('/class=["\']([^"\']*)["\']/i', $attributes)) {
-                $img_tag = preg_replace('/class=["\']([^"\']*)["\']/i', 'class="$1 img-loading-target"', $img_tag);
-            } else {
-                $img_tag = str_replace('<img', '<img class="img-loading-target"', $img_tag);
-            }
-
-            $wrapper = '<figure class="img-loading-wrapper"' . $aspect_style . '>';
-            $wrapper .= '<div class="img-loading-spinner">';
-            $wrapper .= '<div class="spinner-circle" style="display:block;width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:var(--color-accent,#f53004);border-radius:50%;animation:lared-loading-spin 1s linear infinite;box-sizing:border-box;"></div>';
-            $wrapper .= '</div>';
-            $wrapper .= $img_tag;
-            $wrapper .= '</figure>';
-
-            return $wrapper;
-        },
-        $content
-    );
-}
-add_filter('the_content', 'lared_wrap_images_with_loader', 25);
-
-/**
- * 一次性合并工具：将旧浏览量 key 合并到 post_views
- * 管理员登录后访问 ?lared_merge_views=1 执行合并
- * 合并完成后请删除此函数和 add_action
- *
- * 合并逻辑：取 post_views / post_views_count / pan_post_views / _count_views
- *           中的最大值写入 post_views，然后删除旧 key
- */
-function lared_merge_views_keys(): void
-{
-    if (!isset($_GET['lared_merge_views']) || !current_user_can('manage_options')) {
-        return;
-    }
-
-    global $wpdb;
-
-    header('Content-Type: text/plain; charset=UTF-8');
-
-    $old_keys = ['post_views_count', 'pan_post_views', '_count_views'];
-    $target_key = 'post_views';
-
-    echo "====================================\n";
-    echo "  Lared 浏览量合并工具\n";
-    echo "====================================\n\n";
-
-    // 1. 收集所有涉及的 post_id
-    $placeholders = implode(',', array_fill(0, count($old_keys) + 1, '%s'));
-    $all_keys = array_merge([$target_key], $old_keys);
-
-    $post_ids = $wpdb->get_col(
-        $wpdb->prepare(
-            "SELECT DISTINCT post_id FROM {$wpdb->postmeta}
-             WHERE meta_key IN ({$placeholders})",
-            ...$all_keys
-        )
-    );
-
-    echo "► 涉及文章数：" . count($post_ids) . "\n\n";
-
-    $merged_count = 0;
-    $deleted_count = 0;
-
-    foreach ($post_ids as $pid) {
-        $pid = (int) $pid;
-        $title = get_the_title($pid) ?: "(ID {$pid})";
-        $title_short = mb_substr($title, 0, 20, 'UTF-8');
-
-        // 获取当前 post_views 值
-        $current = (int) get_post_meta($pid, $target_key, true);
-
-        // 获取所有旧 key 值，取最大值
-        $max_old = 0;
-        $old_values = [];
-        foreach ($old_keys as $ok) {
-            $val = (int) get_post_meta($pid, $ok, true);
-            $old_values[$ok] = $val;
-            if ($val > $max_old) {
-                $max_old = $val;
-            }
-        }
-
-        // 如果旧 key 最大值 > 当前 post_views，用旧值覆盖
-        $final = max($current, $max_old);
-
-        $changed = ($final !== $current);
-        if ($changed) {
-            update_post_meta($pid, $target_key, $final);
-            $merged_count++;
-        }
-
-        // 删除旧 key
-        $del_this = 0;
-        foreach ($old_keys as $ok) {
-            if ($old_values[$ok] > 0 || metadata_exists('post', $pid, $ok)) {
-                delete_post_meta($pid, $ok);
-                $del_this++;
-                $deleted_count++;
-            }
-        }
-
-        $status = $changed ? '✦ 已合并' : '  保持';
-        printf(
-            "%s  ID %-5d  %-22s  post_views: %d → %d  (删除旧key: %d)\n",
-            $status, $pid, $title_short, $current, $final, $del_this
-        );
-    }
-
-    echo "\n" . str_repeat('-', 60) . "\n";
-    echo "► 合并完成\n";
-    echo "  更新浏览量的文章数：{$merged_count}\n";
-    echo "  删除旧 meta 记录数：{$deleted_count}\n";
-    echo "\n► 提示：合并完成后，请从 functions.php 中删除 lared_merge_views_keys 函数\n";
-    echo "====================================\n";
-    exit;
-}
-add_action('init', 'lared_merge_views_keys');
 
 // ====== 文章字数统计 ======
 
@@ -2525,3 +1316,173 @@ function lared_get_reading_time(int $post_id): int
     $count = lared_get_word_count($post_id);
     return max(1, (int) ceil($count / 400));
 }
+
+/**
+ * 格式化大数字显示（如 12345 → "1.2万"）
+ */
+function lared_format_number(int $num): string
+{
+    if ($num >= 10000) {
+        return round($num / 10000, 1) . '万';
+    }
+    return number_format($num);
+}
+
+/**
+ * AJAX 自增首页访问量（存储在 wp_options: lared_home_views）
+ * 使用 transient 节流（同一 IP 30 秒内只计一次）
+ * 使用 $wpdb 原子自增
+ */
+function lared_track_home_views_ajax(): void
+{
+    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? '');
+    $throttle_key = 'lared_hv_' . md5($ip);
+    if (get_transient($throttle_key)) {
+        $current = (int) get_option('lared_home_views', 0);
+        wp_send_json_success(['tracked' => false, 'views' => $current]);
+        return;
+    }
+    set_transient($throttle_key, 1, 30);
+
+    global $wpdb;
+    $wpdb->query(
+        "UPDATE {$wpdb->options} SET option_value = option_value + 1 WHERE option_name = 'lared_home_views'"
+    );
+    wp_cache_delete('lared_home_views', 'options');
+    $current = (int) get_option('lared_home_views', 0);
+
+    wp_send_json_success(['tracked' => true, 'views' => $current]);
+}
+add_action('wp_ajax_lared_track_home_views', 'lared_track_home_views_ajax');
+add_action('wp_ajax_nopriv_lared_track_home_views', 'lared_track_home_views_ajax');
+
+/**
+ * AJAX 记录最近访客地理位置
+ * 通过 ip.bluecdn.com 获取 IP 地理信息，存储到 wp_options: lared_last_visitor
+ */
+function lared_track_visitor_ajax(): void
+{
+    $ip = '';
+    if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+        $ip = sanitize_text_field($_SERVER['HTTP_CLIENT_IP']);
+    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $ips = explode(',', sanitize_text_field($_SERVER['HTTP_X_FORWARDED_FOR']));
+        $ip = trim($ips[0]);
+    } else {
+        $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? '');
+    }
+
+    // 跳过本地 / 私有 IP
+    if (
+        empty($ip)
+        || $ip === '127.0.0.1'
+        || $ip === '::1'
+        || !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)
+    ) {
+        wp_send_json_success(['skipped' => true]);
+        return;
+    }
+
+    $last = get_option('lared_last_visitor', []);
+
+    // 相同 IP 不重复调用 API
+    if (!empty($last['ip']) && $last['ip'] === $ip) {
+        $last['timestamp'] = time();
+        update_option('lared_last_visitor', $last, false);
+        wp_send_json_success($last);
+        return;
+    }
+
+    // 调用 ip.bluecdn.com
+    $api_url = 'https://ip.bluecdn.com/geoip/' . rawurlencode($ip);
+    $response = wp_remote_get($api_url, [
+        'timeout' => 5,
+        'headers' => [
+            'Accept'          => 'application/json',
+            'X-Forwarded-For' => $ip,
+            'X-Real-IP'       => $ip,
+        ],
+    ]);
+
+    if (is_wp_error($response)) {
+        wp_send_json_error(['message' => 'API request failed']);
+        return;
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+    if (!is_array($body)) {
+        wp_send_json_error(['message' => 'Invalid API response']);
+        return;
+    }
+    if (isset($body['data']) && is_array($body['data'])) {
+        $body = $body['data'];
+    }
+
+    $country = trim((string) ($body['country'] ?? $body['country_name'] ?? $body['countryName'] ?? ''));
+    $country_code = strtolower(trim((string) ($body['countryCode'] ?? $body['country_code'] ?? '')));
+    $region_name = trim((string) ($body['regionName'] ?? $body['region'] ?? $body['province'] ?? ''));
+    $city = trim((string) ($body['city'] ?? $body['cityName'] ?? ''));
+
+    if ($country === '' && $country_code === '') {
+        wp_send_json_error(['message' => 'Invalid API response']);
+        return;
+    }
+
+    $visitor_data = [
+        'ip'          => $ip,
+        'country'     => $country,
+        'countryCode' => $country_code,
+        'regionName'  => $region_name,
+        'city'        => $city,
+        'timestamp'   => time(),
+    ];
+
+    update_option('lared_last_visitor', $visitor_data, false);
+    wp_send_json_success($visitor_data);
+}
+add_action('wp_ajax_lared_track_visitor', 'lared_track_visitor_ajax');
+add_action('wp_ajax_nopriv_lared_track_visitor', 'lared_track_visitor_ajax');
+
+// ── 友链申请 AJAX ──
+function lared_ajax_apply_friend_link() {
+    if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'lared_friend_link_nonce' ) ) {
+        wp_send_json_error( [ 'message' => '安全验证失败，请刷新页面重试' ] );
+    }
+
+    $name   = sanitize_text_field( $_POST['flink_name'] ?? '' );
+    $url    = esc_url_raw( $_POST['flink_url'] ?? '' );
+    $desc   = sanitize_text_field( $_POST['flink_desc'] ?? '' );
+    $feed   = esc_url_raw( $_POST['flink_feed'] ?? '' );
+    $avatar = esc_url_raw( $_POST['flink_avatar'] ?? '' );
+
+    if ( empty( $name ) || empty( $url ) ) {
+        wp_send_json_error( [ 'message' => '站点名称和网址为必填项' ] );
+    }
+
+    // 检查是否已存在相同 URL 的链接
+    $existing = get_bookmarks( [ 'search' => $url ] );
+    foreach ( $existing as $link ) {
+        if ( trailingslashit( $link->link_url ) === trailingslashit( $url ) ) {
+            wp_send_json_error( [ 'message' => '该站点已在友链列表中' ] );
+        }
+    }
+
+    $linkdata = [
+        'link_name'        => $name,
+        'link_url'         => $url,
+        'link_description' => $desc,
+        'link_rss'         => $feed,
+        'link_image'       => $avatar,
+        'link_visible'     => 'N', // 隐藏，待审核
+    ];
+
+    $result = wp_insert_link( $linkdata, true );
+
+    if ( is_wp_error( $result ) ) {
+        wp_send_json_error( [ 'message' => '提交失败：' . $result->get_error_message() ] );
+    }
+
+    wp_send_json_success( [ 'message' => '提交成功！待站长审核后将显示在友链列表中。' ] );
+}
+add_action( 'wp_ajax_lared_apply_friend_link', 'lared_ajax_apply_friend_link' );
+add_action( 'wp_ajax_nopriv_lared_apply_friend_link', 'lared_ajax_apply_friend_link' );

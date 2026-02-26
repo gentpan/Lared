@@ -8,12 +8,13 @@ if (!defined('ABSPATH')) {
     <meta charset="<?php bloginfo('charset'); ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <?php wp_head(); ?>
+
 </head>
 <body <?php body_class('theme-body'); ?>>
 <?php wp_body_open(); ?>
 <header class="fixed inset-x-0 top-0 z-[60] border-b border-[#d9d9d9] bg-[#ffffff]">
     <div class="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between pl-[18px] pr-0 box-border">
-        <a href="<?php echo esc_url(home_url('/')); ?>" class="text-[31px] font-medium leading-none tracking-[0] text-[var(--color-accent)] no-underline" style="font-family: 'Nano Sans', 'Noto Sans SC', sans-serif;"><?php bloginfo('name'); ?></a>
+        <a href="<?php echo esc_url(home_url('/')); ?>" class="text-[31px] font-medium leading-none tracking-[0] text-[var(--color-accent)] no-underline" style="font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;"><?php bloginfo('name'); ?></a>
 
         <nav class="nav-wrap" aria-label="Primary Navigation">
             <?php
@@ -37,6 +38,7 @@ if (!defined('ABSPATH')) {
                     <kbd data-search-kbd></kbd>
                 </button>
             </form>
+
             
         </div>
     </div>

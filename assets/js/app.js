@@ -50,23 +50,46 @@
         var mainImage    = document.querySelector('[data-hero-main-image]');
         var mainFallback = document.querySelector('[data-hero-main-fallback]');
         var mainBadge    = document.querySelector('[data-hero-main-badge]');
+        var heroArticle  = mainImage ? mainImage.closest('article') : null;
 
         if (!mainImage || !mainTitle || !mainLink) {
             return;
         }
 
+        /* Hero 图片加载完成 → 移除骨架屏 shimmer */
+        function onHeroImgLoaded() {
+            if (heroArticle) { heroArticle.classList.add('hero-img-loaded'); }
+        }
+        if (mainImage.complete && mainImage.naturalWidth > 0) {
+            onHeroImgLoaded();
+        } else {
+            mainImage.addEventListener('load', onHeroImgLoaded, { once: true });
+        }
+
+        /* 当前展示的文章 ID — 从 DOM 读取初始值 */
+        var currentPostId = heroArticle ? parseInt(heroArticle.getAttribute('data-hero-current-post-id'), 10) || 0 : 0;
+
         /* Update right-side display with given data */
-        var applyHeroData = function (item, title, image, link, badge, badgeKey) {
+        var applyHeroData = function (item, title, image, link, badge, badgeKey, postId) {
+            if (postId) {
+                currentPostId = postId;
+            }
             mainTitle.textContent = title;
             mainLink.setAttribute('href', link);
 
             if (image) {
+                /* 重置模糊 → 切换图片 → 加载完成后淡入 */
+                if (heroArticle) { heroArticle.classList.remove('hero-img-loaded'); }
                 mainImage.setAttribute('src', image);
                 mainImage.setAttribute('alt', title);
-                mainImage.style.opacity = '1';
                 if (mainFallback) { mainFallback.classList.add('hidden'); }
+                if (mainImage.complete && mainImage.naturalWidth > 0) {
+                    onHeroImgLoaded();
+                } else {
+                    mainImage.addEventListener('load', onHeroImgLoaded, { once: true });
+                }
             } else {
-                mainImage.style.opacity = '0';
+                if (heroArticle) { heroArticle.classList.remove('hero-img-loaded'); }
                 if (mainFallback) { mainFallback.classList.remove('hidden'); }
             }
 
@@ -84,6 +107,11 @@
                 button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
                 button.classList.toggle('is-hero-active', isActive);
             });
+
+            /* 淡入过渡 */
+            if (heroArticle) {
+                heroArticle.style.opacity = '1';
+            }
         };
 
         /* Activate a hero tab: fetch random article type via AJAX */
@@ -103,7 +131,8 @@
                     item.getAttribute('data-hero-image') || '',
                     item.getAttribute('data-hero-link') || '',
                     item.getAttribute('data-hero-badge') || '',
-                    item.getAttribute('data-hero-badge-key') || ''
+                    item.getAttribute('data-hero-badge-key') || '',
+                    0
                 );
                 return;
             }
@@ -116,9 +145,15 @@
                     item.getAttribute('data-hero-image') || '',
                     item.getAttribute('data-hero-link') || '',
                     item.getAttribute('data-hero-badge') || '',
-                    item.getAttribute('data-hero-badge-key') || ''
+                    item.getAttribute('data-hero-badge-key') || '',
+                    0
                 );
                 return;
+            }
+
+            /* 淡出当前内容 */
+            if (heroArticle) {
+                heroArticle.style.opacity = '0.4';
             }
 
             var fd = new FormData();
@@ -126,6 +161,7 @@
             fd.append('nonce', window.LaredAjax.nonce);
             fd.append('taxonomy', item.getAttribute('data-hero-taxonomy') || '');
             fd.append('term_id', item.getAttribute('data-hero-term-id') || '0');
+            fd.append('exclude_id', String(currentPostId || 0));
 
             fetch(window.LaredAjax.ajaxUrl, { method: 'POST', body: fd })
                 .then(function (r) { return r.json(); })
@@ -135,6 +171,7 @@
                         /* Update data attrs cache */
                         item.setAttribute('data-hero-title', d.title);
                         item.setAttribute('data-hero-image', d.image);
+                        item.setAttribute('data-hero-link', d.permalink || '');
                         item.setAttribute('data-hero-badge', d.type_label);
                         item.setAttribute('data-hero-badge-key', d.type_key);
 
@@ -144,19 +181,25 @@
                             d.image,
                             d.permalink || item.getAttribute('data-hero-link') || '',
                             d.type_label,
-                            d.type_key
+                            d.type_key,
+                            d.post_id || 0
                         );
+                    } else {
+                        /* AJAX 返回失败，恢复显示 */
+                        if (heroArticle) { heroArticle.style.opacity = '1'; }
                     }
                 })
                 .catch(function () {
                     /* Fallback to cached data attrs */
+                    if (heroArticle) { heroArticle.style.opacity = '1'; }
                     applyHeroData(
                         item,
                         item.getAttribute('data-hero-title') || '',
                         item.getAttribute('data-hero-image') || '',
                         item.getAttribute('data-hero-link') || '',
                         item.getAttribute('data-hero-badge') || '',
-                        item.getAttribute('data-hero-badge-key') || ''
+                        item.getAttribute('data-hero-badge-key') || '',
+                        0
                     );
                 });
         };
@@ -379,127 +422,31 @@
          Global Services
          ========================= */
 
-    /* aplayer-init.js */
-    function fallbackAPlayerPlaylistFromDom() {
-        var fallbackContainer = document.getElementById('lared-aplayer');
-        if (!fallbackContainer) {
-            return [];
-        }
-
-        var audioUrl = fallbackContainer.getAttribute('data-url') || '';
-        if (!audioUrl) {
-            return [];
-        }
-
-        return [{
-            name: fallbackContainer.getAttribute('data-title') || 'Lared Radio',
-            artist: fallbackContainer.getAttribute('data-artist') || 'Unknown Artist',
-            url: audioUrl,
-            cover: fallbackContainer.getAttribute('data-cover') || '',
-        }];
-    }
-
-    function normalizePlaylistForAPlayer(list, defaultCover) {
-        if (!Array.isArray(list)) {
-            return [];
-        }
-
-        return list
-            .map(function (item) {
-                if (!item || !item.url) {
-                    return null;
-                }
-
-                var cover = item.cover || '';
-
-                if (cover && /^\//.test(cover) && typeof window !== 'undefined' && window.location && window.location.origin) {
-                    cover = window.location.origin + cover;
-                }
-
-                if (cover && /\/img\/icon\.webp(?:\?|#|$)/i.test(cover) && defaultCover) {
-                    cover = defaultCover;
-                }
-
-                if (!cover && defaultCover) {
-                    cover = defaultCover;
-                }
-
-                return {
-                    name: item.name || 'Unknown Title',
-                    artist: item.artist || 'Unknown Artist',
-                    url: item.url,
-                    cover: cover,
-                    lrc: item.lrc || '',
-                };
-            })
-            .filter(function (item) {
-                return !!item;
+    /* ── Plyr：文章内 video/audio 增强 ── */
+    function initPlyr(scope) {
+        if (typeof window.Plyr === 'undefined') return;
+        var root = scope || document;
+        var targets = root.querySelectorAll('.page-content video, .page-content audio, .single-article-content video, .single-article-content audio, .entry-content video, .entry-content audio');
+        if (!targets.length) return;
+        targets.forEach(function (el) {
+            if (el.__plyrInstance) return;
+            el.__plyrInstance = new Plyr(el, {
+                controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+                settings: ['speed'],
+                speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+                i18n: {
+                    play: '播放',
+                    pause: '暂停',
+                    mute: '静音',
+                    unmute: '取消静音',
+                    settings: '设置',
+                    speed: '速度',
+                    normal: '正常',
+                    enterFullscreen: '全屏',
+                    exitFullscreen: '退出全屏',
+                },
             });
-    }
-
-    var aplayerPlaylistPromise = null;
-    function getAPlayerPlaylistAsync() {
-        if (aplayerPlaylistPromise) {
-            return aplayerPlaylistPromise;
-        }
-
-        var config = window.LaredAPlayerConfig || {};
-        var defaultCover = typeof config.defaultCover === 'string' ? config.defaultCover : '';
-
-        if (Array.isArray(config.playlist) && config.playlist.length) {
-            aplayerPlaylistPromise = Promise.resolve(normalizePlaylistForAPlayer(config.playlist, defaultCover));
-            return aplayerPlaylistPromise;
-        }
-
-        aplayerPlaylistPromise = Promise.resolve(normalizePlaylistForAPlayer(fallbackAPlayerPlaylistFromDom(), defaultCover));
-        return aplayerPlaylistPromise;
-    }
-
-    function initAPlayer() {
-        var fixedContainer = document.getElementById('lared-aplayer');
-        if (!fixedContainer || fixedContainer.getAttribute('data-aplayer-ready') === '1') {
-            return;
-        }
-
-        if (typeof window.APlayer === 'undefined') {
-            window.setTimeout(initAPlayer, 300);
-            return;
-        }
-
-        getAPlayerPlaylistAsync().then(function (playlist) {
-            if (!Array.isArray(playlist) || !playlist.length) {
-                return;
-            }
-
-            if (fixedContainer.getAttribute('data-aplayer-ready') === '1') {
-                return;
-            }
-
-            window.panFixedAPlayer = new window.APlayer({
-                container: fixedContainer,
-                fixed: true,
-                autoplay: false,
-                preload: 'none',
-                audio: playlist,
-            });
-            fixedContainer.setAttribute('data-aplayer-ready', '1');
         });
-    }
-
-    /* comment-ajax.js */
-    function ensureCommentNotice(form) {
-        var notice = form.querySelector('.lared-comment-ajax-notice');
-        if (notice) {
-            return notice;
-        }
-
-        notice = document.createElement('div');
-        notice.className = 'lared-comment-ajax-notice';
-        notice.style.marginTop = '10px';
-        notice.style.fontSize = '13px';
-        notice.style.color = '#666';
-        form.appendChild(notice);
-        return notice;
     }
 
     function updateCommentStats(data) {
@@ -860,15 +807,55 @@
             }
 
             // 调用 WordPress 的 moveForm 移动评论表单
-            if (window.addComment && typeof window.addComment.moveForm === 'function') {
-                var commId = link.getAttribute('data-belowelement');
-                var parentId = link.getAttribute('data-commentid');
-                var respondId = link.getAttribute('data-respondelement');
-                var postId = link.getAttribute('data-postid');
-                var replyTo = link.getAttribute('data-replyto') || '';
+            var commId = link.getAttribute('data-belowelement');
+            var parentId = link.getAttribute('data-commentid');
+            var respondId = link.getAttribute('data-respondelement');
+            var postId = link.getAttribute('data-postid');
+            var replyTo = link.getAttribute('data-replyto') || '';
 
-                if (commId && parentId && respondId && postId) {
-                    window.addComment.moveForm(commId, parentId, respondId, postId, replyTo);
+            if (commId && parentId && respondId && postId) {
+                // 优先使用 WordPress 内置 addComment.moveForm
+                var moved = false;
+                if (window.addComment && typeof window.addComment.moveForm === 'function') {
+                    try {
+                        window.addComment.moveForm(commId, parentId, respondId, postId, replyTo);
+                        moved = true;
+                    } catch (err) {
+                        // moveForm 内部可能因 cancelElement 未初始化而抛出异常
+                        // 尝试重新 init 后再试一次
+                        if (typeof window.addComment.init === 'function') {
+                            try {
+                                window.addComment.init();
+                                window.addComment.moveForm(commId, parentId, respondId, postId, replyTo);
+                                moved = true;
+                            } catch (err2) { /* fallback below */ }
+                        }
+                    }
+                }
+
+                // Fallback：如果 addComment 不可用或 moveForm 失败，手动移动表单
+                if (!moved) {
+                    var addBelowEl = document.getElementById(commId);
+                    var respondEl = document.getElementById(respondId);
+                    var parentField = document.getElementById('comment_parent');
+                    var postField = document.getElementById('comment_post_ID');
+                    var cancelEl = document.getElementById('cancel-comment-reply-link');
+
+                    if (addBelowEl && respondEl && parentField) {
+                        // 创建占位符（如果不存在）以便取消回复时还原位置
+                        var tempId = 'wp-temp-form-div';
+                        if (!document.getElementById(tempId)) {
+                            var placeholder = document.createElement('div');
+                            placeholder.id = tempId;
+                            placeholder.style.display = 'none';
+                            respondEl.parentNode.insertBefore(placeholder, respondEl);
+                        }
+
+                        parentField.value = parentId;
+                        if (postField && postId) postField.value = postId;
+                        addBelowEl.parentNode.insertBefore(respondEl, addBelowEl.nextSibling);
+                        if (cancelEl) cancelEl.style.display = '';
+                    }
                 }
             }
 
@@ -879,54 +866,26 @@
             return;
         }
 
-        // —— 处理取消回复链接 —— 恢复标题文字
+        // —— 处理取消回复链接 —— 恢复标题文字 + fallback 还原表单位置
         var cancelLink = e.target.closest('#cancel-comment-reply-link');
         if (cancelLink) {
             updateReplyTitleText(' 发表评论');
+
+            // Fallback：如果 WordPress addComment 未接管，手动还原表单
+            var tempPlaceholder = document.getElementById('wp-temp-form-div');
+            var respondEl = document.getElementById('respond');
+            if (tempPlaceholder && respondEl && tempPlaceholder.parentNode) {
+                tempPlaceholder.parentNode.replaceChild(respondEl, tempPlaceholder);
+                var parentField = document.getElementById('comment_parent');
+                if (parentField) parentField.value = '0';
+                cancelLink.style.display = 'none';
+                e.preventDefault();
+            }
         }
     }, true); // 捕获阶段，优先于其他 click 处理器
 
-    // ====== 评论内容展开/收起 ======
-
-    function initCommentExpand() {
-        var contents = document.querySelectorAll('.comment-list .comment-content');
-        if (!contents.length) return;
-
-        contents.forEach(function (el) {
-            if (el.getAttribute('data-expand-init') === '1') return;
-            el.setAttribute('data-expand-init', '1');
-
-            // 先加 clamp 测量
-            el.classList.add('is-clamped');
-
-            // 等渲染完再测高度（图片/emoji 可能还没加载）
-            requestAnimationFrame(function () {
-                if (el.scrollHeight <= el.clientHeight + 2) {
-                    // 内容没超出 2 行，取消 clamp
-                    el.classList.remove('is-clamped');
-                    return;
-                }
-
-                // 插入展开按钮
-                var toggle = document.createElement('button');
-                toggle.type = 'button';
-                toggle.className = 'comment-content-toggle';
-                toggle.innerHTML = '展开 <i class="fa-solid fa-chevron-down" style="font-size:11px"></i>';
-                el.parentNode.insertBefore(toggle, el.nextSibling);
-
-                toggle.addEventListener('click', function () {
-                    var clamped = el.classList.contains('is-clamped');
-                    if (clamped) {
-                        el.classList.remove('is-clamped');
-                        toggle.innerHTML = '收起 <i class="fa-solid fa-chevron-up" style="font-size:11px"></i>';
-                    } else {
-                        el.classList.add('is-clamped');
-                        toggle.innerHTML = '展开 <i class="fa-solid fa-chevron-down" style="font-size:11px"></i>';
-                    }
-                });
-            });
-        });
-    }
+    // ====== 评论内容展开/收起（已移除） ======
+    function initCommentExpand() {}
 
     // ====== 评论表情面板 ======
     var _emojiData = null;
@@ -1121,7 +1080,7 @@
     }
 
     // ====== 邮箱输入自动识别头像 ======
-    function md5(s){function f(a,b){var c=(a&65535)+(b&65535);return(((a>>16)+(b>>16)+(c>>16))<<16)|(c&65535)}function g(a,b){return(a<<b)|(a>>>(32-b))}function h(a,b,c,d,e,i,j){return f(g(f(f(b,a),f(e,j)),i),c)}function ff(a,b,c,d,e,i,j){return h((b&c)|((~b)&d),a,b,e,i,j)}function gg(a,b,c,d,e,i,j){return h((b&d)|(c&(~d)),a,b,e,i,j)}function hh(a,b,c,d,e,i,j){return h(b^c^d,a,b,e,i,j)}function ii(a,b,c,d,e,i,j){return h(c^(b|(~d)),a,b,e,i,j)}function md5c(x,l){x[l>>5]|=128<<(l%32);x[(((l+64)>>>9)<<4)+14]=l;var a=1732584193,b=-271733879,c=-1732584194,d=271733878;for(var i=0;i<x.length;i+=16){var o=a,p=b,q=c,r=d;a=ff(a,b,c,d,x[i],7,-680876936);d=ff(d,a,b,c,x[i+1],12,-389564586);c=ff(c,d,a,b,x[i+2],17,606105819);b=ff(b,c,d,a,x[i+3],22,-1044525330);a=ff(a,b,c,d,x[i+4],7,-176418897);d=ff(d,a,b,c,x[i+5],12,1200080426);c=ff(c,d,a,b,x[i+6],17,-1473231341);b=ff(b,c,d,a,x[i+7],22,-45705983);a=ff(a,b,c,d,x[i+8],7,1770035416);d=ff(d,a,b,c,x[i+9],12,-1958414417);c=ff(c,d,a,b,x[i+10],17,-42063);b=ff(b,c,d,a,x[i+11],22,-1990404162);a=ff(a,b,c,d,x[i+12],7,1804603682);d=ff(d,a,b,c,x[i+13],12,-40341101);c=ff(c,d,a,b,x[i+14],17,-1502002290);b=ff(b,c,d,a,x[i+15],22,1236535329);a=gg(a,b,c,d,x[i+1],5,-165796510);d=gg(d,a,b,c,x[i+6],9,-1069501632);c=gg(c,d,a,b,x[i+11],14,643717713);b=gg(b,c,d,a,x[i],20,-373897302);a=gg(a,b,c,d,x[i+5],5,-701558691);d=gg(d,a,b,c,x[i+10],9,38016083);c=gg(c,d,a,b,x[i+15],14,-660478335);b=gg(b,c,d,a,x[i+4],20,-405537848);a=gg(a,b,c,d,x[i+9],5,568446438);d=gg(d,a,b,c,x[i+14],9,-1019803690);c=gg(c,d,a,b,x[i+3],14,-187363961);b=gg(b,c,d,a,x[i+8],20,1163531501);a=gg(a,b,c,d,x[i+13],5,-1444681467);d=gg(d,a,b,c,x[i+2],9,-51403784);c=gg(c,d,a,b,x[i+7],14,1735328473);b=gg(b,c,d,a,x[i+12],20,-1926607734);a=hh(a,b,c,d,x[i+5],4,-378558);d=hh(d,a,b,c,x[i+8],11,-2022574463);c=hh(c,d,a,b,x[i+11],16,1839030562);b=hh(b,c,d,a,x[i+14],23,-35309556);a=hh(a,b,c,d,x[i+1],4,-1530992060);d=hh(d,a,b,c,x[i+4],11,1272893353);c=hh(c,d,a,b,x[i+7],16,-155497632);b=hh(b,c,d,a,x[i+10],23,-1094730640);a=hh(a,b,c,d,x[i+13],4,681279174);d=hh(d,a,b,c,x[i],11,-358537222);c=hh(c,d,a,b,x[i+3],16,-722521979);b=hh(b,c,d,a,x[i+6],23,76029189);a=hh(a,b,c,d,x[i+9],4,-640364487);d=hh(d,a,b,c,x[i+12],11,-421815835);c=hh(c,d,a,b,x[i+15],16,530742520);b=hh(b,c,d,a,x[i+2],23,-995338651);a=ii(a,b,c,d,x[i],6,-198630844);d=ii(d,a,b,c,x[i+7],10,1126891415);c=ii(c,d,a,b,x[i+14],15,-1416354905);b=ii(b,c,d,a,x[i+5],21,-57434055);a=ii(a,b,c,d,x[i+12],6,1700485571);d=ii(d,a,b,c,x[i+3],10,-1894986606);c=ii(c,d,a,b,x[i+10],15,-1051523);b=ii(b,c,d,a,x[i+1],21,-2054922799);a=ii(a,b,c,d,x[i+8],6,1873313359);d=ii(d,a,b,c,x[i+15],10,-30611744);c=ii(c,d,a,b,x[i+6],15,-1560198380);b=ii(b,c,d,a,x[i+13],21,1309151649);a=ii(a,b,c,d,x[i+4],6,-145523070);d=ii(d,a,b,c,x[i+11],10,-1120210379);c=ii(c,d,a,b,x[i+2],15,718787259);b=ii(b,c,d,a,x[i+9],21,-343485551);a=f(a,o);b=f(b,p);c=f(c,q);d=f(d,r)}return[a,b,c,d]}function str2bin(s){var b=[];for(var i=0;i<s.length*8;i+=8)b[i>>5]|=(s.charCodeAt(i/8)&255)<<(i%32);return b}function bin2hex(b){var h='0123456789abcdef',s='';for(var i=0;i<b.length*4;i++)s+=h.charAt((b[i>>2]>>((i%4)*8+4))&15)+h.charAt((b[i>>2]>>((i%4)*8))&15);return s}return bin2hex(md5c(str2bin(s),s.length*8))}
+    function md5(s){function rl(v,b){return(v<<b)|(v>>>(32-b))}function au(x,y){var x8=x&0x80000000,y8=y&0x80000000,x4=x&0x40000000,y4=y&0x40000000,r=(x&0x3FFFFFFF)+(y&0x3FFFFFFF);if(x4&y4)return r^0x80000000^x8^y8;if(x4|y4){if(r&0x40000000)return r^0xC0000000^x8^y8;else return r^0x40000000^x8^y8}else return r^x8^y8}function F(x,y,z){return(x&y)|((~x)&z)}function G(x,y,z){return(x&z)|(y&(~z))}function H(x,y,z){return x^y^z}function I(x,y,z){return y^(x|(~z))}function t(fn,a,b,c,d,x,s,ac){return au(rl(au(a,au(au(fn,x),ac)),s),b)}function FF(a,b,c,d,x,s,ac){return t(F(b,c,d),a,b,c,d,x,s,ac)}function GG(a,b,c,d,x,s,ac){return t(G(b,c,d),a,b,c,d,x,s,ac)}function HH(a,b,c,d,x,s,ac){return t(H(b,c,d),a,b,c,d,x,s,ac)}function II(a,b,c,d,x,s,ac){return t(I(b,c,d),a,b,c,d,x,s,ac)}function cw(s){var l=s.length,n=((l+8-(l+8)%64)/64+1)*16,w=Array(n-1),p=0,c=0;while(c<l){var wc=(c-c%4)/4;p=(c%4)*8;w[wc]=w[wc]|(s.charCodeAt(c)<<p);c++}w[(c-c%4)/4]=w[(c-c%4)/4]|(0x80<<((c%4)*8));w[n-2]=l<<3;w[n-1]=l>>>29;return w}function wh(v){var r='',t,b,i;for(i=0;i<=3;i++){b=(v>>>(i*8))&255;t='0'+b.toString(16);r+=t.substr(t.length-2,2)}return r}var x=cw(s),a=0x67452301,b=0xEFCDAB89,c=0x98BADCFE,d=0x10325476;for(var k=0;k<x.length;k+=16){var A=a,B=b,C=c,D=d;a=FF(a,b,c,d,x[k],7,0xD76AA478);d=FF(d,a,b,c,x[k+1],12,0xE8C7B756);c=FF(c,d,a,b,x[k+2],17,0x242070DB);b=FF(b,c,d,a,x[k+3],22,0xC1BDCEEE);a=FF(a,b,c,d,x[k+4],7,0xF57C0FAF);d=FF(d,a,b,c,x[k+5],12,0x4787C62A);c=FF(c,d,a,b,x[k+6],17,0xA8304613);b=FF(b,c,d,a,x[k+7],22,0xFD469501);a=FF(a,b,c,d,x[k+8],7,0x698098D8);d=FF(d,a,b,c,x[k+9],12,0x8B44F7AF);c=FF(c,d,a,b,x[k+10],17,0xFFFF5BB1);b=FF(b,c,d,a,x[k+11],22,0x895CD7BE);a=FF(a,b,c,d,x[k+12],7,0x6B901122);d=FF(d,a,b,c,x[k+13],12,0xFD987193);c=FF(c,d,a,b,x[k+14],17,0xA679438E);b=FF(b,c,d,a,x[k+15],22,0x49B40821);a=GG(a,b,c,d,x[k+1],5,0xF61E2562);d=GG(d,a,b,c,x[k+6],9,0xC040B340);c=GG(c,d,a,b,x[k+11],14,0x265E5A51);b=GG(b,c,d,a,x[k],20,0xE9B6C7AA);a=GG(a,b,c,d,x[k+5],5,0xD62F105D);d=GG(d,a,b,c,x[k+10],9,0x2441453);c=GG(c,d,a,b,x[k+15],14,0xD8A1E681);b=GG(b,c,d,a,x[k+4],20,0xE7D3FBC8);a=GG(a,b,c,d,x[k+9],5,0x21E1CDE6);d=GG(d,a,b,c,x[k+14],9,0xC33707D6);c=GG(c,d,a,b,x[k+3],14,0xF4D50D87);b=GG(b,c,d,a,x[k+8],20,0x455A14ED);a=GG(a,b,c,d,x[k+13],5,0xA9E3E905);d=GG(d,a,b,c,x[k+2],9,0xFCEFA3F8);c=GG(c,d,a,b,x[k+7],14,0x676F02D9);b=GG(b,c,d,a,x[k+12],20,0x8D2A4C8A);a=HH(a,b,c,d,x[k+5],4,0xFFFA3942);d=HH(d,a,b,c,x[k+8],11,0x8771F681);c=HH(c,d,a,b,x[k+11],16,0x6D9D6122);b=HH(b,c,d,a,x[k+14],23,0xFDE5380C);a=HH(a,b,c,d,x[k+1],4,0xA4BEEA44);d=HH(d,a,b,c,x[k+4],11,0x4BDECFA9);c=HH(c,d,a,b,x[k+7],16,0xF6BB4B60);b=HH(b,c,d,a,x[k+10],23,0xBEBFBC70);a=HH(a,b,c,d,x[k+13],4,0x289B7EC6);d=HH(d,a,b,c,x[k],11,0xEAA127FA);c=HH(c,d,a,b,x[k+3],16,0xD4EF3085);b=HH(b,c,d,a,x[k+6],23,0x4881D05);a=HH(a,b,c,d,x[k+9],4,0xD9D4D039);d=HH(d,a,b,c,x[k+12],11,0xE6DB99E5);c=HH(c,d,a,b,x[k+15],16,0x1FA27CF8);b=HH(b,c,d,a,x[k+2],23,0xC4AC5665);a=II(a,b,c,d,x[k],6,0xF4292244);d=II(d,a,b,c,x[k+7],10,0x432AFF97);c=II(c,d,a,b,x[k+14],15,0xAB9423A7);b=II(b,c,d,a,x[k+5],21,0xFC93A039);a=II(a,b,c,d,x[k+12],6,0x655B59C3);d=II(d,a,b,c,x[k+3],10,0x8F0CCC92);c=II(c,d,a,b,x[k+10],15,0xFFEFF47D);b=II(b,c,d,a,x[k+1],21,0x85845DD1);a=II(a,b,c,d,x[k+8],6,0x6FA87E4F);d=II(d,a,b,c,x[k+15],10,0xFE2CE6E0);c=II(c,d,a,b,x[k+6],15,0xA3014314);b=II(b,c,d,a,x[k+13],21,0x4E0811A1);a=II(a,b,c,d,x[k+4],6,0xF7537E82);d=II(d,a,b,c,x[k+11],10,0xBD3AF235);c=II(c,d,a,b,x[k+2],15,0x2AD7D2BB);b=II(b,c,d,a,x[k+9],21,0xEB86D391);a=au(a,A);b=au(b,B);c=au(c,C);d=au(d,D)}return(wh(a)+wh(b)+wh(c)+wh(d)).toLowerCase()}
 
     function initEmailAvatar() {
         var emailField = document.getElementById('email');
@@ -1151,7 +1110,7 @@
             _lastHash = hash;
             _hasInitialAvatar = false;
             var baseUrl = (window.LaredAjax && window.LaredAjax.avatarBaseUrl) || 'https://secure.gravatar.com/avatar/';
-            avatarWrap.innerHTML = '<img class="lared-title-avatar" src="' + baseUrl + hash + '?s=48&d=mp" style="width:24px;height:24px;border-radius:2px;object-fit:cover;vertical-align:middle;" alt="">';
+            avatarWrap.innerHTML = '<img class="lared-title-avatar" src="' + baseUrl + hash + '?s=96&d=mp" alt="">';
         }
 
         emailField.addEventListener('input', updateAvatar);
@@ -1203,11 +1162,6 @@
             submitButton.disabled = true;
             var originalText = submitButton.value || submitButton.textContent;
             submitButton.classList.add('is-loading');
-            if (submitButton.tagName === 'INPUT') {
-                submitButton.value = '';
-            } else {
-                submitButton.textContent = '';
-            }
 
             var startTime = Date.now();
 
@@ -1297,12 +1251,19 @@
                         if (emojiPanel) emojiPanel.style.display = 'none';
                         if (emojiToggle) emojiToggle.classList.remove('is-active');
 
-                        if (window.addComment && typeof window.addComment.init === 'function') {
-                            // 保存滚动位置，防止 addComment.init() 跳转
-                            var savedScrollY = window.pageYOffset || document.documentElement.scrollTop;
-                            window.addComment.init();
-                            window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+                        // 回复成功后，将表单移回评论区底部（重置回复状态）
+                        var cancelReplyBtn = document.getElementById('cancel-comment-reply-link');
+                        var savedScrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+                        if (cancelReplyBtn && cancelReplyBtn.style.display !== 'none') {
+                            cancelReplyBtn.click();
                         }
+
+                        if (window.addComment && typeof window.addComment.init === 'function') {
+                            window.addComment.init();
+                        }
+
+                        window.scrollTo({ top: savedScrollY, behavior: 'instant' });
                     }, delay);
                 })
                 .catch(function () {
@@ -1410,9 +1371,25 @@
                 oldLineNumbers.remove();
             }
 
+            // 去除代码首尾空行（编辑器/数据库存储常带多余换行，兼容 CRLF）
+            var rawText = codeEl.textContent || '';
+            var trimmedText = rawText.replace(/^[\r\n]+/, '').replace(/[\r\n]+$/, '');
+            if (trimmedText !== rawText) {
+                // 如果有 Prism token 子元素，只修剪 innerHTML 的首尾换行
+                if (codeEl.children.length > 0 && codeEl.querySelector('span[class*="token"]')) {
+                    codeEl.innerHTML = codeEl.innerHTML.replace(/^[\s\r\n]+/, '').replace(/[\s\r\n]+$/, '');
+                } else {
+                    codeEl.textContent = trimmedText;
+                }
+            }
+
             // 转义 HTML 特殊字符，防止代码内容被浏览器解析执行
-            // 检查是否有子元素（如果有，说明 HTML 被解析了，需要转义）
-            if (codeEl.children.length > 0) {
+            // 仅对非 Prism 高亮、非 language-markup 的代码块执行
+            // language-markup 代码块由 PHP esc_html() 已转义，且 Prism 高亮后会产生 <span> 子元素
+            var isMarkup = codeEl.classList.contains('language-markup')
+                        || codeEl.classList.contains('language-html')
+                        || codeEl.classList.contains('language-xml');
+            if (!isMarkup && codeEl.children.length > 0 && !codeEl.querySelector('span[class*="token"]')) {
                 var textContent = codeEl.textContent;
                 codeEl.innerHTML = escapeHtml(textContent);
             }
@@ -1502,6 +1479,24 @@
             });
 
             preEl.appendChild(button);
+
+            /* ── 运行按钮：仅对 language-html 或有 data-cr-runnable 的代码块显示 ── */
+            var isHtml = codeEl.classList.contains('language-html')
+                      || preEl.hasAttribute('data-cr-runnable');
+            if (isHtml && !preEl.querySelector('.lared-code-run-btn')) {
+                var runBtn = document.createElement('button');
+                runBtn.type = 'button';
+                runBtn.className = 'lared-code-run-btn';
+                runBtn.setAttribute('aria-label', '运行代码');
+                runBtn.innerHTML = '<i class="fa-solid fa-play" aria-hidden="true"></i>';
+                runBtn.addEventListener('click', function () {
+                    var code = codeEl.textContent || '';
+                    var title = preEl.getAttribute('data-cr-title') || '代码预览';
+                    var height = parseInt(preEl.getAttribute('data-cr-height')) || 400;
+                    laredCodeRunnerOpen(code, title, height);
+                });
+                preEl.appendChild(runBtn);
+            }
         });
     }
 
@@ -1526,7 +1521,7 @@
         }
 
         // Initialize for article content images
-        var contents = Array.prototype.slice.call(document.querySelectorAll('.single-article-content, .home-article-body, .memos-card-body'));
+        var contents = Array.prototype.slice.call(document.querySelectorAll('.single-article-content, .home-article-body, .memos-card-body, .album-grid'));
         contents.forEach(function (content) {
             if (!content.hasAttribute('view-image')) {
                 content.setAttribute('view-image', '');
@@ -1534,7 +1529,7 @@
         });
 
         // Initialize ViewImage
-        window.ViewImage && window.ViewImage.init('.single-article-content img, .home-article-body img, .memos-card-body img');
+        window.ViewImage && window.ViewImage.init('.single-article-content img, .home-article-body img, .memos-card-body img, .album-grid img');
     }
 
     /* article-image-loading.js - 文章图片占位 loading 效果 */
@@ -1579,6 +1574,20 @@
         var grids = document.querySelectorAll('.lared-grid-2, .lared-grid-3, .lared-grid-4');
 
         grids.forEach(function (grid) {
+            // 清理 wpautop 产生的 <br> 标签（会成为多余 grid item）
+            var brs = Array.prototype.slice.call(grid.querySelectorAll(':scope > br'));
+            brs.forEach(function (br) { br.remove(); });
+
+            // 清理 wpautop 产生的空 <p> 标签
+            var ps = Array.prototype.slice.call(grid.querySelectorAll(':scope > p'));
+            ps.forEach(function (p) {
+                // 把 p 内的子节点（img 等）移到 grid 直接下级
+                while (p.firstChild) {
+                    grid.insertBefore(p.firstChild, p);
+                }
+                p.remove();
+            });
+
             // 如果 PHP 的 lared_wrap_images_with_loader 把 img 包在了 figure.img-loading-wrapper 里，
             // 需要把 img 解放出来，直接放入 grid 容器
             var wrappers = Array.prototype.slice.call(grid.querySelectorAll('.img-loading-wrapper'));
@@ -1607,17 +1616,20 @@
         if (!wrapper) return;
         
         function markLoaded() {
-            img.classList.add('is-loaded');
             wrapper.classList.add('is-loaded');
         }
         
-        if (img.complete && img.naturalWidth > 0) {
+        // lazysizes 已加载完成
+        if (img.classList.contains('lazyloaded')) {
+            markLoaded();
+        } else if (img.complete && img.naturalWidth > 0) {
             markLoaded();
         } else {
-            img.addEventListener('load', markLoaded);
+            img.addEventListener('lazyloaded', markLoaded, { once: true });
+            img.addEventListener('load', markLoaded, { once: true });
             img.addEventListener('error', function() {
                 wrapper.classList.add('is-error');
-            });
+            }, { once: true });
         }
     }
     
@@ -1633,54 +1645,48 @@
             wrapper.style.aspectRatio = width + '/' + height;
         }
         
-        // 创建 loading 圆圈 - 使用更明确的样式确保圆形
+        // 创建 loading 圆圈
         var spinner = document.createElement('div');
         spinner.className = 'img-loading-spinner';
-        spinner.innerHTML = '<div class="spinner-circle" style="border-radius:50% !important;"></div>';
+        spinner.innerHTML = '<div class="spinner-circle"></div>';
         
         // 设置图片类名
         img.classList.add('img-loading-target');
+        
+        // 如果图片还没有 lazyload 类且有 src，转换为 lazysizes 格式
+        if (!img.classList.contains('lazyload') && !img.classList.contains('lazyloaded') && img.getAttribute('src')) {
+            var src = img.getAttribute('src');
+            img.setAttribute('data-src', src);
+            img.removeAttribute('src');
+            img.classList.add('lazyload');
+        }
         
         // 包装图片
         img.parentNode.insertBefore(wrapper, img);
         wrapper.appendChild(spinner);
         wrapper.appendChild(img);
         
-        // 强制触发重绘以确保圆形生效
-        spinner.offsetHeight;
-        
-        // 监听加载完成
+        // 监听 lazysizes 完成事件
         function onImageLoad() {
-            img.classList.add('is-loaded');
             wrapper.classList.add('is-loaded');
-            
-            // 如果有动画类型，也添加动画类
-            var animationType = document.documentElement.getAttribute('data-img-animation');
-            if (animationType && animationType !== 'none') {
-                img.setAttribute('data-img-animation', animationType);
-                setTimeout(function () {
-                    img.classList.add('img-loaded');
-                }, 100);
-            }
         }
         
-        // 检查图片是否已加载完成（包括缓存）
-        if (img.complete && img.naturalWidth > 0) {
-            // 图片已缓存，直接显示
+        // 检查图片是否已加载完成（包括缓存或已被 lazysizes 处理）
+        if (img.classList.contains('lazyloaded') || (img.complete && img.naturalWidth > 0)) {
             onImageLoad();
         } else {
-            img.addEventListener('load', onImageLoad);
+            img.addEventListener('lazyloaded', onImageLoad, { once: true });
+            img.addEventListener('load', onImageLoad, { once: true });
             
             img.addEventListener('error', function () {
                 wrapper.classList.add('is-error');
                 spinner.innerHTML = '<div class="img-loading-error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>';
-            });
+            }, { once: true });
         }
     }
 
-    /* image-load-animation.js */
+    /* image-load-animation.js — lazysizes 全局事件驱动 */
     function initImageLoadAnimation() {
-        // 获取主题设置（通过 data 属性传递）
         var htmlEl = document.documentElement;
         var animationType = htmlEl.getAttribute('data-img-animation') || 'none';
         
@@ -1688,36 +1694,40 @@
             return;
         }
 
-        // 为所有图片添加动画属性
+        // 为所有图片设置动画属性
         var images = Array.prototype.slice.call(document.querySelectorAll('img'));
         
         images.forEach(function (img) {
-            // 排除已加载完成的图片
-            if (img.complete) {
-                img.classList.add('img-loaded');
-                return;
-            }
-
             // 排除特定图片
-            if (img.closest('pre, code') || 
+            if (img.closest('pre, code, #xplayer') || 
                 img.classList.contains('emoji') || 
+                img.classList.contains('lared-emoji') ||
                 img.classList.contains('avatar') ||
+                img.classList.contains('comment-ua-icon') ||
+                img.classList.contains('friend-link-card-avatar-img') ||
+                img.closest('.comment-ua-geo') ||
+                img.closest('.friend-link-card-avatar') ||
                 img.hasAttribute('data-hero-main-image')) {
                 return;
             }
 
             // 设置动画类型
             img.setAttribute('data-img-animation', animationType);
+        });
+    }
 
-            // 监听加载完成
-            img.addEventListener('load', function () {
-                img.classList.add('img-loaded');
-            });
-
-            // 监听加载失败
-            img.addEventListener('error', function () {
-                img.classList.add('img-error');
-            });
+    // 全局 lazysizes 事件监听（只注册一次）
+    if (!window.__laredLazysizesInited) {
+        window.__laredLazysizesInited = true;
+        document.addEventListener('lazyloaded', function (e) {
+            var img = e.target;
+            if (!img || img.tagName !== 'IMG') return;
+            
+            // 处理 loading-wrapper 的加载完成
+            var wrapper = img.closest('.img-loading-wrapper');
+            if (wrapper && !wrapper.classList.contains('is-loaded')) {
+                wrapper.classList.add('is-loaded');
+            }
         });
     }
 
@@ -1864,7 +1874,10 @@
             var setCopiedState = function () {
                 rssButton.classList.add('is-copied');
                 rssButton.setAttribute('aria-label', 'Feed copied');
-                rssButton.setAttribute('title', '复制成功');
+                var tooltipEl = rssButton.querySelector('.rss-tooltip');
+                if (tooltipEl) {
+                    tooltipEl.textContent = '复制成功';
+                }
                 if (icon) {
                     icon.classList.remove('fa-rss');
                     icon.classList.add('fa-check');
@@ -1876,7 +1889,9 @@
                 resetTimer = window.setTimeout(function () {
                     rssButton.classList.remove('is-copied');
                     rssButton.setAttribute('aria-label', 'RSS Feed');
-                    rssButton.removeAttribute('title');
+                    if (tooltipEl) {
+                        tooltipEl.textContent = '点击复制订阅地址';
+                    }
                     if (icon) {
                         icon.classList.remove('fa-check');
                         icon.classList.add('fa-rss');
@@ -1900,16 +1915,22 @@
         });
     }
 
-    /* header-login.js - Header 和 Footer 登录下拉框 */
+    /* header-login.js - Header 和 Footer 登录下拉框 + AJAX 登录 */
     function initHeaderLogin() {
         // 支持多个登录按钮（header 和 footer）
         var loginWrappers = document.querySelectorAll('.header-login-wrapper, .footer-login-wrapper');
-        
+
         if (!loginWrappers.length) {
             return;
         }
 
         loginWrappers.forEach(function(loginWrapper) {
+            // 防止 PJAX 导航后重复绑定（footer 不在 Barba 容器内，DOM 不会被替换）
+            if (loginWrapper._loginBound) {
+                return;
+            }
+            loginWrapper._loginBound = true;
+
             var loginToggle = loginWrapper.querySelector('[data-login-toggle]');
             var loginDropdown = loginWrapper.querySelector('[data-login-dropdown]');
 
@@ -1920,63 +1941,144 @@
             // 切换下拉框显示/隐藏
             loginToggle.addEventListener('click', function (event) {
                 event.stopPropagation();
-                
-                // 先关闭其他所有下拉框
-                document.querySelectorAll('[data-login-dropdown]').forEach(function(dropdown) {
-                    if (dropdown !== loginDropdown) {
-                        dropdown.classList.remove('is-active');
-                    }
-                });
-                document.querySelectorAll('.header-login-wrapper, .footer-login-wrapper').forEach(function(wrapper) {
-                    if (wrapper !== loginWrapper) {
-                        wrapper.classList.remove('is-open');
-                    }
-                });
-                
+                closeAllLoginDropdowns(loginDropdown, loginWrapper);
                 var isActive = loginDropdown.classList.contains('is-active');
-                
-                if (isActive) {
-                    loginDropdown.classList.remove('is-active');
-                    loginWrapper.classList.remove('is-open');
-                } else {
-                    loginDropdown.classList.add('is-active');
-                    loginWrapper.classList.add('is-open');
-                }
+                loginDropdown.classList.toggle('is-active', !isActive);
+                loginWrapper.classList.toggle('is-open', !isActive);
             });
 
             // 点击下拉框内部不关闭
             loginDropdown.addEventListener('click', function (event) {
                 event.stopPropagation();
             });
+
+            // AJAX 登录表单
+            var loginForm = loginWrapper.querySelector('[data-login-form]');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    handleAjaxLogin(loginForm, loginWrapper);
+                });
+            }
         });
 
-        // 点击外部关闭所有下拉框（只绑定一次）
+        // 全局事件只绑定一次
         if (!window._loginClickHandlerBound) {
             document.addEventListener('click', function () {
-                document.querySelectorAll('[data-login-dropdown]').forEach(function(dropdown) {
-                    dropdown.classList.remove('is-active');
-                });
-                document.querySelectorAll('.header-login-wrapper, .footer-login-wrapper').forEach(function(wrapper) {
-                    wrapper.classList.remove('is-open');
-                });
+                closeAllLoginDropdowns();
             });
             window._loginClickHandlerBound = true;
         }
 
-        // ESC 键关闭所有下拉框（只绑定一次）
         if (!window._loginKeyHandlerBound) {
             document.addEventListener('keydown', function (event) {
                 if (event.key === 'Escape') {
-                    document.querySelectorAll('[data-login-dropdown]').forEach(function(dropdown) {
-                        dropdown.classList.remove('is-active');
-                    });
-                    document.querySelectorAll('.header-login-wrapper, .footer-login-wrapper').forEach(function(wrapper) {
-                        wrapper.classList.remove('is-open');
-                    });
+                    closeAllLoginDropdowns();
                 }
             });
             window._loginKeyHandlerBound = true;
         }
+    }
+
+    function closeAllLoginDropdowns(exceptDropdown, exceptWrapper) {
+        document.querySelectorAll('[data-login-dropdown]').forEach(function(dropdown) {
+            if (dropdown !== exceptDropdown) {
+                dropdown.classList.remove('is-active');
+            }
+        });
+        document.querySelectorAll('.header-login-wrapper, .footer-login-wrapper').forEach(function(wrapper) {
+            if (wrapper !== exceptWrapper) {
+                wrapper.classList.remove('is-open');
+            }
+        });
+    }
+
+    function handleAjaxLogin(form, wrapper) {
+        var submitBtn = form.querySelector('[data-login-submit]');
+        var textEl    = form.querySelector('.footer-login-submit-text');
+        var loadingEl = form.querySelector('.footer-login-submit-loading');
+        var errorEl   = form.querySelector('[data-login-error]');
+
+        if (!submitBtn) return;
+
+        var username = form.querySelector('input[name="log"]').value.trim();
+        var password = form.querySelector('input[name="pwd"]').value;
+        var remember = form.querySelector('input[name="rememberme"]');
+
+        // 清空错误
+        if (errorEl) { errorEl.textContent = ''; errorEl.style.display = 'none'; }
+
+        if (!username || !password) {
+            showLoginError(errorEl, '请填写用户名和密码');
+            return;
+        }
+
+        // 显示加载状态
+        submitBtn.disabled = true;
+        if (textEl) textEl.style.display = 'none';
+        if (loadingEl) loadingEl.style.display = 'inline-flex';
+
+        var formData = new FormData();
+        formData.append('action', 'lared_ajax_login');
+        formData.append('nonce', LaredAjax.loginNonce);
+        formData.append('log', username);
+        formData.append('pwd', password);
+        if (remember && remember.checked) {
+            formData.append('rememberme', 'forever');
+        }
+
+        fetch(LaredAjax.ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: formData
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success) {
+                // 登录成功 → 替换整个 login wrapper 为头像菜单
+                var avatarHtml =
+                    '<div class="footer-avatar-wrapper">' +
+                        '<a href="' + escHtml(data.data.admin_url) + '" class="site-footer-icon-link footer-user-avatar" title="' + escHtml(data.data.name) + '">' +
+                            '<img src="' + escHtml(data.data.avatar) + '" alt="' + escHtml(data.data.name) + '" class="h-full w-full object-cover" />' +
+                        '</a>' +
+                        '<div class="footer-avatar-menu">' +
+                            '<a href="' + escHtml(data.data.admin_url) + '" class="footer-avatar-menu-item">' +
+                                '<i class="fa-solid fa-gauge" aria-hidden="true"></i> 仪表盘</a>' +
+                            '<a href="' + escHtml(data.data.admin_url) + 'profile.php" class="footer-avatar-menu-item">' +
+                                '<i class="fa-solid fa-user-pen" aria-hidden="true"></i> 个人资料</a>' +
+                            '<div class="footer-avatar-menu-divider"></div>' +
+                            '<a href="' + escHtml(data.data.logout_url) + '" class="footer-avatar-menu-item footer-avatar-menu-logout" data-no-pjax>' +
+                                '<i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> 退出登录</a>' +
+                        '</div>' +
+                    '</div>';
+                wrapper.outerHTML = avatarHtml;
+            } else {
+                showLoginError(errorEl, data.data && data.data.message ? data.data.message : '登录失败');
+                resetLoginBtn(submitBtn, textEl, loadingEl);
+            }
+        })
+        .catch(function() {
+            showLoginError(errorEl, '网络错误，请重试');
+            resetLoginBtn(submitBtn, textEl, loadingEl);
+        });
+    }
+
+    function showLoginError(el, msg) {
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    function resetLoginBtn(btn, textEl, loadingEl) {
+        btn.disabled = false;
+        if (textEl) textEl.style.display = 'inline';
+        if (loadingEl) loadingEl.style.display = 'none';
+    }
+
+    function escHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
     }
 
     /* pjax-init.js */
@@ -2031,10 +2133,18 @@
 
         document.addEventListener('pjax:send', function () {
             loadingShow();
+            // 强制关闭 header 下拉菜单
+            document.querySelectorAll('.nav .menu-item-has-children').forEach(function(item) {
+                item.classList.add('nav-dropdown-hidden');
+            });
         });
 
         document.addEventListener('pjax:complete', function () {
             loadingHide();
+            // 移除下拉菜单隐藏标记
+            document.querySelectorAll('.nav .menu-item-has-children.nav-dropdown-hidden').forEach(function(item) {
+                item.classList.remove('nav-dropdown-hidden');
+            });
             reinitAfterPjax();
         });
 
@@ -2090,7 +2200,6 @@
         syncHeaderNavActiveState();
         initRssCopyButton();
         initBackToTop();
-        initAPlayer();
         initAjaxCommentSubmit();
         initEmojiPanel();
         initCommentExpand();
@@ -2103,6 +2212,9 @@
         initHeaderLogin();
         initInlineCodeCleaner();
         initSearchModal();
+        initPlyr();
+        trackFooterVisitor();
+        initMusicPlayer();
     }
 
     /**
@@ -2154,6 +2266,14 @@
         initSearchModal();
         initMemosPublish();
         initMemosFilter();
+        initPlyr();
+        trackFooterVisitor();
+        initMusicPlayer();
+
+        /* PJAX 后重新初始化 xalbum 插件 */
+        if (typeof window.initXalbum === 'function') {
+            window.initXalbum();
+        }
 
         // 重新初始化 WordPress 评论回复表单移动功能（PJAX 替换内容后旧的事件绑定已丢失）
         if (window.addComment && typeof window.addComment.init === 'function') {
@@ -2566,6 +2686,58 @@
         }
     }
 
+    /* footer-visitor-tracking.js - 首页访问量 & 最近访客追踪 */
+    function trackFooterVisitor() {
+        // 防止同一次页面/PJAX 导航重复追踪
+        var container = document.querySelector('[data-barba="container"]');
+        if (!container) return;
+        if (container.getAttribute('data-visitor-tracked') === '1') return;
+        container.setAttribute('data-visitor-tracked', '1');
+
+        var ajaxUrl = (window.LaredAjax && window.LaredAjax.ajaxUrl) || '/wp-admin/admin-ajax.php';
+        var homeUrl = (window.LaredAjax && window.LaredAjax.homeUrl) || '/';
+
+        // 检测是否首页（初始加载 body.home 或 PJAX 后 data-barba-namespace="home"）
+        var isHome = document.body.classList.contains('home')
+            || (container.getAttribute('data-barba-namespace') === 'home');
+
+        // 首页访问量自增
+        if (isHome) {
+            var homeData = new FormData();
+            homeData.append('action', 'lared_track_home_views');
+            fetch(ajaxUrl, { method: 'POST', body: homeData, credentials: 'same-origin' }).catch(function() {});
+        }
+
+        // 记录最近访客地理位置
+        var visitorData = new FormData();
+        visitorData.append('action', 'lared_track_visitor');
+        fetch(ajaxUrl, { method: 'POST', body: visitorData, credentials: 'same-origin' })
+            .then(function(res) { return res.json(); })
+            .then(function(json) {
+                if (!json.success || !json.data || json.data.skipped) return;
+                var d = json.data;
+                var loc = d.city || d.regionName || d.country || '';
+                if (!loc) return;
+
+                // 更新 footer 中的最近访客显示
+                var infoEl = document.querySelector('.footer-visitor-info');
+                if (!infoEl) return;
+
+                // 查找或创建最近访客 span
+                var existingFrom = infoEl.querySelectorAll('.footer-visitor-stat')[1];
+                if (!existingFrom && loc) {
+                    var span = document.createElement('span');
+                    span.className = 'footer-visitor-stat';
+                    var flagHtml = d.countryCode
+                        ? '<span class="fi fi-' + d.countryCode.toLowerCase() + ' footer-visitor-flag"></span>'
+                        : '';
+                    span.innerHTML = '<i class="fa-sharp fa-light fa-location-dot" aria-hidden="true"></i> 最近访客来自 ' + flagHtml + ' <span class="footer-visitor-value">' + loc + '</span>';
+                    infoEl.appendChild(span);
+                }
+            })
+            .catch(function() {});
+    }
+
     /* track-views.js - AJAX 记录文章浏览量（兼容 PJAX） */
     function trackPostViews() {
         var main = document.querySelector('[data-post-id]');
@@ -2632,7 +2804,10 @@
         function openModal() {
             modal.classList.add('is-open');
             modal.setAttribute('aria-hidden', 'false');
+            /* 计算滚动条宽度，用 padding-right 补偿避免页面抖动 */
+            var scrollbarW = window.innerWidth - document.documentElement.clientWidth;
             document.body.style.overflow = 'hidden';
+            document.body.style.paddingRight = scrollbarW + 'px';
             setTimeout(function() {
                 if (input) input.focus();
             }, 100);
@@ -2642,6 +2817,7 @@
             modal.classList.remove('is-open');
             modal.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
             if (input) input.value = '';
             if (resultsContainer) {
                 resultsContainer.innerHTML = '<div class="search-modal-hint"><p>输入关键词搜索文章</p></div>';
@@ -2745,10 +2921,806 @@
         window._searchModalBound = true;
     }
 
+    /* ================================================================
+     *  Code Runner — 模拟浏览器窗口（全局共用一个）
+     * ================================================================ */
+    var crOverlay, crWinBody, crWinAddr, crWinTitle, crCurrentBlob;
+
+    function crEnsureWindow() {
+        if (crOverlay) return;
+        crOverlay = document.createElement('div');
+        crOverlay.className = 'cr-window-overlay';
+        crOverlay.innerHTML =
+            '<div class="cr-window">'
+            + '<div class="cr-window-titlebar">'
+            +   '<span class="cr-window-dots"><i title="关闭"></i><i></i><i></i></span>'
+            +   '<div class="cr-window-address"><i class="fa-solid fa-lock"></i><span class="cr-window-addr-text">about:blank</span></div>'
+            +   '<span class="cr-window-title"></span>'
+            + '</div>'
+            + '<div class="cr-window-body"></div>'
+            + '</div>';
+        document.body.appendChild(crOverlay);
+
+        crWinBody  = crOverlay.querySelector('.cr-window-body');
+        crWinAddr  = crOverlay.querySelector('.cr-window-addr-text');
+        crWinTitle = crOverlay.querySelector('.cr-window-title');
+
+        crOverlay.querySelector('.cr-window-dots i:first-child').addEventListener('click', crClose);
+        crOverlay.addEventListener('click', function (e) {
+            if (e.target === crOverlay) crClose();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && crOverlay.classList.contains('is-open')) crClose();
+        });
+    }
+
+    function crClose() {
+        crOverlay.classList.remove('is-open');
+        setTimeout(function () {
+            crWinBody.innerHTML = '';
+            if (crCurrentBlob) { URL.revokeObjectURL(crCurrentBlob); crCurrentBlob = null; }
+        }, 300);
+    }
+
+    function laredCodeRunnerOpen(htmlCode, title, height) {
+        crEnsureWindow();
+
+        /* 构建完整 HTML 文档 */
+        var doc = htmlCode;
+        /* 如果内容不是完整文档（没有 <html 或 <!DOCTYPE），包裹一下 */
+        if (!/<!doctype|<html/i.test(htmlCode)) {
+            doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+                + '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+                + '<style>*{margin:0;padding:0;box-sizing:border-box}'
+                + 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:20px;background:#fff}</style>'
+                + '</head><body>' + htmlCode + '</body></html>';
+        }
+
+        if (crCurrentBlob) { URL.revokeObjectURL(crCurrentBlob); crCurrentBlob = null; }
+        var blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+        crCurrentBlob = URL.createObjectURL(blob);
+
+        var iframe = document.createElement('iframe');
+        iframe.src = crCurrentBlob;
+        iframe.sandbox = 'allow-scripts';
+        iframe.style.cssText = 'width:100%;border:none;background:#fff;height:100%';
+
+        crWinBody.innerHTML = '';
+        crWinBody.appendChild(iframe);
+        crWinAddr.textContent = 'code-runner://localhost/' + (title || 'preview');
+        crWinTitle.textContent = title || '代码预览';
+        crOverlay.classList.add('is-open');
+    }
+
+    /* ================================================================
+       Home Music Player — PJAX 持久化
+       ================================================================ */
+    // 全局持久 Audio 实例（跨 PJAX 不销毁）
+    var _musicAudio = null;
+    var _musicTracks = [];
+    var _musicIndex = 0;
+    var _musicPlaying = false;
+
+    /* ── Lyrics state ── */
+    var _lrcCache = {};          // url → [{time, text}]
+    var _musicLyrics = null;     // current parsed lyrics array
+    var _musicLyricIdx = -1;     // current active lyric line index
+    var _lyricsPanel = null;     // side panel DOM (inner pages)
+    var _homeLyricsEl = null;    // home inline lyrics DOM
+
+    function initMusicPlayer() {
+        var el = document.getElementById('lared-music-player');
+        var floatEl = document.getElementById('lared-music-float');
+
+        // 至少需要一个播放器元素
+        var sourceEl = el || floatEl;
+        if (!sourceEl) return;
+
+        var rawTracks = sourceEl.getAttribute('data-tracks');
+        if (!rawTracks) return;
+
+        try {
+            var tracks = JSON.parse(rawTracks);
+            if (!Array.isArray(tracks) || tracks.length === 0) return;
+            _musicTracks = tracks;
+        } catch (e) { return; }
+
+        // 切换浮动播放器可见性
+        if (floatEl) {
+            var floatVisible = floatEl.getAttribute('data-float-visible') !== '0';
+            if (el) {
+                // 首页有内联播放器，隐藏浮动
+                floatEl.classList.remove('is-active');
+            } else if (floatVisible) {
+                // 非首页，后台开启了内页播放器：始终显示
+                floatEl.classList.add('is-active');
+            } else {
+                // 后台关闭了内页播放器
+                floatEl.classList.remove('is-active');
+            }
+        }
+
+        // 已有 Audio，只同步 UI
+        if (_musicAudio) {
+            if (el) { _syncMusicUI(el); _bindMusicEvents(el); _bindMusicContext(el); _bindMusicProgress(el); }
+            if (floatEl) { _syncMusicUI(floatEl); _bindMusicEvents(floatEl); _bindMusicContext(floatEl); _bindMusicProgress(floatEl); }
+            // PJAX 切回时恢复歌词 UI
+            if (_musicPlaying && _musicLyrics) {
+                _showLyricsUI(_musicLyrics);
+                // 首页时隐藏侧边歌词面板（内页残留）
+                if (el && _lyricsPanel) {
+                    _lyricsPanel.classList.remove('is-visible');
+                }
+            }
+            return;
+        }
+
+        _musicAudio = new Audio();
+        _musicAudio.preload = 'auto';
+        _musicIndex = 0;
+        _musicAudio.src = _musicTracks[0].url;
+
+        _musicAudio.addEventListener('ended', function () {
+            _musicNext();
+        });
+
+        // 实时更新播放时间 + 歌词 + 进度
+        _musicAudio.addEventListener('timeupdate', function () {
+            var el = document.getElementById('lared-music-player');
+            var floatEl = document.getElementById('lared-music-float');
+            if (el) { _updateMusicTime(el); _updateMusicProgress(el); }
+            if (floatEl) { _updateMusicTime(floatEl); _updateMusicProgress(floatEl); }
+            _updateLyrics();
+        });
+
+        // 首次加载歌词
+        _loadCurrentLyrics();
+
+        if (el) { _syncMusicUI(el); _bindMusicEvents(el); _bindMusicContext(el); _bindMusicProgress(el); }
+        if (floatEl) { _syncMusicUI(floatEl); _bindMusicEvents(floatEl); _bindMusicContext(floatEl); _bindMusicProgress(floatEl); }
+    }
+
+    function _syncMusicUI(el) {
+        if (!el) return;
+        var nameEl = el.querySelector('[data-music="name"]');
+        var toggleBtn = el.querySelector('[data-music="toggle"]');
+
+        // 切换 player 级 is-playing 类（控制 controls/viz 可见性）
+        el.classList.toggle('is-playing', _musicPlaying);
+
+        // 歌名
+        if (nameEl) {
+            var trackName = _musicTracks[_musicIndex].name;
+            var isFloat = el.id === 'lared-music-float';
+
+            if (isFloat) {
+                // 浮动播放器：marquee 滚动逻辑
+                var textSpan = nameEl.querySelector('.lared-music-track-text');
+                if (!textSpan) {
+                    textSpan = document.createElement('span');
+                    textSpan.className = 'lared-music-track-text';
+                    nameEl.textContent = '';
+                    nameEl.appendChild(textSpan);
+                }
+                if (textSpan.getAttribute('data-raw') !== trackName) {
+                    textSpan.setAttribute('data-raw', trackName);
+                    textSpan.textContent = trackName;
+                    nameEl.classList.remove('is-overflow');
+                    var dup = textSpan.querySelector('.lared-marquee-dup');
+                    if (dup) dup.remove();
+                    setTimeout(function () { _checkMarquee(nameEl, textSpan, trackName); }, 60);
+                }
+            } else {
+                // 首页播放器：marquee 逻辑
+                var textSpan = nameEl.querySelector('.lared-music-track-text');
+                if (!textSpan) {
+                    textSpan = document.createElement('span');
+                    textSpan.className = 'lared-music-track-text';
+                    nameEl.textContent = '';
+                    nameEl.appendChild(textSpan);
+                }
+                if (textSpan.getAttribute('data-raw') !== trackName) {
+                    textSpan.setAttribute('data-raw', trackName);
+                    textSpan.textContent = trackName;
+                    nameEl.classList.remove('is-overflow');
+                    var dup = textSpan.querySelector('.lared-marquee-dup');
+                    if (dup) dup.remove();
+                    setTimeout(function () { _checkMarquee(nameEl, textSpan, trackName); }, 60);
+                }
+                nameEl.classList.toggle('is-playing', _musicPlaying);
+            }
+        }
+
+        // toggle 按钮图标
+        if (toggleBtn) {
+            var icon = toggleBtn.querySelector('i');
+            toggleBtn.classList.toggle('is-playing', _musicPlaying);
+            if (icon) {
+                icon.className = _musicPlaying ? 'fa-solid fa-pause' : 'fa-solid fa-play';
+            }
+        }
+
+        // 时间 + 进度
+        _updateMusicTime(el);
+        _updateMusicProgress(el);
+    }
+
+    function _checkMarquee(nameEl, textSpan, trackName) {
+        if (!nameEl || !textSpan) return;
+        if (textSpan.scrollWidth > nameEl.clientWidth) {
+            // 需要滚动 — 在文本后追加一份副本实现无缝循环
+            var dup = document.createElement('span');
+            dup.className = 'lared-marquee-dup';
+            dup.textContent = trackName;
+            dup.style.paddingLeft = '4em';
+            textSpan.appendChild(dup);
+            // 根据文本长度计算动画时长
+            var dur = Math.max(6, textSpan.scrollWidth / 30);
+            nameEl.style.setProperty('--marquee-dur', dur + 's');
+            nameEl.classList.add('is-overflow');
+        } else {
+            nameEl.classList.remove('is-overflow');
+        }
+    }
+
+    function _formatTime(sec) {
+        if (!sec || !isFinite(sec)) return '0:00';
+        var m = Math.floor(sec / 60);
+        var s = Math.floor(sec % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function _updateMusicTime(el) {
+        if (!el) return;
+        // Home player: single [data-music="time"]
+        var timeEl = el.querySelector('[data-music="time"]');
+        if (timeEl) {
+            if (_musicAudio && _musicPlaying) {
+                timeEl.textContent = _formatTime(_musicAudio.currentTime);
+            } else {
+                timeEl.textContent = '0:00';
+            }
+        }
+        // Float player: separate current / duration
+        var curEl = el.querySelector('[data-music="time-current"]');
+        var durEl = el.querySelector('[data-music="time-duration"]');
+        if (curEl) {
+            curEl.textContent = _musicAudio ? _formatTime(_musicAudio.currentTime) : '0:00';
+        }
+        if (durEl) {
+            durEl.textContent = (_musicAudio && _musicAudio.duration && isFinite(_musicAudio.duration)) ? _formatTime(_musicAudio.duration) : '0:00';
+        }
+    }
+
+    /* --- Progress bar update --- */
+    function _updateMusicProgress(el) {
+        if (!el) return;
+        var fillEl = el.querySelector('[data-music="progress-fill"]');
+        var dotEl = el.querySelector('[data-music="progress-dot"]');
+        if (!fillEl && !dotEl) return;
+
+        var pct = 0;
+        if (_musicAudio && _musicAudio.duration && isFinite(_musicAudio.duration) && _musicAudio.duration > 0) {
+            pct = (_musicAudio.currentTime / _musicAudio.duration) * 100;
+        }
+        if (fillEl) fillEl.style.width = pct + '%';
+        if (dotEl) dotEl.style.left = pct + '%';
+    }
+
+    /* --- Progress bar: click + drag to seek --- */
+    function _bindMusicProgress(el) {
+        if (el._musicProgressBound) return;
+        el._musicProgressBound = true;
+
+        var progressEl = el.querySelector('[data-music="progress"]');
+        if (!progressEl) return;
+
+        var dotEl = el.querySelector('[data-music="progress-dot"]');
+        var tipEl = el.querySelector('[data-music="progress-tip"]');
+        var dragging = false;
+
+        // Hover tooltip: show time at cursor position
+        if (tipEl) {
+            progressEl.addEventListener('mousemove', function (e) {
+                if (!_musicAudio || !_musicAudio.duration || !isFinite(_musicAudio.duration)) {
+                    tipEl.style.opacity = '0';
+                    return;
+                }
+                var rect = progressEl.getBoundingClientRect();
+                var x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                var ratio = x / rect.width;
+                var t = ratio * _musicAudio.duration;
+                tipEl.textContent = _formatTime(t);
+                tipEl.style.left = x + 'px';
+                tipEl.style.opacity = '1';
+            });
+            progressEl.addEventListener('mouseleave', function () {
+                tipEl.style.opacity = '0';
+            });
+        }
+
+        function seekToX(clientX) {
+            if (!_musicAudio || !_musicAudio.duration || !isFinite(_musicAudio.duration)) return;
+            var rect = progressEl.getBoundingClientRect();
+            var x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+            var ratio = x / rect.width;
+            _musicAudio.currentTime = ratio * _musicAudio.duration;
+            _syncAllMusicUI();
+        }
+
+        // Click on progress bar
+        progressEl.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dragging = true;
+            if (dotEl) dotEl.classList.add('is-dragging');
+            seekToX(e.clientX);
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            e.preventDefault();
+            seekToX(e.clientX);
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (!dragging) return;
+            dragging = false;
+            if (dotEl) dotEl.classList.remove('is-dragging');
+        });
+
+        // Touch support
+        progressEl.addEventListener('touchstart', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dragging = true;
+            if (dotEl) dotEl.classList.add('is-dragging');
+            seekToX(e.touches[0].clientX);
+        }, { passive: false });
+
+        document.addEventListener('touchmove', function (e) {
+            if (!dragging) return;
+            seekToX(e.touches[0].clientX);
+        }, { passive: true });
+
+        document.addEventListener('touchend', function () {
+            if (!dragging) return;
+            dragging = false;
+            if (dotEl) dotEl.classList.remove('is-dragging');
+        });
+    }
+
+    function _bindMusicEvents(el) {
+        // 防止重复绑定
+        if (el._musicBound) return;
+        el._musicBound = true;
+
+        // 阻止整个 player 区域的链接跳转
+        el.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // 控制按钮
+            var btn = e.target.closest('[data-music]');
+            if (!btn) return;
+
+            var action = btn.getAttribute('data-music');
+            if (action === 'toggle') {
+                _musicToggle();
+            } else if (action === 'prev') {
+                _musicPrev();
+            } else if (action === 'next') {
+                _musicNext();
+            }
+            _syncAllMusicUI();
+        });
+
+        // 阻止 player 区域的链接点击冒泡
+        el.addEventListener('mousedown', function (e) {
+            e.stopPropagation();
+        });
+    }
+
+    function _musicToggle() {
+        if (!_musicAudio) return;
+        if (_musicPlaying) {
+            _musicAudio.pause();
+            _musicPlaying = false;
+            _hideLyricsUI();
+        } else {
+            _musicAudio.play().catch(function () {});
+            _musicPlaying = true;
+            if (_musicLyrics) {
+                _showLyricsUI(_musicLyrics);
+            }
+        }
+    }
+
+    function _musicPrev() {
+        if (_musicTracks.length === 0) return;
+        _musicIndex = (_musicIndex - 1 + _musicTracks.length) % _musicTracks.length;
+        _musicLoad();
+    }
+
+    function _musicNext() {
+        if (_musicTracks.length === 0) return;
+        _musicIndex = (_musicIndex + 1) % _musicTracks.length;
+        _musicLoad();
+    }
+
+    function _musicLoad() {
+        if (!_musicAudio) return;
+        _musicAudio.src = _musicTracks[_musicIndex].url;
+        if (_musicPlaying) {
+            _musicAudio.play().catch(function () {});
+        }
+        _syncAllMusicUI();
+        _loadCurrentLyrics();
+    }
+
+    function _syncAllMusicUI() {
+        var el = document.getElementById('lared-music-player');
+        var floatEl = document.getElementById('lared-music-float');
+        if (el) _syncMusicUI(el);
+        if (floatEl) {
+            _syncMusicUI(floatEl);
+            // 非首页：根据后台开关决定是否显示
+            if (!el) {
+                var floatVisible = floatEl.getAttribute('data-float-visible') !== '0';
+                if (floatVisible) {
+                    floatEl.classList.add('is-active');
+                } else {
+                    floatEl.classList.remove('is-active');
+                }
+            }
+        }
+    }
+
+    function _musicPlayIndex(idx) {
+        if (idx < 0 || idx >= _musicTracks.length) return;
+        _musicIndex = idx;
+        _musicPlaying = true;
+        _musicLoad();
+    }
+
+    /* 右键菜单 */
+    var _musicCtx = null;
+
+    function _bindMusicContext(el) {
+        if (el._musicCtxBound) return;
+        el._musicCtxBound = true;
+
+        el.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            _showMusicCtx(e.clientX, e.clientY);
+        });
+    }
+
+    function _createMusicCtx() {
+        if (_musicCtx) {
+            _musicCtx.remove();
+        }
+        var ctx = document.createElement('div');
+        ctx.className = 'lared-music-ctx';
+        ctx.innerHTML = '<div class="lared-music-ctx-title">播放列表</div>';
+
+        _musicTracks.forEach(function (track, i) {
+            var item = document.createElement('div');
+            item.className = 'lared-music-ctx-item' + (i === _musicIndex ? ' is-current' : '');
+            item.innerHTML = '<span class="ctx-icon">' + (i === _musicIndex && _musicPlaying ? '<i class="fa-solid fa-volume-high"></i>' : (i + 1)) + '</span>' + _escHtml(track.name);
+            item.addEventListener('click', function (e) {
+                e.stopPropagation();
+                _musicPlayIndex(i);
+                _hideMusicCtx();
+            });
+            ctx.appendChild(item);
+        });
+
+        document.body.appendChild(ctx);
+        _musicCtx = ctx;
+        return ctx;
+    }
+
+    function _showMusicCtx(x, y) {
+        var ctx = _createMusicCtx();
+        ctx.style.left = Math.min(x, window.innerWidth - 200) + 'px';
+        ctx.style.top = Math.min(y, window.innerHeight - 340) + 'px';
+        ctx.classList.add('is-open');
+
+        // 点击外部关闭
+        setTimeout(function () {
+            document.addEventListener('click', _hideMusicCtx, { once: true });
+        }, 0);
+    }
+
+    function _hideMusicCtx() {
+        if (_musicCtx) {
+            _musicCtx.classList.remove('is-open');
+            setTimeout(function () {
+                if (_musicCtx) { _musicCtx.remove(); _musicCtx = null; }
+            }, 120);
+        }
+    }
+
+    function _escHtml(s) {
+        var d = document.createElement('span');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    /* ========================================
+       Lyrics — LRC parse / fetch / UI
+       ======================================== */
+
+    /**
+     * Parse LRC text → sorted array of { time: seconds, text: string }
+     */
+    function _parseLRC(raw) {
+        var lines = raw.split(/\r?\n/);
+        var result = [];
+        var re = /\[(\d{1,3}):(\d{2})(?:[.:]\d+)?\]/g;
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            var match;
+            var timestamps = [];
+            while ((match = re.exec(line)) !== null) {
+                timestamps.push(parseInt(match[1], 10) * 60 + parseInt(match[2], 10));
+            }
+            re.lastIndex = 0;
+            var text = line.replace(/\[\d{1,3}:\d{2}(?:[.:]\d+)?\]/g, '').trim();
+            if (text === '' && timestamps.length === 0) continue;
+            for (var t = 0; t < timestamps.length; t++) {
+                result.push({ time: timestamps[t], text: text });
+            }
+        }
+        result.sort(function (a, b) { return a.time - b.time; });
+        return result;
+    }
+
+    /**
+     * Fetch & cache LRC file, then call cb(lyrics)
+     */
+    function _fetchLRC(url, cb) {
+        if (!url) { cb(null); return; }
+        if (_lrcCache[url]) { cb(_lrcCache[url]); return; }
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                var lyrics = _parseLRC(xhr.responseText);
+                if (lyrics.length > 0) {
+                    _lrcCache[url] = lyrics;
+                    cb(lyrics);
+                } else {
+                    cb(null);
+                }
+            } else {
+                cb(null);
+            }
+        };
+        xhr.onerror = function () { cb(null); };
+        xhr.send();
+    }
+
+    /**
+     * Find the active lyric index for a given playback time
+     */
+    function _getLyricIndex(time, lyrics) {
+        if (!lyrics || lyrics.length === 0) return -1;
+        var idx = -1;
+        for (var i = 0; i < lyrics.length; i++) {
+            if (lyrics[i].time <= time) {
+                idx = i;
+            } else {
+                break;
+            }
+        }
+        return idx;
+    }
+
+    /**
+     * Load lyrics for the current track. Hides lyrics UI if none.
+     */
+    function _loadCurrentLyrics() {
+        var track = _musicTracks[_musicIndex];
+        if (!track || !track.lrc) {
+            _musicLyrics = null;
+            _musicLyricIdx = -1;
+            _hideLyricsUI();
+            return;
+        }
+        _fetchLRC(track.lrc, function (lyrics) {
+            // Guard: still same track?
+            if (_musicTracks[_musicIndex] !== track) return;
+            _musicLyrics = lyrics;
+            _musicLyricIdx = -1;
+            if (lyrics && _musicPlaying) {
+                _showLyricsUI(lyrics);
+            } else {
+                _hideLyricsUI();
+            }
+        });
+    }
+
+    /* ── Home inline lyrics ── */
+
+    function _ensureHomeLyricsEl() {
+        if (_homeLyricsEl && document.body.contains(_homeLyricsEl)) return _homeLyricsEl;
+        var link = document.querySelector('.home-memo-strip-link');
+        if (!link) { _homeLyricsEl = null; return null; }
+        var el = link.querySelector('.home-memo-strip-lyrics');
+        if (!el) {
+            el = document.createElement('span');
+            el.className = 'home-memo-strip-lyrics';
+            // Insert after bird-track, before/alongside memo-strip-main
+            var main = link.querySelector('.home-memo-strip-main');
+            if (main) {
+                link.insertBefore(el, main);
+            } else {
+                link.appendChild(el);
+            }
+        }
+        _homeLyricsEl = el;
+        return el;
+    }
+
+    function _updateHomeLyrics(lyrics, idx) {
+        var el = _ensureHomeLyricsEl();
+        if (!el) return;
+        var link = el.closest('.home-memo-strip-link');
+
+        if (!lyrics || idx < 0 || !_musicPlaying) {
+            el.classList.remove('is-visible');
+            el.innerHTML = '';
+            if (link) link.classList.remove('has-lyrics');
+            return;
+        }
+
+        if (link) link.classList.add('has-lyrics');
+        el.classList.add('is-visible');
+
+        // Check if we already have this idx Active
+        var activeLine = el.querySelector('.lared-lyric-line.is-active');
+        if (activeLine && activeLine.getAttribute('data-lyric-idx') === String(idx)) {
+            return; // no change
+        }
+
+        // Deactivate old
+        if (activeLine) {
+            activeLine.classList.remove('is-active');
+        }
+
+        // Create or reuse line element
+        var lineEl = el.querySelector('.lared-lyric-line[data-lyric-idx="' + idx + '"]');
+        if (!lineEl) {
+            // Remove all old lines to keep DOM clean
+            el.innerHTML = '';
+            lineEl = document.createElement('span');
+            lineEl.className = 'lared-lyric-line';
+            lineEl.setAttribute('data-lyric-idx', idx);
+            lineEl.textContent = lyrics[idx].text || '♪';
+            el.appendChild(lineEl);
+        }
+
+        // Force reflow then activate
+        void lineEl.offsetWidth;
+        lineEl.classList.add('is-active');
+    }
+
+    /* ── Side lyrics panel (inner pages) ── */
+
+    function _ensureLyricsPanel() {
+        if (_lyricsPanel && document.body.contains(_lyricsPanel)) return _lyricsPanel;
+        var panel = document.getElementById('lared-lyrics-panel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.className = 'lared-lyrics-panel';
+            panel.id = 'lared-lyrics-panel';
+            document.body.appendChild(panel);
+
+            // Click on lyric line → seek
+            panel.addEventListener('click', function (e) {
+                var item = e.target.closest('.lared-lyrics-panel__item');
+                if (!item || !_musicAudio || !_musicLyrics) return;
+                var t = parseFloat(item.getAttribute('data-time'));
+                if (isFinite(t)) {
+                    _musicAudio.currentTime = t;
+                    if (!_musicPlaying) {
+                        _musicToggle();
+                        _syncAllMusicUI();
+                    }
+                }
+            });
+        }
+        _lyricsPanel = panel;
+        return panel;
+    }
+
+    function _populateLyricsPanel(lyrics) {
+        var panel = _ensureLyricsPanel();
+        panel.innerHTML = '';
+        if (!lyrics) return;
+        for (var i = 0; i < lyrics.length; i++) {
+            var item = document.createElement('div');
+            item.className = 'lared-lyrics-panel__item';
+            item.setAttribute('data-time', lyrics[i].time);
+            item.setAttribute('data-lyric-panel-idx', i);
+            item.textContent = lyrics[i].text || '♪';
+            panel.appendChild(item);
+        }
+    }
+
+    function _updateLyricsPanel(idx) {
+        if (!_lyricsPanel) return;
+        var prev = _lyricsPanel.querySelector('.lared-lyrics-panel__item.is-active');
+        if (prev) prev.classList.remove('is-active');
+        if (idx < 0) return;
+        var cur = _lyricsPanel.querySelector('[data-lyric-panel-idx="' + idx + '"]');
+        if (!cur) return;
+        cur.classList.add('is-active');
+        // Auto-scroll to keep active centered
+        var panelH = _lyricsPanel.clientHeight;
+        var itemTop = cur.offsetTop;
+        var itemH = cur.offsetHeight;
+        _lyricsPanel.scrollTo({
+            top: itemTop - panelH / 2 + itemH / 2,
+            behavior: 'smooth'
+        });
+    }
+
+    /* ── Show / Hide lyrics UI ── */
+
+    function _showLyricsUI(lyrics) {
+        // Home inline
+        _updateHomeLyrics(lyrics, _musicLyricIdx);
+
+        // Side panel (inner pages: no home player means we're on an inner page)
+        var homeEl = document.getElementById('lared-music-player');
+        var floatEl = document.getElementById('lared-music-float');
+        if (!homeEl && floatEl && floatEl.getAttribute('data-float-visible') !== '0') {
+            _populateLyricsPanel(lyrics);
+            _ensureLyricsPanel().classList.add('is-visible');
+        }
+    }
+
+    function _hideLyricsUI() {
+        // Home
+        var el = _homeLyricsEl;
+        if (el) {
+            el.classList.remove('is-visible');
+            el.innerHTML = '';
+            var link = el.closest('.home-memo-strip-link');
+            if (link) link.classList.remove('has-lyrics');
+        }
+        // Side panel
+        if (_lyricsPanel) {
+            _lyricsPanel.classList.remove('is-visible');
+        }
+    }
+
+    /**
+     * Called on every timeupdate — updates active lyric index & UI
+     */
+    function _updateLyrics() {
+        if (!_musicLyrics || !_musicPlaying || !_musicAudio) {
+            return;
+        }
+        var idx = _getLyricIndex(_musicAudio.currentTime, _musicLyrics);
+        if (idx === _musicLyricIdx) return;
+        _musicLyricIdx = idx;
+
+        // Home inline
+        _updateHomeLyrics(_musicLyrics, idx);
+        // Side panel
+        _updateLyricsPanel(idx);
+    }
+
     window.LaredTheme = { init: init };
     window.LaredPrism = { init: initPrismEnhance };
 
     document.addEventListener('DOMContentLoaded', init);
     document.addEventListener('DOMContentLoaded', initMemosPublish);
     document.addEventListener('DOMContentLoaded', initMemosFilter);
+
 }());

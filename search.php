@@ -5,6 +5,8 @@ if (!defined('ABSPATH')) {
 
 get_header();
 
+global $wp_query;
+
 $search_query = get_search_query();
 $found_posts  = (int) $wp_query->found_posts;
 $search_title = sprintf(__('搜索：%s', 'lared'), $search_query);
@@ -16,7 +18,7 @@ $search_title = sprintf(__('搜索：%s', 'lared'), $search_query);
             <span class="listing-head-accent" aria-hidden="true"></span>
             <div class="listing-head-main">
                 <div class="listing-head-title-row">
-                    <h1 class="listing-head-title"><?php echo esc_html($search_title); ?></h1>
+                    <h1 class="listing-head-title"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><?php echo esc_html($search_title); ?></h1>
                     <p class="listing-head-side-stat"><?php printf(esc_html__('共找到 %d 条结果', 'lared'), $found_posts); ?></p>
                 </div>
             </div>

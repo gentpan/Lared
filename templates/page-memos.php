@@ -38,7 +38,7 @@ if (have_posts()) :
             // 每日统计
             $created = (int) ($item['created_timestamp'] ?? 0);
             if ($created > 0) {
-                $date_key = gmdate('Y-m-d', $created);
+                $date_key = wp_date('Y-m-d', $created);
                 $daily_counts[$date_key] = ($daily_counts[$date_key] ?? 0) + 1;
             }
             
@@ -85,10 +85,10 @@ if (have_posts()) :
         }
 
         // 日历数据（当前月）
-        $current_year = gmdate('Y');
-        $current_month = gmdate('m');
+        $current_year = wp_date('Y');
+        $current_month = wp_date('m');
         $calendar_days = [];
-        $days_in_month = gmdate('t', strtotime("$current_year-$current_month-01"));
+        $days_in_month = (int) wp_date('t', strtotime("$current_year-$current_month-01"));
         
         for ($day = 1; $day <= $days_in_month; $day++) {
             $date = sprintf('%04d-%02d-%02d', $current_year, $current_month, $day);
@@ -107,7 +107,7 @@ if (have_posts()) :
                     <span class="listing-head-accent" aria-hidden="true"></span>
                     <div class="listing-head-main">
                         <div class="listing-head-title-row">
-                            <h1 class="listing-head-title"><?php the_title(); ?></h1>
+                            <h1 class="listing-head-title"><i class="fa-sharp fa-thin fa-head-side-speak" aria-hidden="true"></i><?php the_title(); ?></h1>
                             <p class="listing-head-side-stat">
                                 <?php
                                 printf(
@@ -123,9 +123,10 @@ if (have_posts()) :
                 </div>
             </section>
 
-            <div class="memos-layout">
-                <!-- 左侧：内容区域 -->
-                <section class="memos-main-content">
+            <section class="listing-content">
+                <div class="memos-layout">
+                        <!-- 左侧：内容区域 -->
+                        <section class="memos-main-content">
                     <?php if (!empty($errors)) : ?>
                         <div class="memos-error" role="alert">
                             <?php foreach ($errors as $error) : ?>
@@ -207,12 +208,10 @@ if (have_posts()) :
                                                     <?php foreach ($keywords as $keyword) : ?>
                                                         <span class="memos-card-keyword" data-keyword="<?php echo esc_attr($keyword); ?>">#<?php echo esc_html((string) $keyword); ?></span>
                                                     <?php endforeach; ?>
-                                                <?php else : ?>
-                                                    <span class="memos-card-keyword memos-card-keyword-empty"><?php esc_html_e('无关键词', 'lared'); ?></span>
                                                 <?php endif; ?>
                                             </div>
                                             <?php if ('' !== $time_human && $time_source > 0) : ?>
-                                                <time class="memos-card-time" datetime="<?php echo esc_attr(gmdate('c', $time_source)); ?>"><?php echo esc_html($time_human); ?></time>
+                                                <time class="memos-card-time" datetime="<?php echo esc_attr(wp_date('c', $time_source)); ?>"><?php echo esc_html($time_human); ?></time>
                                             <?php endif; ?>
                                         </div>
 
@@ -228,18 +227,18 @@ if (have_posts()) :
                             <p class="listing-empty-note"><?php esc_html_e('请检查 Memos 站点地址、API 地址和 Token 配置。', 'lared'); ?></p>
                         </div>
                     <?php endif; ?>
-                </section>
+                    </section>
 
-                <!-- 右侧：侧边栏 -->
-                <aside class="memos-sidebar" aria-label="<?php esc_attr_e('说说侧边栏', 'lared'); ?>">
+                    <!-- 右侧：侧边栏 -->
+                    <aside class="memos-sidebar" aria-label="<?php esc_attr_e('说说侧边栏', 'lared'); ?>">
                     <!-- 日历 -->
                     <section class="memos-sidebar-block memos-sidebar-block--calendar">
                         <div class="memos-sidebar-block-title memos-sidebar-block-title--calendar">
                             <h3><i class="fa-solid fa-calendar" aria-hidden="true"></i><span><?php esc_html_e('日历', 'lared'); ?></span></h3>
                             <div class="memos-calendar-nav">
-                                <button type="button" class="memos-calendar-prev" data-action="prev-month"><i class="fa-solid fa-chevron-left"></i></button>
+                                <button type="button" class="memos-calendar-prev" data-action="prev-month"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
                                 <span class="memos-calendar-title-text" id="memos-calendar-title"><?php echo esc_html($current_year); ?>-<?php echo esc_html($current_month); ?></span>
-                                <button type="button" class="memos-calendar-next" data-action="next-month"><i class="fa-solid fa-chevron-right"></i></button>
+                                <button type="button" class="memos-calendar-next" data-action="next-month"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
                             </div>
                         </div>
                         <div class="memos-sidebar-block-body">
@@ -251,8 +250,8 @@ if (have_posts()) :
                                     <div class="memos-calendar-days" id="memos-calendar-days">
                                         <?php
                                         $first_day = strtotime("$current_year-$current_month-01");
-                                        $days_in_month = gmdate('t', $first_day);
-                                        $start_weekday = gmdate('w', $first_day);
+                                        $days_in_month = (int) wp_date('t', $first_day);
+                                        $start_weekday = (int) wp_date('w', $first_day);
                                         
                                         // 空白填充
                                         for ($i = 0; $i < $start_weekday; $i++) {
@@ -260,7 +259,7 @@ if (have_posts()) :
                                         }
                                         
                                         // 日期
-                                        $today = gmdate('Y-m-d');
+                                        $today = wp_date('Y-m-d');
                                         for ($day = 1; $day <= $days_in_month; $day++) {
                                             $date = sprintf('%04d-%02d-%02d', $current_year, $current_month, $day);
                                             $is_today = $date === $today ? ' is-today' : '';
@@ -317,8 +316,9 @@ if (have_posts()) :
                             <?php endif; ?>
                         </div>
                     </section>
-                </aside>
-            </div>
+                        </aside>
+                </div>
+            </section>
         </main>
         
         <?php
@@ -328,6 +328,46 @@ if (have_posts()) :
         <!-- 缓存信息 -->
         <div class="memos-cache-info" style="display:none;" data-cache-date="<?php echo esc_attr($cached_date); ?>"></div>
         <?php endif; ?>
+
+        <script>
+        (function() {
+            function syncMemosTopBoxesHeight() {
+                var publishBox = document.querySelector('.memos-publish-box');
+                var calendarBox = document.querySelector('.memos-sidebar-block--calendar');
+                if (!publishBox || !calendarBox) return;
+
+                publishBox.style.minHeight = '';
+                calendarBox.style.minHeight = '';
+
+                if (window.matchMedia('(max-width: 900px)').matches) return;
+
+                var targetHeight = Math.max(publishBox.offsetHeight, calendarBox.offsetHeight);
+                publishBox.style.minHeight = targetHeight + 'px';
+                calendarBox.style.minHeight = targetHeight + 'px';
+            }
+
+            function scheduleSync() {
+                window.requestAnimationFrame(syncMemosTopBoxesHeight);
+            }
+
+            window.addEventListener('load', scheduleSync);
+            window.addEventListener('resize', scheduleSync);
+            document.addEventListener('input', function(e) {
+                if (e.target && e.target.closest && e.target.closest('.memos-publish-form')) {
+                    scheduleSync();
+                }
+            });
+
+            document.addEventListener('click', function(e) {
+                if (e.target && e.target.closest && e.target.closest('.memos-calendar-prev, .memos-calendar-next')) {
+                    setTimeout(scheduleSync, 0);
+                }
+            });
+
+            scheduleSync();
+            setTimeout(scheduleSync, 120);
+        })();
+        </script>
 
         <?php
     endwhile;

@@ -8,47 +8,48 @@ if (post_password_required()) {
 }
 ?>
 <section class="comments-shell" id="comments">
-    <div class="comments-inner">
-        <?php
-        $approved_comments = get_comments([
-            'post_id' => get_the_ID(),
-            'status' => 'approve',
-            'type' => 'comment',
-        ]);
+    <?php
+    $approved_comments = get_comments([
+        'post_id' => get_the_ID(),
+        'status' => 'approve',
+        'type' => 'comment',
+    ]);
 
-        $unique_commenters = [];
-        foreach ($approved_comments as $single_comment) {
-            $commenter_key = '';
+    $unique_commenters = [];
+    foreach ($approved_comments as $single_comment) {
+        $commenter_key = '';
 
-            if ((int) $single_comment->user_id > 0) {
-                $commenter_key = 'user:' . (string) $single_comment->user_id;
-            } elseif ('' !== trim((string) $single_comment->comment_author_email)) {
-                $commenter_key = 'email:' . strtolower(trim((string) $single_comment->comment_author_email));
-            } else {
-                $commenter_key = 'name:' . strtolower(trim((string) $single_comment->comment_author));
-            }
-
-            if ('' !== $commenter_key) {
-                $unique_commenters[$commenter_key] = true;
-            }
+        if ((int) $single_comment->user_id > 0) {
+            $commenter_key = 'user:' . (string) $single_comment->user_id;
+        } elseif ('' !== trim((string) $single_comment->comment_author_email)) {
+            $commenter_key = 'email:' . strtolower(trim((string) $single_comment->comment_author_email));
+        } else {
+            $commenter_key = 'name:' . strtolower(trim((string) $single_comment->comment_author));
         }
 
-        $commenter_count = count($unique_commenters);
-        $comment_total = (int) get_comments_number();
-        ?>
+        if ('' !== $commenter_key) {
+            $unique_commenters[$commenter_key] = true;
+        }
+    }
 
-        <div class="comments-header" aria-label="Comments Header">
-            <div class="comments-header__left">
-                <span class="comments-title-icon" aria-hidden="true"><i class="fa-regular fa-comments"></i></span>
-                <span class="comments-header__title"><?php echo esc_html('《' . get_the_title() . '》'); ?></span>
-            </div>
+    $commenter_count = count($unique_commenters);
+    $comment_total = (int) get_comments_number();
+    ?>
 
-            <div class="comments-header__stats" aria-label="Comment Stats">
-                <span class="comments-header__num"><?php echo esc_html(number_format_i18n($commenter_count)); ?></span><span><?php esc_html_e('位吃瓜群众', 'lared'); ?></span>
-                <span class="comments-header__sep" aria-hidden="true">·</span>
-                <span class="comments-header__num"><?php echo esc_html(number_format_i18n($comment_total)); ?></span><span><?php esc_html_e('条评论', 'lared'); ?></span>
-            </div>
+    <div class="comments-header" aria-label="Comments Header">
+        <div class="comments-header__left">
+            <span class="comments-title-icon" aria-hidden="true"><i class="fa-regular fa-comments"></i></span>
+            <span class="comments-header__title"><?php echo esc_html('《' . get_the_title() . '》'); ?></span>
         </div>
+
+        <div class="comments-header__stats" aria-label="Comment Stats">
+            <span class="comments-header__num"><?php echo esc_html(number_format_i18n($commenter_count)); ?></span><span><?php esc_html_e('位吃瓜群众', 'lared'); ?></span>
+            <span class="comments-header__sep" aria-hidden="true">·</span>
+            <span class="comments-header__num"><?php echo esc_html(number_format_i18n($comment_total)); ?></span><span><?php esc_html_e('条评论', 'lared'); ?></span>
+        </div>
+    </div>
+
+    <div class="comments-inner">
 
         <?php if (have_comments()) : ?>
             <ol class="comment-list">
@@ -75,11 +76,11 @@ if (post_password_required()) {
         $current_user = wp_get_current_user();
         $avatar_html = '';
         if ($current_user->ID > 0) {
-            // 已登录：使用用户头像
-            $avatar_html = get_avatar($current_user->ID, 24, '', '', ['class' => 'lared-title-avatar', 'extra_attr' => 'style="width:24px;height:24px;border-radius:2px;object-fit:cover;vertical-align:middle;"']);
+            // 已登录：使用用户头像，包裹在 #lared-title-avatar-wrap 中
+            $avatar_html = '<span id="lared-title-avatar-wrap">' . get_avatar($current_user->user_email, 96, '', '', ['class' => 'lared-title-avatar']) . '</span>';
         } elseif (!empty($email_value)) {
             // 有 cookie 记录：使用 Gravatar（包裹在 #lared-title-avatar-wrap 中，以便 JS 在邮箱修改时能动态切换）
-            $avatar_html = '<span id="lared-title-avatar-wrap">' . get_avatar($email_value, 24, '', '', ['class' => 'lared-title-avatar', 'extra_attr' => 'style="width:24px;height:24px;border-radius:2px;object-fit:cover;vertical-align:middle;"']) . '</span>';
+            $avatar_html = '<span id="lared-title-avatar-wrap">' . get_avatar($email_value, 96, '', '', ['class' => 'lared-title-avatar']) . '</span>';
         } else {
             // 默认图标（可被 JS 动态替换为 Gravatar）
             $avatar_html = '<span id="lared-title-avatar-wrap"><i class="fa-regular fa-comment-dots" style="color:var(--color-accent,#f53004);font-size:16px;"></i></span>';
@@ -128,11 +129,13 @@ if (post_password_required()) {
             'comment_notes_before' => '',
             'comment_notes_after' => '',
             'label_submit' => __('提交评论', 'lared'),
+            'submit_field' => '<p class="form-submit">%1$s %2$s</p>',
+            'submit_button' => '<button name="%1$s" type="submit" id="%2$s" class="%3$s">%4$s</button>',
             'fields' => $current_user->ID > 0 ? [] : array_filter([
                 'author' => '<p class="comment-form-author lared-comment-field lared-comment-field--author"><label class="screen-reader-text" for="author">' . esc_html__('昵称', 'lared') . '</label><span class="lared-comment-field__icon" aria-hidden="true"><i class="fa-regular fa-user"></i></span><input id="author" name="author" type="text" value="' . esc_attr($name_value) . '" size="30" maxlength="245" autocomplete="name" placeholder="' . esc_attr__('昵称*', 'lared') . '" required /></p>',
                 'email' => '<p class="comment-form-email lared-comment-field lared-comment-field--email"><label class="screen-reader-text" for="email">' . esc_html__('邮箱', 'lared') . '</label><span class="lared-comment-field__icon" aria-hidden="true"><i class="fa-regular fa-envelope"></i></span><input id="email" name="email" type="email" value="' . esc_attr($email_value) . '" size="30" maxlength="100" autocomplete="email" placeholder="' . esc_attr__('邮箱*', 'lared') . '" required /></p>',
                 'url' => '<p class="comment-form-url lared-comment-field lared-comment-field--url"><label class="screen-reader-text" for="url">' . esc_html__('网站', 'lared') . '</label><span class="lared-comment-field__icon" aria-hidden="true"><i class="fa-regular fa-globe"></i></span><input id="url" name="url" type="url" value="' . esc_attr($url_value) . '" size="30" maxlength="200" autocomplete="url" placeholder="' . esc_attr__('网站', 'lared') . '" /></p>',
-                'cookies' => get_option('show_comments_cookies_opt_in') ? '<p class="comment-form-cookies-consent"><span class="checkbox-wrapper-12"><span class="cbx"><input id="wp-comment-cookies-consent" name="wp-comment-cookies-consent" type="checkbox" value="yes" /><label for="wp-comment-cookies-consent"></label><svg width="15" height="14" viewBox="0 0 15 14" fill="none"><path d="M2 8.36364L6.23077 12L13 2"></path></svg></span><svg xmlns="http://www.w3.org/2000/svg" version="1.1"><defs><filter id="goo-12"><feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"></feGaussianBlur><feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -7" result="goo-12"></feColorMatrix><feBlend in="SourceGraphic" in2="goo-12"></feBlend></filter></defs></svg></span><label class="checkbox-wrapper-12-text" for="wp-comment-cookies-consent">' . esc_html__('记住我的昵称、邮箱和网站', 'lared') . '</label></p>' : null,
+                'cookies' => '<input type="hidden" name="wp-comment-cookies-consent" value="yes" />',
             ]),
             'comment_field' => '<div class="comment-form-comment lared-comment-field lared-comment-field--comment"><label class="screen-reader-text" for="comment">' . esc_html__('评论', 'lared') . '</label><span class="lared-comment-field__icon" aria-hidden="true"><i class="fa-regular fa-pen-to-square"></i></span><textarea id="comment" name="comment" cols="45" rows="8" maxlength="65525" placeholder="' . esc_attr__('评论', 'lared') . '" required></textarea><div class="lared-emoji-bar"><button type="button" class="lared-emoji-toggle" title="表情"><i class="fa-regular fa-face-smile"></i></button><div class="lared-emoji-panel" style="display:none;"></div></div></div>',
         ]);
