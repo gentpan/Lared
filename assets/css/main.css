@@ -9565,6 +9565,11 @@ body .lared-prism-pre.line-numbers .line-numbers-rows > span::before {
     display: block;
 }
 
+/* ViewImage 全屏层级修复：确保遮罩始终高于内页浮动播放器 */
+body .view-image {
+    z-index: 100000 !important;
+}
+
 /* ===========================================
    文章内链接样式 - 红色字体+icon，无下划线
    =========================================== */
@@ -11027,4 +11032,3 @@ body .lared-prism-pre.line-numbers .line-numbers-rows > span::before {
         padding: 12px 16px;
     }
 }
-
