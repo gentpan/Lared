@@ -4780,8 +4780,8 @@
 
     function prefetchUrl(url) {
       if (prefetchCache[url]) return;
-      prefetchCache[url] = { time: Date.now(), html: null, pending: true };
       var xhr = new XMLHttpRequest();
+      prefetchCache[url] = { time: Date.now(), html: null, pending: true, xhr: xhr };
       xhr.open("GET", url, true);
       xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
       xhr.setRequestHeader("X-PJAX", "true");
@@ -4795,6 +4795,7 @@
             time: Date.now(),
             html: xhr.responseText,
             pending: false,
+            xhr: null,
           };
         } else if (xhr.readyState === 4) {
           delete prefetchCache[url];
@@ -4804,12 +4805,13 @@
       prefetchClean();
     }
 
-    // monkey-patch doRequest：命中缓存时跳过网络请求
+    // monkey-patch doRequest：命中缓存或复用进行中的预加载，避免重复请求
     var origDoRequest = pjax.doRequest;
     pjax.doRequest = function (href, options, callback) {
       var cached = prefetchCache[href];
+
+      // 预加载已完成 → 直接使用缓存
       if (cached && !cached.pending && cached.html) {
-        // 构造 fake XHR
         var fakeXhr = {
           readyState: 4,
           status: 200,
@@ -4827,6 +4829,26 @@
         }, 0);
         return fakeXhr;
       }
+
+      // 预加载进行中 → 等待已有请求完成，不发第二个请求
+      if (cached && cached.pending && cached.xhr) {
+        var pendingXhr = cached.xhr;
+        var origHandler = pendingXhr.onreadystatechange;
+        pendingXhr.onreadystatechange = function () {
+          if (origHandler) origHandler.call(this);
+          if (pendingXhr.readyState === 4) {
+            if (pendingXhr.status === 200) {
+              callback(pendingXhr.responseText, pendingXhr, href, options);
+            } else {
+              // 预加载失败 → 回退到新请求
+              origDoRequest.call(pjax, href, options, callback);
+            }
+            delete prefetchCache[href];
+          }
+        };
+        return { abort: function () { pendingXhr.abort(); } };
+      }
+
       return origDoRequest.call(pjax, href, options, callback);
     };
 
