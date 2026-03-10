@@ -1,0 +1,11 @@
+/*
+Theme Name: Lared
+Theme URI: https://xifeng.net/wordpress-lared-theme.html
+Author: 西风
+Author URI: https://xifeng.net
+Description: A minimal, content-focused WordPress theme powered by Tailwind CSS. Unique features: dual-mode editor tools (image insert & theme formatting guide work in both Visual and Text/Code modes), WebP auto-conversion with Imagick, Cloudflare R2 & Lsky Pro image hosting integration, Prism.js code highlighting with fold/copy, responsive image grid layouts (2/3/4 columns), download button & code runner shortcodes, RSS feed aggregation, Memos integration, music player, and PJAX navigation. 一款基于 Tailwind CSS 的极简内容型 WordPress 主题。独创功能：双模式编辑器工具（插入图片 & 排版指南同时支持可视化和代码模式）、WebP 自动转换、Cloudflare R2 & Lsky Pro 图床集成、Prism.js 代码高亮（折叠/复制）、响应式图片网格布局、下载按钮 & 代码沙盒短代码、RSS 订阅聚合、Memos 动态、音乐播放器与 PJAX 无刷新导航。
+Version: 1.1.0
+Requires at least: 6.0
+Tested up to: 6.8
+Requires PHP: 8.0
+*/
