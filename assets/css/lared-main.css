@@ -11907,9 +11907,12 @@ img[data-img-animation].img-error {
   transition: transform 0.3s ease, filter 0.3s ease;
 }
 
-.lared-photos figure img:hover {
-  transform: scale(1.01);
-  filter: brightness(1.03);
+/* hover 不再放大；高 specificity 同时压住主题
+   .img-loading-wrapper.is-loaded:hover .img-loading-target { scale 1.2 } */
+.lared-photos figure img:hover,
+.lared-photos figure .img-loading-wrapper.is-loaded:hover .img-loading-target {
+  transform: none !important;
+  filter: none;
 }
 
 /* 单图：flex:none + width:100% 跳出 flex column 主轴算法（flex:1 1 0 会让 flex-basis:0 强制 height 为 0） */
@@ -15362,10 +15365,10 @@ body.single-post::before {
 .lared-photos figure img.lazyload,
 .lared-photos figure img.lazyloaded,
 .lared-photos figure img.ls-is-cached {
-  transition: filter .5s linear, opacity .5s ease-in-out;
+  transition: filter 1.2s linear, opacity 1.2s ease-in-out;
 }
 .lared-photos figure img.lazyload {
-  filter: blur(20px);
+  filter: blur(40px);
 }
 .lared-photos figure img.lazyloaded,
 .lared-photos figure img.ls-is-cached {
