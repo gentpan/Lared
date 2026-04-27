@@ -11824,6 +11824,16 @@ img[data-img-animation].img-error {
   transform: scale(1.2);
 }
 
+/* override：全文章范围 hover 不放大（覆盖上面 scale(1.2)）
+   同 specificity (0,4,2) + !important + 顺序在后 → 胜出 */
+.single-article-content .img-loading-wrapper.is-loaded:hover .img-loading-target,
+.page-content .img-loading-wrapper.is-loaded:hover .img-loading-target,
+.home-article-body .img-loading-wrapper.is-loaded:hover .img-loading-target,
+.entry-content .img-loading-wrapper.is-loaded:hover .img-loading-target {
+  transform: none !important;
+  filter: none !important;
+}
+
 /* Loading 完成隐藏 */
 .img-loading-wrapper.is-loaded .img-loading-spinner {
   opacity: 0;
