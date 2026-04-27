@@ -11850,146 +11850,117 @@ img[data-img-animation].img-error {
 }
 
 /* ===========================================
-   文章图片网格布局 lared-grid-2 / 3 / 4
-   用法：在 WordPress 编辑器中用 HTML 块包裹图片
-   <div class="lared-grid-2"> <img> <img> </div>
+   文章图片自动排版 .lared-photos
+   PHP filter (lared_auto_photo_layout) 自动检测连续的
+   <figure>，按数量分组生成行：
+   1=1, 2=2, 3=3, 4=4, 5=2+3, 6=3+3, 7=3+4, 8+=4+...
+   每行 2 列 → 16:9, 3/4 列 → 1:1
+   figcaption 绝对定位右下角 + backdrop-filter 磨砂白字
    =========================================== */
 
-/* 通用网格容器 */
-.lared-grid-2,
-.lared-grid-3,
-.lared-grid-4 {
-  display: grid;
+.lared-photos {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   margin: 1.5rem 0;
-  border-radius: 6px;
-  overflow: hidden;
 }
 
-/* grid 内被 wpautop / Gutenberg 插入的 <p>、<figure> 等包裹层
-   用 display:contents 使其对 grid 布局透明，确保 <img> 作为实际 grid item */
-.lared-grid-2 > p,
-.lared-grid-3 > p,
-.lared-grid-4 > p {
-  display: contents;
-  margin: 0;
+.lared-photos-row {
+  display: flex;
+  gap: 8px;
 }
 
-/* wpautop 插入的 <br> 在 grid 中会变成额外 grid item，直接隐藏 */
-.lared-grid-2 > br,
-.lared-grid-3 > br,
-.lared-grid-4 > br {
-  display: none;
-}
-
-/* 如果 img-loading-wrapper 未被 JS 清理，确保它作为 grid item 正常显示 */
-.lared-grid-2 > .img-loading-wrapper,
-.lared-grid-3 > .img-loading-wrapper,
-.lared-grid-4 > .img-loading-wrapper {
-  margin: 0;
-  background: none;
-}
-
-.lared-grid-item {
+.lared-photos figure {
   position: relative;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  border-radius: 4px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-/* 网格内图片统一样式 — 填满单元格，裁剪多余部分 */
-.lared-grid-2 .lared-grid-item img,
-.lared-grid-3 .lared-grid-item img,
-.lared-grid-4 .lared-grid-item img {
+.lared-photos figure img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 0;
   display: block;
-  margin: 0; /* 覆盖 prose :where(img) 的 2em margin */
-  transform: scale(1);
-  transform-origin: center center;
-  backface-visibility: hidden;
-  will-change: transform;
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  border-radius: 0;
+  margin: 0;
   cursor: pointer;
+  transition: transform 0.3s ease, filter 0.3s ease;
 }
 
-.lared-grid-2 .lared-grid-item:hover img,
-.lared-grid-3 .lared-grid-item:hover img,
-.lared-grid-4 .lared-grid-item:hover img {
-  transform: scale(1.2);
+.lared-photos figure img:hover {
+  transform: scale(1.02);
+  filter: brightness(1.05);
 }
 
-/* 网格内 figure 容器清除默认间距 */
-.lared-grid-2 figure,
-.lared-grid-3 figure,
-.lared-grid-4 figure {
+.lared-photos[data-count="1"] > figure {
+  aspect-ratio: 16 / 9;
+}
+
+.lared-photos-row[data-cols="2"] > figure {
+  aspect-ratio: 16 / 9;
+}
+
+.lared-photos-row[data-cols="3"] > figure,
+.lared-photos-row[data-cols="4"] > figure {
+  aspect-ratio: 1 / 1;
+}
+
+.lared-photos figure figcaption {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.lared-photos figure figcaption:empty {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .lared-photos,
+  .lared-photos-row {
+    gap: 4px;
+  }
+
+  .lared-photos-row {
+    flex-direction: column;
+  }
+
+  .lared-photos-row > figure,
+  .lared-photos[data-count="1"] > figure {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+/* 兼容主题 .img-loading-wrapper spinner 壳 */
+.lared-photos figure > figure,
+.lared-photos figure .img-loading-wrapper,
+.lared-photos figure .img-loading-media {
+  width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
+  display: block;
 }
-
-/* 网格内 figcaption 样式 */
-.lared-grid-2 figcaption,
-.lared-grid-3 figcaption,
-.lared-grid-4 figcaption {
-  font-size: 12px;
-  color: #666;
-  text-align: center;
-  padding: 4px 0 0;
-  line-height: 1.4;
+.lared-photos figure .img-loading-wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
-
-/* ── lared-grid-2：两图并排 ── */
-.lared-grid-2 {
-  grid-template-columns: 1fr 1fr;
-}
-
-.lared-grid-2 .lared-grid-item {
-  aspect-ratio: 1 / 1;
-}
-
-/* ── lared-grid-3：三图等宽 ── */
-.lared-grid-3 {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.lared-grid-3 .lared-grid-item {
-  aspect-ratio: 1 / 1;
-}
-
-/* ── lared-grid-4：四图一行 ── */
-.lared-grid-4 {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.lared-grid-4 .lared-grid-item {
-  aspect-ratio: 1 / 1;
-}
-
-/* ── 移动端响应式 ── */
-@media (max-width: 640px) {
-  .lared-grid-2,
-  .lared-grid-4 {
-    gap: 4px;
-  }
-
-  .lared-grid-4 {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .lared-grid-3 {
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-  }
-
-  /* 三图模式移动端：前两张并排，第三张独占一行 */
-  .lared-grid-3 > :nth-child(3),
-  .lared-grid-3 > figure:nth-child(3) {
-    grid-column: 1 / -1;
-  }
-
-  .lared-grid-3 > :nth-child(3).lared-grid-item,
-  .lared-grid-3 > figure:nth-child(3) {
     aspect-ratio: 1 / 1;
   }
 }
