@@ -2992,3 +2992,12 @@ function lared_view_image_patch(): void
 </script>
     <?php
 }
+
+// ==================== 严格懒加载配置（patched 2026-04-27）====================
+//   主题 lazysizes 默认 loadMode:2 + expFactor:1.5 = 视口前 1.5 屏内全部预加载，
+//   用户滚到时图已加载完，看不到 spinner / blur 淡入。
+//   改成 loadMode:1 + expFactor:1 + hFac:1，让图片真正进视口才加载。
+add_action('wp_head', 'lared_lazysizes_strict_config', 1);
+function lared_lazysizes_strict_config(): void {
+    echo '<script>window.lazySizesConfig=window.lazySizesConfig||{};window.lazySizesConfig.loadMode=1;window.lazySizesConfig.expFactor=1;window.lazySizesConfig.hFac=1;</script>' . "\n";
+}
