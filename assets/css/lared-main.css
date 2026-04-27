@@ -8954,6 +8954,23 @@ body.theme-body .flink-apply-form .flink-apply-submit:disabled {
   background: #f1f1f1;
 }
 
+.rss-feed-card-site-avatar-letter {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  color: #999;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+  text-transform: uppercase;
+}
+
 /* ===========================================
    友联动态分页加载样式
    =========================================== */

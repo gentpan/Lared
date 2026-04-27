@@ -815,15 +815,21 @@ function lared_render_feed_card(array $item): void
             <?php endif; ?>
             <footer class="rss-feed-card-meta">
                 <?php
-                // 友链卡片头像 fallback：RSS feed 没自带 site_avatar 时，从 favicon.im (经本地缓存) 取
-                if ('' === $item_site_avatar && '' !== (string) ($item['site_host'] ?? '') && function_exists('lared_get_cached_link_icon')) {
-                    $item_site_avatar = lared_get_cached_link_icon((string) $item['site_host']);
+                // 友链卡片头像：RSS feed 没自带 site_avatar 时，从 favicon.im (经本地缓存) 取
+                $item_site_host = (string) ($item['site_host'] ?? '');
+                if ('' === $item_site_avatar && '' !== $item_site_host && function_exists('lared_get_cached_link_icon')) {
+                    $item_site_avatar = lared_get_cached_link_icon($item_site_host);
                 }
+                // 字母兜底：站点名首字符 / 域名首字符
+                $avatar_letter = mb_substr('' !== $item_site_name ? $item_site_name : $item_site_host, 0, 1, 'UTF-8');
                 ?>
                 <?php if ('' !== $item_site_name) : ?>
                     <span class="rss-feed-card-site">
                         <?php if ('' !== $item_site_avatar) : ?>
-                            <img class="rss-feed-card-site-avatar lazyload" data-src="<?php echo esc_url($item_site_avatar); ?>" alt="<?php echo esc_attr($item_site_name); ?>" />
+                            <img class="rss-feed-card-site-avatar lazyload" data-src="<?php echo esc_url($item_site_avatar); ?>" alt="<?php echo esc_attr($item_site_name); ?>" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                            <span class="rss-feed-card-site-avatar-letter" style="display:none;" aria-hidden="true"><?php echo esc_html($avatar_letter); ?></span>
+                        <?php elseif ('' !== $avatar_letter) : ?>
+                            <span class="rss-feed-card-site-avatar-letter" aria-hidden="true"><?php echo esc_html($avatar_letter); ?></span>
                         <?php endif; ?>
                         <span><?php echo esc_html($item_site_name); ?></span>
                     </span>
