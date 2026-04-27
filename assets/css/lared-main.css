@@ -11888,13 +11888,13 @@ img[data-img-animation].img-error {
 .lared-photos {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 1.5rem 0;
+  gap: 4px;
+  margin: 0.75rem 0;
 }
 
 .lared-photos-row {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .lared-photos figure {
