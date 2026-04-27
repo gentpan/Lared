@@ -11891,8 +11891,8 @@ img[data-img-animation].img-error {
 }
 
 .lared-photos figure img:hover {
-  transform: scale(1.02);
-  filter: brightness(1.05);
+  transform: scale(1.01);
+  filter: brightness(1.03);
 }
 
 .lared-photos[data-count="1"] > figure {
