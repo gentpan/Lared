@@ -1,0 +1,6 @@
+# GitHub release source archive (git archive) 排除文档与开发文件
+# 主题安装包不需要这些 — 减小 zip 体积，避免主题被识别为含开发文件
+*.md export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+.github export-ignore
