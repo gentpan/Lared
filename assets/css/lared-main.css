@@ -15323,3 +15323,17 @@ body.single-post::before {
     display: none;
   }
 }
+
+/* === 图片淡入（oneblog 风格 blur → clear）=== */
+.lared-photos figure img.lazy-load {
+  filter: blur(20px);
+  transition: filter .5s linear, opacity .5s ease-in-out;
+}
+.lared-photos figure img.lazy-load.loaded {
+  filter: blur(0);
+  opacity: 1;
+}
+/* .lared-photos 内禁用主题 spinner（由 blur 承担占位）*/
+.lared-photos figure .img-loading-spinner {
+  display: none;
+}
