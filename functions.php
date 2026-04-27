@@ -2933,3 +2933,44 @@ function lared_strip_loader_in_photos(string $content): string
         $content
     ) ?? $content;
 }
+
+// ==================== ViewImage 防重复打开 patch（patched 2026-04-27）====================
+//   主题的 ViewImage 库不防止重复打开 → 多次点击或事件冒泡会叠加多个 overlay，
+//   关闭时需要点很多次才能全关。在 footer 注入 patch：
+//   1. 已有 viewer 时拦住新打开
+//   2. 点关闭/背景一次就 remove 所有 .view-image overlay
+add_action('wp_footer', 'lared_view_image_patch', 100);
+function lared_view_image_patch(): void
+{
+    if (!is_singular() && !is_home() && !is_front_page() && !is_archive()) {
+        return;
+    }
+    ?>
+<script>
+(function () {
+    function patch() {
+        if (!window.ViewImage || window.ViewImage.__patched) return;
+        var orig = window.ViewImage.listener;
+        window.ViewImage.listener = function (a) {
+            if (document.querySelector('.view-image')) {
+                a.stopPropagation();
+                a.preventDefault();
+                return;
+            }
+            return orig.call(this, a);
+        };
+        // 兜底：document 级 click，关闭按钮/背景一次清掉所有 overlay
+        document.addEventListener('click', function (a) {
+            if (a.target.closest && a.target.closest('.view-image-close')) {
+                document.querySelectorAll('.view-image').forEach(function (o) { o.remove(); });
+            }
+        }, true); // 捕获阶段，确保比 overlay.onclick 早
+        window.ViewImage.__patched = true;
+    }
+    if (window.ViewImage) patch();
+    else document.addEventListener('DOMContentLoaded', patch);
+    document.addEventListener('pjax:complete', patch);
+})();
+</script>
+    <?php
+}
