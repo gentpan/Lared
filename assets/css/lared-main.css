@@ -11964,6 +11964,10 @@ img[data-img-animation].img-error {
   .lared-photos[data-count="1"] > figure {
     aspect-ratio: 16 / 9;
   }
+  .lared-photos[data-count="1"] > figure {
+    flex: none;
+    width: 100%;
+  }
 }
 
 /* 兼容主题 .img-loading-wrapper spinner 壳 */
