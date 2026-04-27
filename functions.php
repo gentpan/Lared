@@ -10,7 +10,7 @@ if (!defined('LARED_CDN_FONTAWESOME')) {
     define('LARED_CDN_FONTAWESOME', 'https://icons.bluecdn.com/fontawesome-pro/css/all.css');
 }
 if (!defined('LARED_CDN_STATIC')) {
-    define('LARED_CDN_STATIC', 'https://static.bluecdn.com/npm');
+    define('LARED_CDN_STATIC', 'https://jsd.bluecdn.com/npm');
 }
 // =========================
 
@@ -164,12 +164,19 @@ function lared_editor_enqueue_guide_script(): void
 }
 add_action('admin_enqueue_scripts', 'lared_editor_enqueue_guide_script');
 
-// 主题设置页面加载媒体上传器
+// 主题设置页面加载媒体上传器 + 后台样式
 function lared_admin_enqueue_media(string $hook): void
 {
-    if ('appearance_page_lared-theme-settings' === $hook) {
-        wp_enqueue_media();
+    if ('appearance_page_lared-theme-settings' !== $hook) {
+        return;
     }
+    wp_enqueue_media();
+    wp_enqueue_style(
+        'lared-admin',
+        get_template_directory_uri() . '/assets/css/lared-admin.min.css',
+        [],
+        wp_get_theme()->get('Version')
+    );
 }
 add_action('admin_enqueue_scripts', 'lared_admin_enqueue_media');
 
@@ -222,20 +229,38 @@ function lared_activate_create_cache_dirs(): void
 add_action('after_switch_theme', 'lared_activate_create_cache_dirs');
 
 /**
- * 主题激活时自动重建所有评论者等级缓存
+ * 主题激活后显示引导通知，提示用户前往数据维护初始化数据
  */
-function lared_activate_rebuild_levels(): void
+function lared_activate_setup_notice(): void
 {
-    if (function_exists('lared_refresh_all_commenter_levels')) {
-        $result = lared_refresh_all_commenter_levels();
-        error_log(sprintf(
-            '[Lared] 主题激活：已重建 %d 位评论者等级（%d 个错误）',
-            $result['updated'],
-            $result['errors']
-        ));
-    }
+    set_transient('lared_activation_notice', true, 60 * 5);
 }
-add_action('after_switch_theme', 'lared_activate_rebuild_levels');
+add_action('after_switch_theme', 'lared_activate_setup_notice');
+
+function lared_show_activation_notice(): void
+{
+    if (!get_transient('lared_activation_notice')) {
+        return;
+    }
+
+    $data_tab_url = add_query_arg(
+        ['page' => 'lared-theme-settings', 'tab' => 'data'],
+        admin_url('themes.php')
+    );
+
+    echo '<div class="notice notice-info is-dismissible" style="border-left-color:#f53004;">'
+        . '<p><strong>Lared 主题已激活！</strong> 请前往 '
+        . '<a href="' . esc_url($data_tab_url) . '"><strong>主题设置 → 数据维护</strong></a>'
+        . ' 执行以下操作以确保主题正常运行：</p>'
+        . '<ol style="margin:4px 0 8px 20px;">'
+        . '<li><strong>评论等级缓存</strong> — 点击「扫描」→「重建缓存」</li>'
+        . '<li><strong>评论 Meta 合并迁移</strong> — 如从旧版升级，点击「扫描」→「执行迁移」</li>'
+        . '<li><strong>文章字数统计</strong> — 点击「扫描」→「更新」</li>'
+        . '</ol></div>';
+
+    delete_transient('lared_activation_notice');
+}
+add_action('admin_notices', 'lared_show_activation_notice');
 
 function lared_primary_menu_fallback(): void
 {
@@ -351,7 +376,8 @@ function lared_build_heatmap_cache(): array
     // Memos 说说数据
     $memo_counts = [];
     if (function_exists('lared_get_memos_json_cache')) {
-        $start_ts = strtotime('-' . ($days_total - 1) . ' days', current_time('timestamp'));
+        $today_date = wp_date('Y-m-d');
+        $start_ts = strtotime($today_date . ' -' . ($days_total - 1) . ' days');
         $memos = lared_get_memos_json_cache();
         if (!empty($memos['items']) && is_array($memos['items'])) {
             foreach ($memos['items'] as $memo) {
@@ -377,11 +403,9 @@ function lared_build_heatmap_cache(): array
     $max_count = !empty($combined) ? max($combined) : 0;
 
     $cells = [];
+    $today_ts = strtotime(wp_date('Y-m-d') . ' 12:00:00');
     for ($i = $days_total - 1; $i >= 0; $i--) {
-        $cell_ts = strtotime('-' . $i . ' days', current_time('timestamp'));
-        if (false === $cell_ts) {
-            continue;
-        }
+        $cell_ts = $today_ts - ($i * DAY_IN_SECONDS);
         $cell_date       = wp_date('Y-m-d', $cell_ts);
         $cell_post_count = (int) ($day_counts[$cell_date] ?? 0);
         $cell_memo_count = (int) ($memo_counts[$cell_date] ?? 0);
@@ -2061,17 +2085,17 @@ function lared_download_button_shortcode(array $atts): string
                 <i class="fa-solid fa-box-archive"></i>
             </div>
             <div class="dl-info">
-                <h4 class="dl-name"><?php echo $name; ?></h4>
+                <h4 class="dl-name"><?php echo esc_html($name); ?></h4>
                 <?php if ('' !== $format || '' !== $version || '' !== $size) : ?>
                     <div class="dl-badges">
                         <?php if ('' !== $format) : ?>
-                            <span class="dl-badge dl-format"><?php echo $format; ?></span>
+                            <span class="dl-badge dl-format"><?php echo esc_html($format); ?></span>
                         <?php endif; ?>
                         <?php if ('' !== $version) : ?>
-                            <span class="dl-badge dl-version"><?php echo $version; ?></span>
+                            <span class="dl-badge dl-version"><?php echo esc_html($version); ?></span>
                         <?php endif; ?>
                         <?php if ('' !== $size) : ?>
-                            <span class="dl-badge dl-size"><?php echo $size; ?></span>
+                            <span class="dl-badge dl-size"><?php echo esc_html($size); ?></span>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
@@ -2087,10 +2111,10 @@ function lared_download_button_shortcode(array $atts): string
                 <span><?php echo nl2br(esc_html($note)); ?></span>
             </div>
         <?php endif; ?>
-        <a class="dl-button no-arrow" href="<?php echo $url; ?>" target="_blank" rel="noopener noreferrer" data-no-mshot="1"
+        <a class="dl-button no-arrow" href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener noreferrer" data-no-mshot="1"
             data-dl-track="<?php echo esc_attr($dl_key); ?>">
             <span class="dl-btn-icon"><i class="fa-solid fa-download"></i></span>
-            <span class="dl-btn-text"><?php echo $text; ?></span>
+            <span class="dl-btn-text"><?php echo esc_html($text); ?></span>
         </a>
     </div>
 <?php
@@ -2430,14 +2454,41 @@ function lared_sanitize_social_links(?string $value): string
     if (!is_array($data)) {
         return '{}';
     }
+
     $allowed_keys = array_keys(lared_get_social_platforms());
     $clean = [];
+
+    // 固定平台
     foreach ($data as $key => $url) {
         if (in_array($key, $allowed_keys, true)) {
             $url = trim((string) $url);
             $clean[$key] = '' !== $url ? esc_url_raw($url) : '';
         }
     }
+
+    // 自定义链接
+    if (isset($data['_custom']) && is_array($data['_custom'])) {
+        $custom_clean = [];
+        foreach ($data['_custom'] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $name = trim((string) ($item['name'] ?? ''));
+            $icon = trim((string) ($item['icon'] ?? ''));
+            $url  = trim((string) ($item['url'] ?? ''));
+            if ('' !== $name && '' !== $url) {
+                $custom_clean[] = [
+                    'name' => sanitize_text_field($name),
+                    'icon' => sanitize_text_field($icon),
+                    'url'  => esc_url_raw($url),
+                ];
+            }
+        }
+        if (!empty($custom_clean)) {
+            $clean['_custom'] = $custom_clean;
+        }
+    }
+
     return (string) wp_json_encode($clean);
 }
 
@@ -2447,34 +2498,9 @@ function lared_sanitize_social_links(?string $value): string
 function lared_get_social_platforms(): array
 {
     return [
-        'x_twitter'  => ['X / Twitter',  'fa-brands fa-x-twitter'],
-        'github'     => ['GitHub',        'fa-brands fa-square-github'],
-        'mastodon'   => ['Mastodon',      'fa-brands fa-mastodon'],
-        'bluesky'    => ['Bluesky',       'fa-brands fa-square-bluesky'],
-        'youtube'    => ['YouTube',       'fa-brands fa-square-youtube'],
-        'weibo'      => ['微博',          'fa-brands fa-weibo'],
-        'zhihu'      => ['知乎',          'fa-brands fa-zhihu'],
-        'bilibili'   => ['Bilibili',      'fa-brands fa-bilibili'],
-        'xiaohongshu' => ['小红书',        'fa-solid fa-book-heart'],
-        'douyin'     => ['抖音',          'fa-brands fa-tiktok'],
-        'wechat'     => ['微信',          'fa-brands fa-weixin'],
-        'qq'         => ['QQ',            'fa-brands fa-qq'],
-        'telegram'   => ['Telegram',      'fa-brands fa-telegram'],
-        'discord'    => ['Discord',       'fa-brands fa-discord'],
-        'instagram'  => ['Instagram',     'fa-brands fa-square-instagram'],
-        'facebook'   => ['Facebook',      'fa-brands fa-square-facebook'],
-        'linkedin'   => ['LinkedIn',      'fa-brands fa-linkedin'],
-        'threads'    => ['Threads',       'fa-brands fa-square-threads'],
-        'reddit'     => ['Reddit',        'fa-brands fa-square-reddit'],
-        'steam'      => ['Steam',         'fa-brands fa-steam'],
-        'twitch'     => ['Twitch',        'fa-brands fa-twitch'],
-        'dribbble'   => ['Dribbble',      'fa-brands fa-square-dribbble'],
-        'behance'    => ['Behance',       'fa-brands fa-square-behance'],
-        'pinterest'  => ['Pinterest',     'fa-brands fa-pinterest'],
-        'spotify'    => ['Spotify',       'fa-brands fa-spotify'],
-        'email'      => ['Email',         'fa-solid fa-envelope'],
-        'rss'        => ['RSS',           'fa-solid fa-square-rss'],
-        'website'    => ['个人网站',      'fa-solid fa-globe'],
+        'x_twitter' => ['X / Twitter', 'fa-brands fa-x-twitter'],
+        'github'    => ['GitHub',       'fa-brands fa-square-github'],
+        'mastodon'  => ['Mastodon',     'fa-brands fa-mastodon'],
     ];
 }
 
@@ -2490,7 +2516,12 @@ function lared_get_about_social_links(): array
     }
     $platforms = lared_get_social_platforms();
     $result = [];
+
+    // 固定平台
     foreach ($data as $key => $url) {
+        if ('_custom' === $key) {
+            continue;
+        }
         $url = trim((string) $url);
         if ('' !== $url && isset($platforms[$key])) {
             $result[] = [
@@ -2501,6 +2532,24 @@ function lared_get_about_social_links(): array
             ];
         }
     }
+
+    // 自定义链接
+    if (isset($data['_custom']) && is_array($data['_custom'])) {
+        foreach ($data['_custom'] as $item) {
+            $name = trim((string) ($item['name'] ?? ''));
+            $url  = trim((string) ($item['url'] ?? ''));
+            $icon = trim((string) ($item['icon'] ?? ''));
+            if ('' !== $name && '' !== $url) {
+                $result[] = [
+                    'key'   => 'custom_' . sanitize_title($name),
+                    'url'   => $url,
+                    'label' => $name,
+                    'icon'  => '' !== $icon ? $icon : 'fa-solid fa-link',
+                ];
+            }
+        }
+    }
+
     return $result;
 }
 
@@ -2567,40 +2616,101 @@ function lared_render_tab_about(): void
                     }
                     ?>
                     <input type="hidden" id="lared_about_social_links" name="lared_about_social_links" value="<?php echo esc_attr($saved_raw); ?>" />
-                    <table class="widefat fixed" style="max-width:680px;">
-                        <thead>
-                            <tr>
-                                <th style="width:140px;"><?php esc_html_e('平台', 'lared'); ?></th>
-                                <th><?php esc_html_e('链接地址', 'lared'); ?></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($platforms as $pkey => $pinfo) :
-                                $purl = (string) ($saved[$pkey] ?? '');
-                            ?>
-                                <tr>
-                                    <td><i class="<?php echo esc_attr($pinfo[1]); ?>" style="width:18px;text-align:center;margin-right:6px;"></i><?php echo esc_html($pinfo[0]); ?></td>
-                                    <td><input type="url" class="regular-text lared-social-url" data-platform="<?php echo esc_attr($pkey); ?>" value="<?php echo esc_attr($purl); ?>" placeholder="https://" style="width:100%;" /></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+
+                    <!-- 固定平台 -->
+                    <?php foreach ($platforms as $pkey => $pinfo) :
+                        $purl = (string) ($saved[$pkey] ?? '');
+                    ?>
+                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                            <span style="width:120px;flex-shrink:0;"><i class="<?php echo esc_attr($pinfo[1]); ?>" style="width:18px;text-align:center;margin-right:6px;"></i><?php echo esc_html($pinfo[0]); ?></span>
+                            <input type="url" class="lared-social-url" data-platform="<?php echo esc_attr($pkey); ?>" value="<?php echo esc_attr($purl); ?>" placeholder="https://" style="flex:1;max-width:none !important;" />
+                        </div>
+                    <?php endforeach; ?>
+
+                    <!-- 自定义链接 -->
+                    <h4 style="margin:16px 0 8px;"><?php esc_html_e('自定义链接', 'lared'); ?></h4>
+                    <style>
+                        .lared-custom-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+                        .lared-custom-row input { max-width:none !important; width:auto !important; box-sizing:border-box; }
+                        .lared-custom-row .lared-cs-name { flex:2; }
+                        .lared-custom-row .lared-cs-icon { flex:3; }
+                        .lared-custom-row .lared-cs-url  { flex:5; }
+                        .lared-custom-row .lared-cs-remove { flex-shrink:0; background:none; border:none; color:#b32d2e; cursor:pointer; padding:4px 6px; opacity:.6; }
+                        .lared-custom-row .lared-cs-remove:hover { opacity:1; }
+                    </style>
+                    <div id="lared-custom-social-body">
+                        <?php
+                        $custom_links = (isset($saved['_custom']) && is_array($saved['_custom'])) ? $saved['_custom'] : [];
+                        foreach ($custom_links as $ci) :
+                            $cname = esc_attr((string) ($ci['name'] ?? ''));
+                            $cicon = esc_attr((string) ($ci['icon'] ?? ''));
+                            $curl  = esc_attr((string) ($ci['url'] ?? ''));
+                        ?>
+                            <div class="lared-custom-row">
+                                <input type="text" class="lared-cs-name" value="<?php echo $cname; ?>" placeholder="名称" />
+                                <input type="text" class="lared-cs-icon" value="<?php echo $cicon; ?>" placeholder="fa-brands fa-telegram" />
+                                <input type="url" class="lared-cs-url" value="<?php echo $curl; ?>" placeholder="https://" />
+                                <button type="button" class="lared-cs-remove" title="删除"><span class="dashicons dashicons-trash" style="font-size:18px;width:18px;height:18px;line-height:18px;"></span></button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <p style="margin-top:4px;">
+                        <button type="button" class="button" id="lared-cs-add">+ <?php esc_html_e('添加链接', 'lared'); ?></button>
+                    </p>
+
                     <script>
                         (function() {
                             var hidden = document.getElementById('lared_about_social_links');
-                            var inputs = document.querySelectorAll('.lared-social-url');
+                            var tbody  = document.getElementById('lared-custom-social-body');
 
                             function sync() {
                                 var obj = {};
-                                inputs.forEach(function(inp) {
+                                // 固定平台
+                                document.querySelectorAll('.lared-social-url').forEach(function(inp) {
                                     var v = inp.value.trim();
                                     if (v) obj[inp.getAttribute('data-platform')] = v;
                                 });
+                                // 自定义
+                                var customs = [];
+                                document.querySelectorAll('.lared-custom-row').forEach(function(row) {
+                                    var n = row.querySelector('.lared-cs-name').value.trim();
+                                    var i = row.querySelector('.lared-cs-icon').value.trim();
+                                    var u = row.querySelector('.lared-cs-url').value.trim();
+                                    if (n && u) customs.push({name: n, icon: i, url: u});
+                                });
+                                if (customs.length) obj._custom = customs;
                                 hidden.value = JSON.stringify(obj);
                             }
-                            inputs.forEach(function(inp) {
+
+                            function bindRow(row) {
+                                row.querySelectorAll('input').forEach(function(inp) {
+                                    inp.addEventListener('input', sync);
+                                });
+                                row.querySelector('.lared-cs-remove').addEventListener('click', function() {
+                                    row.remove();
+                                    sync();
+                                });
+                            }
+
+                            // 绑定已有行
+                            document.querySelectorAll('.lared-custom-row').forEach(bindRow);
+                            document.querySelectorAll('.lared-social-url').forEach(function(inp) {
                                 inp.addEventListener('input', sync);
                             });
+
+                            // 添加按钮
+                            document.getElementById('lared-cs-add').addEventListener('click', function() {
+                                var row = document.createElement('div');
+                                row.className = 'lared-custom-row';
+                                row.innerHTML =
+                                    '<input type="text" class="lared-cs-name" value="" placeholder="名称" />' +
+                                    '<input type="text" class="lared-cs-icon" value="" placeholder="fa-brands fa-telegram" />' +
+                                    '<input type="url" class="lared-cs-url" value="" placeholder="https://" />' +
+                                    '<button type="button" class="lared-cs-remove" title="删除"><span class="dashicons dashicons-trash" style="font-size:18px;width:18px;height:18px;line-height:18px;"></span></button>';
+                                tbody.appendChild(row);
+                                bindRow(row);
+                            });
+
                             sync();
                         })();
                     </script>
@@ -2611,4 +2721,104 @@ function lared_render_tab_about(): void
         <?php submit_button(); ?>
     </form>
 <?php
+}
+
+
+
+// ==================== 文章图片自动排版（patched 2026-04-27 v3）====================
+
+add_filter('the_content', 'lared_auto_photo_layout', 22);
+
+function lared_auto_photo_layout($content) {
+    if (
+        strpos($content, '<img') === false
+        && strpos($content, 'lared-grid-') === false
+        && strpos($content, 'wp-block-gallery') === false
+    ) {
+        return $content;
+    }
+
+    $placeholders = [];
+    $store = function ($html) use (&$placeholders) {
+        $key = '<!--LARED_PHOTOS_' . count($placeholders) . '-->';
+        $placeholders[$key] = $html;
+        return $key;
+    };
+
+    // 1) 旧手动 .lared-grid-2/3/4
+    $content = preg_replace_callback(
+        '/<div\b[^>]*\bclass\s*=\s*["\'][^"\']*\blared-grid-[234]\b[^"\']*["\'][^>]*>([\s\S]*?)<\/div>/i',
+        function ($m) use ($store) {
+            preg_match_all('/<figure\b[^>]*>[\s\S]*?<\/figure>|<img\b[^>]*\/?>/i', $m[1], $items);
+            if (empty($items[0])) return $m[0];
+            $figures = array_map(function ($item) {
+                if (stripos($item, '<figure') === 0) return $item;
+                return '<figure>' . $item . '</figure>';
+            }, $items[0]);
+            return $store(lared_build_photo_layout($figures));
+        },
+        $content
+    );
+
+    // 2) wp-block-gallery
+    $content = preg_replace_callback(
+        '/<figure\b[^>]*\bwp-block-gallery\b[^>]*>([\s\S]*?)<\/figure>/i',
+        function ($m) use ($store) {
+            if (!preg_match_all('/<figure\b[^>]*>[\s\S]*?<\/figure>/i', $m[1], $figs)) {
+                return $m[0];
+            }
+            return $store(lared_build_photo_layout($figs[0]));
+        },
+        $content
+    );
+
+    // 3) 散落的连续 <figure>（不在 wp-block-gallery 内）
+    $content = preg_replace_callback(
+        '/(?:<figure\b(?![^>]*\bwp-block-gallery\b)(?:\s[^>]*)?>(?=[\s\S]*?<img\b)[\s\S]*?<\/figure>\s*(?:<p>\s*<\/p>\s*)*){1,}/i',
+        function ($m) use ($store) {
+            preg_match_all('/<figure\b(?:\s[^>]*)?>[\s\S]*?<\/figure>/i', $m[0], $figs);
+            $figs = array_values(array_filter($figs[0], function ($f) {
+                return stripos($f, '<img') !== false;
+            }));
+            if (empty($figs)) return $m[0];
+            return $store(lared_build_photo_layout($figs));
+        },
+        $content
+    );
+
+    // 4) 还原占位符
+    if (!empty($placeholders)) {
+        $content = strtr($content, $placeholders);
+    }
+
+    return $content;
+}
+
+function lared_split_photo_rows($n) {
+    if ($n <= 0) return [];
+    if ($n <= 4) return [$n];
+    if ($n === 5) return [2, 3];
+    if ($n === 6) return [3, 3];
+    if ($n === 7) return [3, 4];
+    return array_merge([4], lared_split_photo_rows($n - 4));
+}
+
+function lared_build_photo_layout($figures) {
+    $count = count($figures);
+    if ($count === 0) return '';
+
+    if ($count === 1) {
+        return '<div class="lared-photos" data-count="1">' . $figures[0] . '</div>';
+    }
+
+    $rows = lared_split_photo_rows($count);
+    $html = '<div class="lared-photos" data-count="' . $count . '">';
+    $idx = 0;
+    foreach ($rows as $cols) {
+        $slice = array_slice($figures, $idx, $cols);
+        $html .= '<div class="lared-photos-row" data-cols="' . $cols . '">' . implode('', $slice) . '</div>';
+        $idx += $cols;
+    }
+    $html .= '</div>';
+    return $html;
 }

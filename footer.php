@@ -49,6 +49,9 @@ if ('' !== $lared_float_music_raw) :
 <?php endif;
 endif; ?>
 <footer class="site-footer">
+    <span class="site-footer-watermark" aria-hidden="true">
+        <i class="fa-brands fa-wordpress-simple"></i>
+    </span>
     <div class="site-footer-inner">
         <p class="site-footer-copy">© <?php echo esc_html(wp_date('Y')); ?> <?php bloginfo('name'); ?>. All rights reserved.</p>
         <?php
@@ -65,6 +68,21 @@ endif; ?>
         }
         if (!empty($last_visitor['countryCode'])) {
             $visitor_flag = strtolower($last_visitor['countryCode']);
+        }
+        ?>
+        <?php
+        $blogscn_icon_rel = '/assets/images/blogscn.png';
+        $blogscn_icon_abs = get_template_directory() . $blogscn_icon_rel;
+        $blogscn_icon_uri = get_template_directory_uri() . $blogscn_icon_rel;
+        if (file_exists($blogscn_icon_abs)) {
+            $blogscn_icon_uri .= '?ver=' . (string) filemtime($blogscn_icon_abs);
+        }
+
+        $blogsclub_icon_rel = '/assets/images/blogsclub.svg';
+        $blogsclub_icon_abs = get_template_directory() . $blogsclub_icon_rel;
+        $blogsclub_icon_uri = get_template_directory_uri() . $blogsclub_icon_rel;
+        if (file_exists($blogsclub_icon_abs)) {
+            $blogsclub_icon_uri .= '?ver=' . (string) filemtime($blogsclub_icon_abs);
         }
         ?>
         <div class="footer-visitor-info">
@@ -85,22 +103,13 @@ endif; ?>
             <?php endif; ?>
         </div>
         <div class="site-footer-icons" aria-label="Footer social links">
-            <a class="site-footer-icon-link site-footer-icon-link--xifeng" href="https://xifeng.net" target="_blank" rel="noopener noreferrer" aria-label="Lared 主题作者 西风">
-                <svg class="site-footer-icon-svg site-footer-icon-svg--xifeng" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-                    <rect class="site-footer-icon-xifeng-bg" width="1080" height="1080" fill="currentColor" />
-                    <g>
-                        <rect class="site-footer-icon-xifeng-fg" x="216" y="216" width="216" height="216" fill="#fff" />
-                        <rect class="site-footer-icon-xifeng-fg" x="648" y="216" width="216" height="216" fill="#fff" />
-                        <rect class="site-footer-icon-xifeng-fg" x="216" y="648" width="216" height="216" fill="#fff" />
-                        <rect class="site-footer-icon-xifeng-fg" x="648" y="648" width="216" height="216" fill="#fff" />
-                        <rect class="site-footer-icon-xifeng-fg" x="432" y="432" width="216" height="216" fill="#fff" />
-                    </g>
-                </svg>
-                <span class="site-footer-icon-tooltip site-footer-icon-tooltip--xifeng">Lared 主题设计与开发：西风</span>
+            <a class="site-footer-icon-link site-footer-icon-link--foreverblog" href="https://www.foreverblog.cn/go.html" target="_blank" rel="noopener noreferrer" aria-label="十年博客之约">
+                <i class="fa-brands fa-blogger" aria-hidden="true"></i>
+                <span class="site-footer-icon-tooltip">十年博客之约</span>
             </a>
-            <a class="site-footer-icon-link site-footer-icon-link--wordpress" href="https://wordpress.org" target="_blank" rel="noopener noreferrer" aria-label="本站基于 WordPress 构建">
-                <i class="fa-brands fa-wordpress" aria-hidden="true"></i>
-                <span class="site-footer-icon-tooltip site-footer-icon-tooltip--wordpress">本站基于 WordPress 内容管理系统构建</span>
+            <a class="site-footer-icon-link site-footer-icon-link--travellings" href="https://www.travellings.cn/go.html" target="_blank" rel="noopener noreferrer" aria-label="开往-友链接力">
+                <i class="fa-sharp fa-solid fa-train-subway" aria-hidden="true"></i>
+                <span class="site-footer-icon-tooltip">开往-友链接力</span>
             </a>
             <a class="site-footer-icon-link site-footer-icon-link--gomami" href="https://gomami.io/aff.php?aff=364" target="_blank" rel="noopener noreferrer sponsored" aria-label="GoMami HKG Turin Air">
                 <svg class="site-footer-icon-svg site-footer-icon-svg--gomami" width="30" height="31" viewBox="0 0 30 31" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
@@ -108,7 +117,7 @@ endif; ?>
                     <path d="M0.105894 20.8691C-0.129076 20.465 0.0416742 19.949 0.472904 19.76L9.19345 15.9368C9.66745 15.729 10.2144 15.7624 10.6589 16.0263L15.1335 18.6833C15.5655 18.9399 15.8488 19.3834 15.8971 19.879L16.8373 29.5142C16.8828 29.9807 16.5071 30.3825 16.0325 30.3749L10.6545 30.2885C10.143 30.2803 9.77215 29.8043 9.89535 29.314L12.0619 20.6918C12.1642 20.2847 11.9848 19.8595 11.6201 19.6445C11.2474 19.4248 10.7719 19.4781 10.4584 19.7746L4.10388 25.7869C3.73076 26.1399 3.12115 26.0534 2.8638 25.611L0.105894 20.8691Z" fill="currentColor" />
                     <path d="M26.7637 5.94474C26.5333 5.53818 25.9972 5.41788 25.6115 5.68619L17.8112 11.1121C17.3872 11.4071 17.1354 11.8877 17.1365 12.3999L17.1476 17.5556C17.1487 18.0535 17.3887 18.5213 17.7944 18.8167L25.6844 24.5611C26.0664 24.8392 26.6085 24.7272 26.8455 24.3212L29.5321 19.7199C29.7876 19.2823 29.5644 18.7236 29.0751 18.5763L20.4702 15.9844C20.0639 15.862 19.7865 15.4917 19.787 15.0723C19.7875 14.6436 20.0779 14.268 20.4966 14.1547L28.9842 11.8578C29.4825 11.7229 29.7204 11.162 29.4681 10.7167L26.7637 5.94474Z" fill="currentColor" />
                 </svg>
-                <span class="site-footer-icon-tooltip">GoMami 🌋HKG.Turin.Air</span>
+                <span class="site-footer-icon-tooltip">GoMami HKG.Turin.Air</span>
             </a>
             <button type="button" class="site-footer-icon-link rss-btn" aria-label="RSS Feed" data-rss-copy data-feed-url="<?php echo esc_url(get_feed_link()); ?>">
                 <i class="fa-solid fa-rss" aria-hidden="true"></i>

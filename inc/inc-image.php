@@ -1,5 +1,11 @@
 <?php
 
+if (!defined("ABSPATH")) {
+    exit;
+}
+
+
+
 /**
  * 图片处理模块
  * - 文章特色图片获取
@@ -349,11 +355,13 @@ function lared_wrap_images_with_loader(string $content): string
                 $img_tag = str_replace('<img', '<img class="img-loading-target"', $img_tag);
             }
 
-            $wrapper = '<figure class="img-loading-wrapper"' . $aspect_style . '>';
+            $wrapper = '<figure class="img-loading-wrapper">';
+            $wrapper .= '<div class="img-loading-media"' . $aspect_style . '>';
             $wrapper .= '<div class="img-loading-spinner">';
             $wrapper .= '<div class="spinner-circle"></div>';
             $wrapper .= '</div>';
             $wrapper .= $img_tag;
+            $wrapper .= '</div>';
             $wrapper .= '</figure>';
 
             return $wrapper;

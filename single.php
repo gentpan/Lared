@@ -112,7 +112,7 @@ if (have_posts()) :
 
                                 <span class="single-top-banner__cat-icon" tabindex="0" aria-label="<?php echo esc_attr($category_label); ?>">
                                     <?php if ('' !== $category_icon_html) : ?>
-                                        <?php echo $category_icon_html; ?>
+                                        <?php echo wp_kses_post($category_icon_html); ?>
                                     <?php else : ?>
                                         <i class="fa-solid fa-folder" aria-hidden="true"></i>
                                     <?php endif; ?>

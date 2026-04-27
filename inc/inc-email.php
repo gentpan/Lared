@@ -1,10 +1,16 @@
 <?php
+
+if (!defined("ABSPATH")) {
+    exit;
+}
+
+
 /**
  * Lared 主题 - 邮件发送模块
  *
  * 支持两种发送方式：
  * 1. SMTP（通过 PHPMailer / wp_mail()）
- * 2. Resend API（HTTP REST）
+ * 2. Sendflare API（HTTP REST）
  *
  * @package Lared
  */
@@ -62,8 +68,8 @@ function lared_register_email_settings(): void
             'sanitize_callback' => 'sanitize_text_field',
             'default'           => '',
         ],
-        // ── Resend ──
-        'lared_resend_api_key' => [
+        // ── Sendflare ──
+        'lared_sendflare_api_key' => [
             'type'              => 'string',
             'sanitize_callback' => 'sanitize_text_field',
             'default'           => '',
@@ -299,8 +305,8 @@ function lared_send_email(string $to, string $subject, string $body, bool $wrap 
         $body = lared_email_html_template($subject, $body, $vars);
     }
 
-    if ('resend' === $mode) {
-        return lared_send_via_resend($to, $subject, $body);
+    if ('sendflare' === $mode) {
+        return lared_send_via_sendflare($to, $subject, $body);
     }
 
     return lared_send_via_smtp($to, $subject, $body);
@@ -357,16 +363,16 @@ add_action('wp_mail_failed', function ($wp_error) {
 });
 
 /* ──────────────────────────────────────────────
-   3a-bis. Resend 模式下拦截 wp_mail() — 让 WordPress 系统邮件走 Resend API
+   3a-bis. Sendflare 模式下拦截 wp_mail() — 让 WordPress 系统邮件走 Sendflare API
    ────────────────────────────────────────────── */
 
 /**
- * 当邮件模式为 resend 时，拦截 wp_mail() 调用并通过 Resend API 发送。
+ * 当邮件模式为 sendflare 时，拦截 wp_mail() 调用并通过 Sendflare API 发送。
  * 这样 WordPress 核心邮件（如修改邮箱确认、密码重置等）也能正常送达。
  */
 add_filter('pre_wp_mail', function ($null, $atts) {
     $mode = (string) get_option('lared_email_mode', 'smtp');
-    if ('resend' !== $mode) {
+    if ('sendflare' !== $mode) {
         return null; // SMTP 模式走默认 PHPMailer
     }
 
@@ -394,7 +400,7 @@ add_filter('pre_wp_mail', function ($null, $atts) {
         $message = nl2br(esc_html($message));
     }
 
-    $result = lared_send_via_resend($to, $subject, $message);
+    $result = lared_send_via_sendflare($to, $subject, $message);
 
     if (is_wp_error($result)) {
         /** @var \WP_Error $result */
@@ -452,24 +458,24 @@ function lared_set_html_content_type(): string
 }
 
 /* ──────────────────────────────────────────────
-   3b. Resend API 发送
+   3b. Sendflare API 发送
    ────────────────────────────────────────────── */
 
-function lared_send_via_resend(string $to, string $subject, string $html_body)
+function lared_send_via_sendflare(string $to, string $subject, string $html_body)
 {
-    $api_key      = (string) get_option('lared_resend_api_key', '');
+    $api_key      = (string) get_option('lared_sendflare_api_key', '');
     $from_address = (string) get_option('lared_email_from_address', '');
     $from_name    = (string) get_option('lared_email_from_name', get_bloginfo('name'));
 
     if ('' === $api_key) {
-        return new \WP_Error('resend_no_key', 'Resend API Key 未配置');
+        return new \WP_Error('sendflare_no_key', 'Sendflare API Key 未配置');
     }
 
     if ('' === $from_address) {
-        return new \WP_Error('resend_no_from', '发件人地址未配置');
+        return new \WP_Error('sendflare_no_from', '发件人地址未配置');
     }
 
-    $response = wp_remote_post('https://api.resend.com/emails', [
+    $response = wp_remote_post('https://api.sendflare.com/v1/send', [
         'timeout' => 30,
         'headers' => [
             'Authorization' => 'Bearer ' . $api_key,
@@ -477,25 +483,26 @@ function lared_send_via_resend(string $to, string $subject, string $html_body)
         ],
         'body' => wp_json_encode([
             'from'    => $from_name . ' <' . $from_address . '>',
-            'to'      => [$to],
+            'to'      => $to,
             'subject' => $subject,
-            'html'    => $html_body,
+            'body'    => $html_body,
         ]),
     ]);
 
     if (is_wp_error($response)) {
-        return new \WP_Error('resend_http_error', $response->get_error_message());
+        return new \WP_Error('sendflare_http_error', $response->get_error_message());
     }
 
     $code = wp_remote_retrieve_response_code($response);
     $body = json_decode(wp_remote_retrieve_body($response), true);
 
-    if ($code >= 200 && $code < 300) {
+    // Sendflare 返回 200 但 success=false 表示业务错误
+    if (is_array($body) && isset($body['success']) && true === $body['success']) {
         return true;
     }
 
     $err_msg = $body['message'] ?? ('HTTP ' . $code);
-    return new \WP_Error('resend_api_error', $err_msg);
+    return new \WP_Error('sendflare_api_error', $err_msg);
 }
 
 /* ================================================================
@@ -619,7 +626,7 @@ function lared_render_tab_email(): void
     $smtp_encryption = (string) get_option('lared_smtp_encryption', 'tls');
     $smtp_username  = (string) get_option('lared_smtp_username', '');
     $smtp_password  = (string) get_option('lared_smtp_password', '');
-    $resend_api_key = (string) get_option('lared_resend_api_key', '');
+    $sendflare_api_key = (string) get_option('lared_sendflare_api_key', '');
     $email_nonce    = wp_create_nonce('lared_email_nonce');
     ?>
 
@@ -638,8 +645,8 @@ function lared_render_tab_email(): void
                             <span class="description">— 标准邮件协议</span>
                         </label>
                         <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-                            <input type="radio" name="lared_email_mode" value="resend" <?php checked($mode, 'resend'); ?> class="lared-email-mode-radio" />
-                            <strong>Resend API</strong>
+                            <input type="radio" name="lared_email_mode" value="sendflare" <?php checked($mode, 'sendflare'); ?> class="lared-email-mode-radio" />
+                            <strong>Sendflare API</strong>
                             <span class="description">— 现代邮件 API</span>
                         </label>
                     </fieldset>
@@ -703,15 +710,15 @@ function lared_render_tab_email(): void
             </table>
         </div>
 
-        <!-- Resend 配置区 -->
-        <div id="lared-email-resend-section" style="margin:16px 0;padding:16px 20px;background:#f9f9f9;border:1px solid #e0e0e0;">
-            <h3 style="margin:0 0 8px;font-size:14px;color:#1d2327;">⚡ <?php esc_html_e('Resend API 配置', 'lared'); ?></h3>
+        <!-- Sendflare 配置区 -->
+        <div id="lared-email-sendflare-section" style="margin:16px 0;padding:16px 20px;background:#f9f9f9;border:1px solid #e0e0e0;">
+            <h3 style="margin:0 0 8px;font-size:14px;color:#1d2327;">⚡ <?php esc_html_e('Sendflare API 配置', 'lared'); ?></h3>
             <table class="form-table" role="presentation" style="margin-top:0;">
                 <tr>
-                    <th scope="row"><label for="lared_resend_api_key"><?php esc_html_e('API Key', 'lared'); ?></label></th>
+                    <th scope="row"><label for="lared_sendflare_api_key"><?php esc_html_e('API Key', 'lared'); ?></label></th>
                     <td>
-                        <input id="lared_resend_api_key" name="lared_resend_api_key" type="password" class="large-text code" value="<?php echo esc_attr($resend_api_key); ?>" placeholder="re_xxxxxxxxx" autocomplete="new-password" />
-                        <p class="description"><?php esc_html_e('在 Resend 控制台获取 API Key：', 'lared'); ?> <a href="https://resend.com/api-keys" target="_blank" rel="noopener">resend.com/api-keys</a></p>
+                        <input id="lared_sendflare_api_key" name="lared_sendflare_api_key" type="password" class="large-text code" value="<?php echo esc_attr($sendflare_api_key); ?>" placeholder="live_xxxxxxxxx" autocomplete="new-password" />
+                        <p class="description"><?php esc_html_e('在 Sendflare 控制台获取 API Key：', 'lared'); ?> <a href="https://sendflare.com" target="_blank" rel="noopener">sendflare.com</a></p>
                     </td>
                 </tr>
             </table>
@@ -783,17 +790,16 @@ function lared_render_tab_email(): void
         // ── 模式切换 ──
         var modeRadios  = document.querySelectorAll('.lared-email-mode-radio');
         var smtpSection = document.getElementById('lared-email-smtp-section');
-        var resendSection = document.getElementById('lared-email-resend-section');
+        var sendflareSection = document.getElementById('lared-email-sendflare-section');
 
         function toggleSections() {
             var mode = document.querySelector('.lared-email-mode-radio:checked');
             var val  = mode ? mode.value : 'smtp';
             var isSMTP = val === 'smtp';
-            smtpSection.style.display   = isSMTP ? 'block' : 'none';
-            resendSection.style.display = isSMTP ? 'none' : 'block';
-            // 禁用隐藏区域的 input/select，防止浏览器验证不可聚焦的表单控件
+            smtpSection.style.display      = isSMTP ? 'block' : 'none';
+            sendflareSection.style.display  = isSMTP ? 'none' : 'block';
             smtpSection.querySelectorAll('input,select').forEach(function(el){ el.disabled = !isSMTP; });
-            resendSection.querySelectorAll('input,select').forEach(function(el){ el.disabled = isSMTP; });
+            sendflareSection.querySelectorAll('input,select').forEach(function(el){ el.disabled = isSMTP; });
         }
         modeRadios.forEach(function(r) { r.addEventListener('change', toggleSections); });
         toggleSections();
@@ -938,7 +944,7 @@ function lared_notify_admin_new_comment(int $comment_id, $comment_approved): voi
         'manage_url'  => admin_url('edit-comments.php'),
         'avatar'      => get_avatar_url($comment->comment_author_email, ['size' => 40]),
         'name'        => $comment->comment_author,
-        'time'        => wp_date('Y-m-d H:i', strtotime($comment->comment_date)),
+        'time'        => wp_date('Y-m-d H:i', strtotime($comment->comment_date_gmt . ' UTC')),
         'content'     => wp_strip_all_tags($comment->comment_content),
     ];
 
@@ -1036,7 +1042,7 @@ function lared_send_pending_comment_digest_email(): void
         $cards_html .= lared_email_comment_card([
             'avatar'  => get_avatar_url($c->comment_author_email, ['size' => 40]),
             'name'    => $c->comment_author,
-            'time'    => wp_date('Y-m-d H:i', strtotime($c->comment_date)),
+            'time'    => wp_date('Y-m-d H:i', strtotime($c->comment_date_gmt . ' UTC')),
             'content' => wp_trim_words(wp_strip_all_tags($c->comment_content), 30, '…'),
         ]);
     }
@@ -1119,13 +1125,13 @@ function lared_notify_reply(int $comment_id, $comment_approved): void
         'original' => [
             'avatar'  => get_avatar_url($parent->comment_author_email, ['size' => 40]),
             'name'    => $parent->comment_author,
-            'time'    => wp_date('Y-m-d H:i', strtotime($parent->comment_date)),
+            'time'    => wp_date('Y-m-d H:i', strtotime($parent->comment_date_gmt . ' UTC')),
             'content' => wp_strip_all_tags($parent->comment_content),
         ],
         'reply' => [
             'avatar'  => get_avatar_url($reply->comment_author_email, ['size' => 40]),
             'name'    => $reply->comment_author,
-            'time'    => wp_date('Y-m-d H:i', strtotime($reply->comment_date)),
+            'time'    => wp_date('Y-m-d H:i', strtotime($reply->comment_date_gmt . ' UTC')),
             'content' => wp_strip_all_tags($reply->comment_content),
         ],
     ];

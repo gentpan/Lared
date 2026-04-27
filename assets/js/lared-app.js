@@ -3964,6 +3964,13 @@
       imgs.forEach(function (img) {
         img.classList.remove("img-loading-target");
         img.style.opacity = "1";
+
+        if (img.parentElement === grid) {
+          var item = document.createElement("div");
+          item.className = "lared-grid-item";
+          grid.insertBefore(item, img);
+          item.appendChild(img);
+        }
       });
     });
   }
@@ -3999,11 +4006,14 @@
     var wrapper = document.createElement("figure");
     wrapper.className = "img-loading-wrapper";
 
+    var media = document.createElement("div");
+    media.className = "img-loading-media";
+
     // 从图片的 width/height 属性获取尺寸设置比例
     var width = img.getAttribute("width") || img.naturalWidth || 0;
     var height = img.getAttribute("height") || img.naturalHeight || 0;
     if (width && height && parseInt(height) > 0) {
-      wrapper.style.aspectRatio = width + "/" + height;
+      media.style.aspectRatio = width + "/" + height;
     }
 
     // 创建 loading 圆圈
@@ -4028,8 +4038,9 @@
 
     // 包装图片
     img.parentNode.insertBefore(wrapper, img);
-    wrapper.appendChild(spinner);
-    wrapper.appendChild(img);
+    wrapper.appendChild(media);
+    media.appendChild(spinner);
+    media.appendChild(img);
 
     // 监听 lazysizes 完成事件
     function onImageLoad() {
@@ -4382,7 +4393,35 @@
     }
   }
 
-  function closeAllLoginDropdowns(exceptDropdown, exceptWrapper) {
+  
+// 初始化页脚/头部头像菜单（PJAX 后需要重新绑定）
+function initFooterAvatar() {
+  // 处理头像菜单的点击显示/隐藏（移动端或 focus 管理）
+  document.querySelectorAll(".footer-avatar-wrapper").forEach(function (wrapper) {
+    // 防止重复绑定
+    if (wrapper._avatarBound) return;
+    wrapper._avatarBound = true;
+
+    var avatarLink = wrapper.querySelector(".footer-user-avatar");
+    var menu = wrapper.querySelector(".footer-avatar-menu");
+    if (!avatarLink || !menu) return;
+
+    // 点击头像切换菜单显示（移动端）
+    avatarLink.addEventListener("click", function (e) {
+      // 只在移动端处理点击事件，桌面端用 CSS hover
+      if (window.innerWidth > 768) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var isActive = menu.classList.contains("is-active");
+      // 关闭其他菜单
+      document.querySelectorAll(".footer-avatar-menu").forEach(function (m) {
+        if (m !== menu) m.classList.remove("is-active");
+      });
+      menu.classList.toggle("is-active", !isActive);
+    });
+  });
+}
+function closeAllLoginDropdowns(exceptDropdown, exceptWrapper) {
     document
       .querySelectorAll("[data-login-dropdown]")
       .forEach(function (dropdown) {
@@ -4458,7 +4497,7 @@
             escHtml(data.data.avatar) +
             '" alt="' +
             escHtml(data.data.name) +
-            '" class="h-full w-full object-cover" />' +
+            '" class="avatar h-full w-full object-cover" />' +
             "</a>" +
             '<div class="footer-avatar-menu">' +
             '<a href="' +
@@ -5072,7 +5111,7 @@
     initImageLoadAnimation();
     initArticleImageLoading();
     initHeaderLogin();
-    initInlineCodeCleaner();
+    initFooterAvatar(); initInlineCodeCleaner();
     initInlineColorCodeChip();
     initSearchModal();
     initMobileMenu();
@@ -5358,7 +5397,7 @@
       initRssCopyButton,
       initArticleImageLoading,
       initHeaderLogin,
-      initInlineCodeCleaner,
+      initFooterAvatar, initInlineCodeCleaner,
       initInlineColorCodeChip,
       initSearchModal,
       initMobileMenu,

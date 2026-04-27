@@ -7,18 +7,17 @@ get_header();
 
 /** @var WP_Term|null $queried_term */
 $queried_term = get_queried_object();
-$cat_id       = ($queried_term instanceof WP_Term) ? (int) $queried_term->term_id : 0;
-$cat_name     = ($queried_term instanceof WP_Term) ? $queried_term->name : '';
-$cat_count    = ($queried_term instanceof WP_Term) ? (int) $queried_term->count : 0;
-$cat_icon_html = $cat_id > 0 ? lared_get_category_icon_html($cat_id) : '';
+$tag_id       = ($queried_term instanceof WP_Term) ? (int) $queried_term->term_id : 0;
+$tag_name     = ($queried_term instanceof WP_Term) ? $queried_term->name : '';
+$tag_count    = ($queried_term instanceof WP_Term) ? (int) $queried_term->count : 0;
 
-$cat_posts = get_posts([
+$tag_posts = get_posts([
     'post_type'              => 'post',
     'post_status'            => 'publish',
     'numberposts'            => -1,
     'orderby'                => 'date',
     'order'                  => 'DESC',
-    'category'               => $cat_id,
+    'tag_id'                 => $tag_id,
     'ignore_sticky_posts'    => true,
     'no_found_rows'          => true,
     'update_post_meta_cache' => true,
@@ -26,7 +25,7 @@ $cat_posts = get_posts([
 ]);
 
 $tree = [];
-foreach ($cat_posts as $p) {
+foreach ($tag_posts as $p) {
     $pid = (int) $p->ID;
     $ts  = (int) get_post_time('U', true, $pid);
     if ($ts <= 0) continue;
@@ -56,20 +55,18 @@ foreach ($cat_posts as $p) {
 }
 ?>
 
-<main class="main-shell category-archive-page mx-auto w-full max-w-[1400px] min-h-[calc(100vh-64px)] border-x border-[#d9d9d9] bg-[#ffffff] pb-[90px] max-[900px]:pb-16">
-    <section class="listing-head category-archive-head border-b border-[#d9d9d9]">
+<main class="main-shell mx-auto w-full max-w-[1400px] min-h-[calc(100vh-64px)] border-x border-[#d9d9d9] bg-[#ffffff] pb-[90px] max-[900px]:pb-16">
+    <section class="listing-head border-b border-[#d9d9d9]">
         <div class="listing-head-inner">
             <span class="listing-head-accent" aria-hidden="true"></span>
             <div class="listing-head-main">
                 <div class="listing-head-title-row">
                     <h1 class="listing-head-title">
-                        <?php if ('' !== $cat_icon_html) : ?>
-                            <?php echo wp_kses_post($cat_icon_html); ?>
-                        <?php endif; ?>
-                        <?php echo esc_html($cat_name); ?>
+                        <i class="fa-sharp fa-regular fa-hashtag" aria-hidden="true"></i>
+                        <span><?php echo esc_html($tag_name); ?></span>
                     </h1>
                     <p class="listing-head-side-stat">
-                        <?php printf(esc_html__('%d 篇文章', 'lared'), $cat_count); ?>
+                        <?php printf(esc_html__('%d 篇文章', 'lared'), $tag_count); ?>
                     </p>
                 </div>
             </div>
@@ -106,7 +103,7 @@ foreach ($cat_posts as $p) {
             </div>
         <?php else : ?>
             <div class="listing-empty">
-                <p><?php esc_html_e('该分类下暂无文章。', 'lared'); ?></p>
+                <p><?php esc_html_e('该标签下暂无文章。', 'lared'); ?></p>
             </div>
         <?php endif; ?>
     </section>

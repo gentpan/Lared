@@ -1,4 +1,10 @@
 <?php
+
+if (!defined("ABSPATH")) {
+    exit;
+}
+
+
 /**
  * 评论系统模块
  *
@@ -156,11 +162,23 @@ function lared_get_real_platform_version(): string
 function lared_get_ua_icon_slug(string $name, string $type): string
 {
     $map = [
-        'Chrome'  => 'fa-brands fa-chrome',
-        'Firefox' => 'fa-brands fa-firefox-browser',
-        'Safari'  => 'fa-brands fa-safari',
-        'Edge'    => 'fa-brands fa-edge',
-        'Opera'   => 'fa-brands fa-opera',
+        // Browser
+        'Chrome'     => 'fa-brands fa-chrome',
+        'Firefox'    => 'fa-brands fa-firefox-browser',
+        'Safari'     => 'fa-brands fa-safari',
+        'Edge'       => 'fa-brands fa-edge',
+        'Opera'      => 'fa-brands fa-opera',
+        // OS
+        'Windows'    => 'fa-brands fa-windows',
+        'macOS'      => 'fa-brands fa-apple',
+        'iOS'        => 'fa-brands fa-apple',
+        'Android'    => 'fa-brands fa-android',
+        'Ubuntu'     => 'fa-brands fa-ubuntu',
+        'Linux'      => 'fa-brands fa-linux',
+        'Debian'     => 'fa-brands fa-linux',
+        'Arch Linux' => 'fa-brands fa-linux',
+        'CentOS'     => 'fa-brands fa-centos',
+        'Fedora'     => 'fa-brands fa-fedora',
     ];
 
     return $map[$name] ?? ($type === 'browser' ? 'fa-solid fa-globe' : 'fa-solid fa-desktop');
@@ -273,11 +291,10 @@ function lared_get_ip_geo(string $ip): array
 // ================================================================
 
 /**
- * 评论插入后自动保存 UA + 地理位置到 comment_meta
+ * 评论插入后自动保存 UA + 地理位置到 comment_meta（单条 _comment_info JSON）
  */
 function lared_save_comment_meta(int $comment_id, $comment): void
 {
-    // $comment 可能是 int 或 WP_Comment
     if (!($comment instanceof WP_Comment)) {
         $comment = get_comment($comment_id);
     }
@@ -288,32 +305,115 @@ function lared_save_comment_meta(int $comment_id, $comment): void
     $ua = (string) $comment->comment_agent;
     $ip = (string) $comment->comment_author_IP;
 
-    // 浏览器
+    $info = [];
+
     $browser = lared_parse_browser($ua);
     if ('' !== $browser['name']) {
-        update_comment_meta($comment_id, '_browser_name', $browser['name']);
-        update_comment_meta($comment_id, '_browser_version', $browser['version']);
-        update_comment_meta($comment_id, '_browser_icon', $browser['icon']);
+        $info['browser']     = $browser['name'];
+        $info['browser_ver'] = $browser['version'];
     }
 
-    // 操作系统
     $os = lared_parse_os($ua);
     if ('' !== $os['name']) {
-        update_comment_meta($comment_id, '_os_name', $os['name']);
-        update_comment_meta($comment_id, '_os_version', $os['version']);
-        update_comment_meta($comment_id, '_os_icon', $os['icon']);
+        $info['os']     = $os['name'];
+        $info['os_ver'] = $os['version'];
     }
 
-    // 地理位置
     $geo = lared_get_ip_geo($ip);
     if ('' !== $geo['country']) {
-        update_comment_meta($comment_id, '_geo_country', $geo['country']);
-        update_comment_meta($comment_id, '_geo_country_name', $geo['country_name']);
-        update_comment_meta($comment_id, '_geo_city', $geo['city']);
-        update_comment_meta($comment_id, '_geo_region', $geo['region']);
+        $info['geo'] = [
+            'country'      => $geo['country'],
+            'country_name' => $geo['country_name'],
+            'city'         => $geo['city'],
+            'region'       => $geo['region'],
+        ];
+    }
+
+    if (!empty($info)) {
+        update_comment_meta($comment_id, '_comment_info', $info);
     }
 }
 add_action('comment_post', 'lared_save_comment_meta', 10, 2);
+
+// ================================================================
+//  Part 3.5 — 反垃圾评论（替代 Akismet）
+// ================================================================
+
+/**
+ * 轻量反垃圾评论检查
+ *
+ * 白名单：已登录用户 / 友链域名评论者 → 跳过检查
+ * 规则 1：纯英文（无中日韩字符）→ spam
+ * 规则 2：评论含 2+ 个链接 → spam
+ * 规则 3：内容过短（< 4 字符）→ spam
+ * 规则 4：垃圾关键词黑名单 → spam
+ */
+function lared_antispam_check(array $commentdata): array
+{
+    // 白名单：已登录用户
+    if (!empty($commentdata['user_ID']) && (int) $commentdata['user_ID'] > 0) {
+        return $commentdata;
+    }
+
+    // 白名单：友链域名评论者
+    $author_url = $commentdata['comment_author_url'] ?? '';
+    if ('' !== $author_url && lared_is_friend_link($author_url)) {
+        return $commentdata;
+    }
+
+    $content = trim($commentdata['comment_content'] ?? '');
+
+    // 规则 3：内容过短
+    if (mb_strlen($content) < 4) {
+        wp_die(
+            '评论内容过短，请至少输入 4 个字符。',
+            '评论被拦截',
+            ['response' => 403, 'back_link' => true]
+        );
+    }
+
+    // 规则 1：无中日韩字符 → spam（纯英文/拉丁文）
+    if (!preg_match('/[\x{4e00}-\x{9fff}\x{3040}-\x{309f}\x{30a0}-\x{30ff}\x{ac00}-\x{d7af}]/u', $content)) {
+        wp_die(
+            '本站仅接受包含中文的评论，纯英文评论已被拦截。',
+            '评论被拦截',
+            ['response' => 403, 'back_link' => true]
+        );
+    }
+
+    // 规则 2：含 2+ 个链接（http/https URL）
+    $link_count = preg_match_all('#https?://#i', $content);
+    if ($link_count >= 2) {
+        wp_die(
+            '评论中包含过多链接，疑似垃圾评论。',
+            '评论被拦截',
+            ['response' => 403, 'back_link' => true]
+        );
+    }
+
+    // 规则 4：垃圾关键词黑名单
+    $blacklist = [
+        'poker', 'casino', 'viagra', 'cialis', 'slots', 'gambling',
+        'porn', 'sex', 'xxx', 'nude', 'dating', 'hookup',
+        'buy cheap', 'free money', 'click here', 'make money',
+        'seo service', 'link building', 'backlink',
+        'crypto', 'bitcoin', 'nft', 'airdrop',
+        'payday loan', 'insurance quote',
+    ];
+    $content_lower = strtolower($content . ' ' . ($commentdata['comment_author'] ?? '') . ' ' . $author_url);
+    foreach ($blacklist as $keyword) {
+        if (str_contains($content_lower, $keyword)) {
+            wp_die(
+                '评论包含垃圾关键词，已被拦截。',
+                '评论被拦截',
+                ['response' => 403, 'back_link' => true]
+            );
+        }
+    }
+
+    return $commentdata;
+}
+add_filter('preprocess_comment', 'lared_antispam_check', 1);
 
 // ================================================================
 //  Part 4 — 前端渲染函数
@@ -321,50 +421,65 @@ add_action('comment_post', 'lared_save_comment_meta', 10, 2);
 
 /**
  * 渲染评论的 UA + 地理位置信息条
+ * 优先读 _comment_info（新 JSON 格式），兼容旧 10 字段格式
  */
 function lared_render_comment_ua_geo(WP_Comment $comment): string
 {
     $comment_id = (int) $comment->comment_ID;
 
-    // 读取已存的 meta
-    $browser_name    = (string) get_comment_meta($comment_id, '_browser_name', true);
-    $browser_version = (string) get_comment_meta($comment_id, '_browser_version', true);
-    $browser_icon    = (string) get_comment_meta($comment_id, '_browser_icon', true);
-    $os_name         = (string) get_comment_meta($comment_id, '_os_name', true);
-    $os_version      = (string) get_comment_meta($comment_id, '_os_version', true);
-    $os_icon         = (string) get_comment_meta($comment_id, '_os_icon', true);
-    $geo_country     = (string) get_comment_meta($comment_id, '_geo_country', true);
-    $geo_country_name = (string) get_comment_meta($comment_id, '_geo_country_name', true);
-    $geo_city        = (string) get_comment_meta($comment_id, '_geo_city', true);
-    $geo_region      = (string) get_comment_meta($comment_id, '_geo_region', true);
+    // 优先读新格式 _comment_info
+    $info = get_comment_meta($comment_id, '_comment_info', true);
 
-    // 如果没有存过 UA meta，仅解析 UA（纯本地解析，无网络请求）
+    if (is_array($info) && !empty($info)) {
+        // 新格式
+        $browser_name    = (string) ($info['browser'] ?? '');
+        $browser_version = (string) ($info['browser_ver'] ?? '');
+        $os_name         = (string) ($info['os'] ?? '');
+        $os_version      = (string) ($info['os_ver'] ?? '');
+        $geo             = $info['geo'] ?? [];
+        $geo_country     = (string) ($geo['country'] ?? '');
+        $geo_country_name = (string) ($geo['country_name'] ?? '');
+        $geo_city        = (string) ($geo['city'] ?? '');
+        $geo_region      = (string) ($geo['region'] ?? '');
+    } else {
+        // 兼容旧格式 10 字段
+        $browser_name    = (string) get_comment_meta($comment_id, '_browser_name', true);
+        $browser_version = (string) get_comment_meta($comment_id, '_browser_version', true);
+        $os_name         = (string) get_comment_meta($comment_id, '_os_name', true);
+        $os_version      = (string) get_comment_meta($comment_id, '_os_version', true);
+        $geo_country     = (string) get_comment_meta($comment_id, '_geo_country', true);
+        $geo_country_name = (string) get_comment_meta($comment_id, '_geo_country_name', true);
+        $geo_city        = (string) get_comment_meta($comment_id, '_geo_city', true);
+        $geo_region      = (string) get_comment_meta($comment_id, '_geo_region', true);
+    }
+
+    // 如果没有任何 meta，从 UA 实时解析并保存为新格式
     if ('' === $browser_name && '' === $os_name) {
         $ua = (string) $comment->comment_agent;
         if ('' !== $ua) {
             $browser = lared_parse_browser($ua);
             $browser_name    = $browser['name'];
             $browser_version = $browser['version'];
-            $browser_icon    = $browser['icon'];
             $os = lared_parse_os($ua);
             $os_name    = $os['name'];
             $os_version = $os['version'];
-            $os_icon    = $os['icon'];
 
+            $new_info = [];
             if ('' !== $browser_name) {
-                update_comment_meta($comment_id, '_browser_name', $browser_name);
-                update_comment_meta($comment_id, '_browser_version', $browser_version);
-                update_comment_meta($comment_id, '_browser_icon', $browser_icon);
+                $new_info['browser']     = $browser_name;
+                $new_info['browser_ver'] = $browser_version;
             }
             if ('' !== $os_name) {
-                update_comment_meta($comment_id, '_os_name', $os_name);
-                update_comment_meta($comment_id, '_os_version', $os_version);
-                update_comment_meta($comment_id, '_os_icon', $os_icon);
+                $new_info['os']     = $os_name;
+                $new_info['os_ver'] = $os_version;
+            }
+            if (!empty($new_info)) {
+                update_comment_meta($comment_id, '_comment_info', $new_info);
             }
         }
     }
 
-    // 地理位置：如果 comment_meta 为空，调用 API 获取并保存到数据库
+    // 地理位置：如果为空，调用 API 获取并保存
     if ('' === $geo_country) {
         $ip = (string) $comment->comment_author_IP;
         if ('' !== $ip && '127.0.0.1' !== $ip && '::1' !== $ip) {
@@ -375,10 +490,18 @@ function lared_render_comment_ua_geo(WP_Comment $comment): string
             $geo_region       = $geo['region'];
 
             if ('' !== $geo_country) {
-                update_comment_meta($comment_id, '_geo_country', $geo_country);
-                update_comment_meta($comment_id, '_geo_country_name', $geo_country_name);
-                update_comment_meta($comment_id, '_geo_city', $geo_city);
-                update_comment_meta($comment_id, '_geo_region', $geo_region);
+                // 读取或初始化 _comment_info，追加 geo
+                $existing = get_comment_meta($comment_id, '_comment_info', true);
+                if (!is_array($existing)) {
+                    $existing = [];
+                }
+                $existing['geo'] = [
+                    'country'      => $geo_country,
+                    'country_name' => $geo_country_name,
+                    'city'         => $geo_city,
+                    'region'       => $geo_region,
+                ];
+                update_comment_meta($comment_id, '_comment_info', $existing);
             }
         }
     }
@@ -421,9 +544,9 @@ function lared_render_comment_ua_geo(WP_Comment $comment): string
             . '</span>';
     }
 
-    // 操作系统
+    // 操作系统（icon 从 name 推断）
     if ('' !== $os_name) {
-        $os_fa = lared_migrate_icon_slug($os_icon ?: 'system', 'os');
+        $os_fa = lared_get_ua_icon_slug($os_name, 'os');
         $os_display = $os_name . ('' !== $os_version ? ' ' . $os_version : '');
         $parts[] = '<span class="comment-meta-os">'
             . lared_ua_icon_html($os_fa)
@@ -431,9 +554,9 @@ function lared_render_comment_ua_geo(WP_Comment $comment): string
             . '</span>';
     }
 
-    // 浏览器
+    // 浏览器（icon 从 name 推断）
     if ('' !== $browser_name) {
-        $browser_fa = lared_migrate_icon_slug($browser_icon ?: 'browser', 'browser');
+        $browser_fa = lared_get_ua_icon_slug($browser_name, 'browser');
         $browser_display = $browser_name . ('' !== $browser_version ? ' ' . $browser_version : '');
         $parts[] = '<span class="comment-meta-browser">'
             . lared_ua_icon_html($browser_fa)
@@ -1321,7 +1444,7 @@ function lared_custom_comment_callback(WP_Comment $comment, array $args, int $de
     global $lared_floor_map;
     $floor_number = $lared_floor_map[(int) $comment->comment_ID] ?? 0;
     ?>
-    <<?php echo $tag; ?> id="comment-<?php comment_ID(); ?>" <?php comment_class(empty($args['has_children']) ? '' : 'parent', $comment); ?>>
+    <<?php echo esc_html($tag); ?> id="comment-<?php comment_ID(); ?>" <?php comment_class(empty($args['has_children']) ? '' : 'parent', $comment); ?>>
         <article id="div-comment-<?php comment_ID(); ?>" class="comment-body">
 
             <?php if (0 !== $args['avatar_size']) :

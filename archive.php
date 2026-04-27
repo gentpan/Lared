@@ -30,50 +30,32 @@ $archive_found_posts = (int) $wp_query->found_posts;
 
     <section class="listing-content">
         <?php if (have_posts()) : ?>
-            <div class="listing-grid">
-                <?php while (have_posts()) : the_post(); ?>
-                    <?php
-                    $post_id     = (int) get_the_ID();
-                    $image_url   = lared_get_post_image_url($post_id, 'large');
-                    $category    = get_the_category();
-                    $cat_name    = !empty($category) ? $category[0]->name : __('未分类', 'lared');
-                    $cat_icon    = (!empty($category) && isset($category[0]->term_id)) ? lared_get_category_icon_html((int) $category[0]->term_id) : '';
-                    $excerpt_raw = get_the_excerpt();
-                    ?>
-                    <article class="listing-card">
-                        <a class="listing-card-link" href="<?php the_permalink(); ?>">
-                            <div class="listing-card-image-wrap">
-                                <?php if ('' !== $image_url) : ?>
-                                    <img
-                                        class="listing-card-image lazyload"
-                                        data-src="<?php echo esc_url($image_url); ?>"
-                                        alt="<?php the_title_attribute(); ?>"
-                                    />
-                                <?php else : ?>
-                                    <span class="listing-card-image-fallback" aria-hidden="true"></span>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="listing-card-body">
-                                <div class="listing-card-meta-top">
-                                    <span class="listing-card-category">
-                                        <?php if ('' !== $cat_icon) : ?>
-                                            <span class="listing-card-category-icon" aria-hidden="true"><?php echo wp_kses_post($cat_icon); ?></span>
-                                        <?php endif; ?>
-                                        <span><?php echo esc_html($cat_name); ?></span>
-                                    </span>
-                                    <time datetime="<?php echo esc_attr(get_the_date('c')); ?>"><?php echo esc_html(get_the_date('Y/m/d')); ?></time>
-                                </div>
-
-                                <h2 class="listing-card-title"><?php the_title(); ?></h2>
-
-                                <?php if ('' !== trim((string) $excerpt_raw)) : ?>
-                                    <p class="listing-card-excerpt"><?php echo esc_html(wp_trim_words($excerpt_raw, 24, '...')); ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </a>
-                    </article>
-                <?php endwhile; ?>
+            <div class="archive-timeline">
+                <ul class="archive-post-list">
+                    <?php while (have_posts()) : the_post(); ?>
+                        <?php
+                        $post_id    = (int) get_the_ID();
+                        $p_comments = (int) get_comments_number($post_id);
+                        $p_views    = function_exists('lared_get_post_views') ? lared_get_post_views($post_id) : 0;
+                        $p_cat_icon = '';
+                        $category   = get_the_category();
+                        if (!empty($category) && isset($category[0]->term_id)) {
+                            $p_cat_icon = lared_get_category_icon_html((int) $category[0]->term_id);
+                        }
+                        ?>
+                        <li class="archive-post-item">
+                            <time class="archive-post-date" datetime="<?php echo esc_attr(get_the_date('c')); ?>"><?php echo esc_html(get_the_date('m/d')); ?></time>
+                            <?php if ('' !== $p_cat_icon) : ?>
+                                <span class="archive-post-cat-icon" aria-hidden="true"><?php echo wp_kses_post($p_cat_icon); ?></span>
+                            <?php endif; ?>
+                            <a class="archive-post-link" href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                            <span class="archive-post-stats">
+                                <span class="archive-post-stat" title="<?php esc_attr_e('评论', 'lared'); ?>"><i class="fa-regular fa-comment" aria-hidden="true"></i><?php echo esc_html((string) $p_comments); ?></span>
+                                <span class="archive-post-stat" title="<?php esc_attr_e('浏览', 'lared'); ?>"><i class="fa-regular fa-eye" aria-hidden="true"></i><?php echo esc_html((string) $p_views); ?></span>
+                            </span>
+                        </li>
+                    <?php endwhile; ?>
+                </ul>
             </div>
 
             <div class="lared-pagination">

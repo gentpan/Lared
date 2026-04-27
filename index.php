@@ -625,7 +625,7 @@ get_header();
 
                                 <a class="home-article-head-label" href="<?php echo esc_url($category_link); ?>" tabindex="0" aria-label="<?php echo esc_attr($category_label); ?>">
                                     <?php if ('' !== $category_icon_html) : ?>
-                                        <span class="category-icon" aria-hidden="true"><?php echo $category_icon_html; ?></span>
+                                        <span class="category-icon" aria-hidden="true"><?php echo wp_kses_post($category_icon_html); ?></span>
                                     <?php endif; ?>
                                     <span><?php echo esc_html($category_label); ?></span>
                                     <span class="home-article-label-tooltip"><?php

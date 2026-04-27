@@ -96,7 +96,7 @@ $site_running_days = function_exists('lared_get_site_running_days_from_first_pos
     ? lared_get_site_running_days_from_first_post()
     : 0;
 
-$today_ts = strtotime(wp_date('Y-m-d', current_time('timestamp')) . ' 00:00:00');
+$today_ts = strtotime(wp_date('Y-m-d') . ' 12:00:00');
 $range_start_ts = $today_ts - (364 * DAY_IN_SECONDS);
 $start_weekday = (int) wp_date('w', $range_start_ts);
 $aligned_start_ts = $range_start_ts - ($start_weekday * DAY_IN_SECONDS);

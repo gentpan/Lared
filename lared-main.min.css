@@ -6991,11 +6991,6 @@ a.home-article-head-label:hover {
   letter-spacing: 0.03em;
 }
 
-.single-article-content.page-content.prose {
-  font-size: 17px;
-  line-height: 1.8;
-}
-
 /* 段落间距优化 */
 .page-content.prose :where(p) {
   margin-top: 1em;
@@ -11228,7 +11223,7 @@ body.theme-body .font-black {
 
 .site-footer {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   border-top: 1px solid var(--border-color);
   background: #fff;
 }
@@ -11295,12 +11290,10 @@ body.theme-body .font-black {
 
 .site-footer-icon-link {
   display: inline-flex;
-  position: relative;
   justify-content: center;
   align-items: center;
   width: 30px;
   height: 30px;
-  overflow: visible;
   border: 1px solid #d9d9d9;
   border-radius: 0;
   text-decoration: none;
@@ -11390,8 +11383,12 @@ body.theme-body .font-black {
   background: var(--color-accent, #f53004);
 }
 
-.site-footer-icon-link:hover .site-footer-icon-tooltip,
-.site-footer-icon-link:focus-visible .site-footer-icon-tooltip {
+.site-footer-icon-link--xifeng:hover .site-footer-icon-tooltip,
+.site-footer-icon-link--xifeng:focus-visible .site-footer-icon-tooltip,
+.site-footer-icon-link--wordpress:hover .site-footer-icon-tooltip,
+.site-footer-icon-link--wordpress:focus-visible .site-footer-icon-tooltip,
+.site-footer-icon-link--gomami:hover .site-footer-icon-tooltip,
+.site-footer-icon-link--gomami:focus-visible .site-footer-icon-tooltip {
   visibility: visible;
   opacity: 1;
   transform: translateX(-50%) translateY(0);
@@ -11706,20 +11703,14 @@ img[data-img-animation].img-error {
 .img-loading-wrapper {
   position: relative;
   display: block;
+  background: #f5f5f5;
+  overflow: hidden;
   border-radius: 4px;
   margin: 1.5rem 0;
 }
 
-.img-loading-media {
-  position: relative;
-  display: block;
-  background: #f5f5f5;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
 /* 默认 16:9 比例 */
-.img-loading-media:not([style*="aspect-ratio"]) {
+.img-loading-wrapper:not([style*="aspect-ratio"]) {
   aspect-ratio: 16/9;
 }
 
@@ -11763,13 +11754,7 @@ img[data-img-animation].img-error {
   height: 100% !important;
   object-fit: cover !important;
   opacity: 0;
-  transform: scale(1);
-  transform-origin: center center;
-  backface-visibility: hidden;
-  will-change: transform;
-  transition:
-    opacity 0.35s ease,
-    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  transition: opacity 0.4s ease;
   z-index: 2;
 }
 
@@ -11789,22 +11774,6 @@ img[data-img-animation].img-error {
   height: auto !important;
   object-fit: initial !important;
   opacity: 1;
-  transform: scale(1);
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) !important;
-}
-
-.img-loading-wrapper.is-loaded .img-loading-media,
-.single-article-content .img-loading-wrapper.is-loaded .img-loading-media,
-.page-content .img-loading-wrapper.is-loaded .img-loading-media,
-.entry-content .img-loading-wrapper.is-loaded .img-loading-media {
-  overflow: hidden;
-}
-
-.single-article-content .img-loading-wrapper.is-loaded:hover .img-loading-target,
-.page-content .img-loading-wrapper.is-loaded:hover .img-loading-target,
-.home-article-body .img-loading-wrapper.is-loaded:hover .img-loading-target,
-.entry-content .img-loading-wrapper.is-loaded:hover .img-loading-target {
-  transform: scale(1.2);
 }
 
 /* Loading 完成隐藏 */
@@ -11890,34 +11859,27 @@ img[data-img-animation].img-error {
   background: none;
 }
 
-.lared-grid-item {
-  position: relative;
-  overflow: hidden;
-  border-radius: 4px;
-}
-
 /* 网格内图片统一样式 — 填满单元格，裁剪多余部分 */
-.lared-grid-2 .lared-grid-item img,
-.lared-grid-3 .lared-grid-item img,
-.lared-grid-4 .lared-grid-item img {
+.lared-grid-2 img,
+.lared-grid-3 img,
+.lared-grid-4 img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 0;
+  border-radius: 4px;
   display: block;
   margin: 0; /* 覆盖 prose :where(img) 的 2em margin */
-  transform: scale(1);
-  transform-origin: center center;
-  backface-visibility: hidden;
-  will-change: transform;
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  transition:
+    transform 0.3s ease,
+    filter 0.3s ease;
   cursor: pointer;
 }
 
-.lared-grid-2 .lared-grid-item:hover img,
-.lared-grid-3 .lared-grid-item:hover img,
-.lared-grid-4 .lared-grid-item:hover img {
-  transform: scale(1.2);
+.lared-grid-2 img:hover,
+.lared-grid-3 img:hover,
+.lared-grid-4 img:hover {
+  transform: scale(1.02);
+  filter: brightness(1.05);
 }
 
 /* 网格内 figure 容器清除默认间距 */
@@ -11944,8 +11906,8 @@ img[data-img-animation].img-error {
   grid-template-columns: 1fr 1fr;
 }
 
-.lared-grid-2 .lared-grid-item {
-  aspect-ratio: 1 / 1;
+.lared-grid-2 img {
+  aspect-ratio: 3 / 2;
 }
 
 /* ── lared-grid-3：三图等宽 ── */
@@ -11953,7 +11915,7 @@ img[data-img-animation].img-error {
   grid-template-columns: repeat(3, 1fr);
 }
 
-.lared-grid-3 .lared-grid-item {
+.lared-grid-3 img {
   aspect-ratio: 1 / 1;
 }
 
@@ -11962,7 +11924,7 @@ img[data-img-animation].img-error {
   grid-template-columns: repeat(4, 1fr);
 }
 
-.lared-grid-4 .lared-grid-item {
+.lared-grid-4 img {
   aspect-ratio: 1 / 1;
 }
 
@@ -11988,9 +11950,9 @@ img[data-img-animation].img-error {
     grid-column: 1 / -1;
   }
 
-  .lared-grid-3 > :nth-child(3).lared-grid-item,
-  .lared-grid-3 > figure:nth-child(3) {
-    aspect-ratio: 1 / 1;
+  .lared-grid-3 > :nth-child(3) img,
+  .lared-grid-3 > figure:nth-child(3) img {
+    aspect-ratio: 16 / 9;
   }
 }
 
@@ -13106,7 +13068,6 @@ body .view-image {
 .site-footer-icons .rss-btn,
 .site-footer-icons .footer-login-btn {
   display: inline-flex !important;
-  position: relative !important;
   justify-content: center !important;
   align-items: center !important;
   width: 30px !important;
@@ -13129,7 +13090,7 @@ body .view-image {
   outline: none !important;
   padding: 0 !important;
   margin: 0 !important;
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
 /* 图标大小统一 */
@@ -13176,8 +13137,6 @@ body .view-image {
 .site-footer-icons a.site-footer-icon-link,
 .site-footer-icons button.site-footer-icon-link {
   vertical-align: middle !important;
-  position: relative !important;
-  overflow: visible !important;
 }
 
 .site-footer-icons .site-footer-icon-link.site-footer-icon-link--gomami {
@@ -14947,7 +14906,7 @@ body.theme-body .memos-publish-actions .memos-publish-submit i {
 
   /* ---------- 文章正文字体缩小 ---------- */
   .single-article-content.page-content.prose {
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.7;
   }
 
@@ -15080,9 +15039,9 @@ body.theme-body .memos-publish-actions .memos-publish-submit i {
     font-size: 12px;
   }
 
-  .single-article-content.page-content.prose p,
-  .single-article-content.page-content.prose li {
-    font-size: 15px;
+  .page-content.prose p,
+  .page-content.prose li {
+    font-size: 14px;
   }
 
   .single-article-content code:not(pre code),
@@ -15325,26 +15284,22 @@ body.single-post::before {
 /* 页脚 WordPress 水印图标 */
 .site-footer-watermark {
   position: absolute;
-  top: 0;
-  bottom: 0;
   left: 12px;
-  display: flex;
+  bottom: -6px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 66px;
-  overflow: hidden;
   color: #d6d6d6;
   opacity: 0.72;
+  transform: rotate(45deg);
+  transform-origin: center center;
   pointer-events: none;
   z-index: 0;
 }
 
 .site-footer-watermark i {
-  display: block;
-  font-size: 64px;
+  font-size: 72px;
   line-height: 1;
-  transform: rotate(45deg);
-  transform-origin: center center;
 }
 
 @media (max-width: 768px) {

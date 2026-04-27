@@ -1,5 +1,11 @@
 <?php
 
+if (!defined("ABSPATH")) {
+    exit;
+}
+
+
+
 /**
  * Lared 主题设置页面
  *
@@ -375,80 +381,107 @@ function lared_render_theme_settings_page(): void
 
     $active_tab = sanitize_key((string) ($_GET['tab'] ?? 'general'));
     $tabs = [
-        'general' => __('基础设置', 'lared'),
-        'about'   => __('关于页面', 'lared'),
-        'image'   => __('图片设置', 'lared'),
-        'rss'     => __('RSS 缓存', 'lared'),
-        'ai'      => __('AI 摘要', 'lared'),
-        'email'   => __('邮件设置', 'lared'),
-        'data'    => __('数据维护', 'lared'),
+        'general' => ['label' => __('基础设置', 'lared'), 'icon' => 'dashicons-admin-generic'],
+        'about'   => ['label' => __('关于页面', 'lared'), 'icon' => 'dashicons-id-alt'],
+        'image'   => ['label' => __('图片设置', 'lared'), 'icon' => 'dashicons-format-image'],
+        'rss'     => ['label' => __('RSS 缓存', 'lared'), 'icon' => 'dashicons-rss'],
+        'ai'      => ['label' => __('AI 摘要', 'lared'), 'icon' => 'dashicons-welcome-learn-more'],
+        'email'   => ['label' => __('邮件设置', 'lared'), 'icon' => 'dashicons-email-alt'],
+        'data'    => ['label' => __('数据维护', 'lared'), 'icon' => 'dashicons-database'],
     ];
 
     $rss_cache_status = sanitize_key((string) ($_GET['lared_rss_cache'] ?? ''));
     $rss_cache_removed = max(0, (int) ($_GET['lared_rss_removed'] ?? 0));
+    $theme_version = wp_get_theme()->get('Version');
 ?>
     <div class="wrap">
-        <h1><?php esc_html_e('主题设置', 'lared'); ?></h1>
-
-        <?php if (isset($_GET['settings-updated']) && 'true' === $_GET['settings-updated']) : ?>
-            <div id="lared-toast" style="position:fixed;top:42px;right:20px;z-index:99999;background:#00a32a;color:#fff;padding:10px 20px;font-size:14px;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,.15);opacity:0;transform:translateX(40px);transition:opacity .3s,transform .3s;">
-                ✓ <?php esc_html_e('设置已保存', 'lared'); ?>
+        <div class="lr-shell">
+            <!-- Hero -->
+            <div class="lr-hero">
+                <div class="lr-hero-main">
+                    <div class="lr-page-head">
+                        <h1>
+                            <span class="lr-title-mark"><span class="dashicons dashicons-art"></span></span>
+                            <span class="lr-title-text">Lared</span>
+                        </h1>
+                        <div class="lr-page-meta">
+                            <span class="lr-badge lr-badge-kicker">THEME</span>
+                            <span class="lr-badge lr-badge-version"><?php echo esc_html('v' . $theme_version); ?></span>
+                            <a class="lr-badge lr-badge-author" href="https://xifeng.net" target="_blank" rel="noopener noreferrer"><?php esc_html_e('西风', 'lared'); ?></a>
+                        </div>
+                    </div>
+                    <p class="lr-hero-description"><?php esc_html_e('基于 Tailwind CSS 的极简内容型 WordPress 主题 — PJAX 导航 · Memos 集成 · AI 摘要 · 代码沙盒 · RSS 聚合 · 音乐播放器', 'lared'); ?></p>
+                </div>
             </div>
-            <script>
-                (function() {
-                    var t = document.getElementById('lared-toast');
-                    if (!t) return;
-                    // 清除 URL 中的 settings-updated 参数
-                    if (window.history && window.history.replaceState) {
-                        var url = new URL(window.location);
-                        url.searchParams.delete('settings-updated');
-                        window.history.replaceState({}, '', url);
-                    }
-                    requestAnimationFrame(function() {
-                        t.style.opacity = '1';
-                        t.style.transform = 'translateX(0)';
-                    });
-                    setTimeout(function() {
-                        t.style.opacity = '0';
-                        t.style.transform = 'translateX(40px)';
+
+            <!-- Tab Bar -->
+            <div class="lr-tabs-wrap">
+                <div class="lr-tabs">
+                    <?php foreach ($tabs as $tab_key => $tab_data) : ?>
+                        <a href="<?php echo esc_url(add_query_arg(['page' => 'lared-theme-settings', 'tab' => $tab_key], admin_url('themes.php'))); ?>"
+                            class="lr-tab <?php echo $active_tab === $tab_key ? 'is-active' : ''; ?>">
+                            <span class="lr-tab-icon"><span class="dashicons <?php echo esc_attr($tab_data['icon']); ?>"></span></span>
+                            <?php echo esc_html($tab_data['label']); ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Toast -->
+            <?php if (isset($_GET['settings-updated']) && 'true' === $_GET['settings-updated']) : ?>
+                <div id="lared-toast" class="lr-toast">
+                    ✓ <?php esc_html_e('设置已保存', 'lared'); ?>
+                </div>
+                <script>
+                    (function() {
+                        var t = document.getElementById('lared-toast');
+                        if (!t) return;
+                        if (window.history && window.history.replaceState) {
+                            var url = new URL(window.location);
+                            url.searchParams.delete('settings-updated');
+                            window.history.replaceState({}, '', url);
+                        }
+                        requestAnimationFrame(function() {
+                            t.style.opacity = '1';
+                            t.style.transform = 'translateX(0)';
+                        });
                         setTimeout(function() {
-                            t.remove();
-                        }, 350);
-                    }, 3000);
-                })();
-            </script>
-        <?php endif; ?>
+                            t.style.opacity = '0';
+                            t.style.transform = 'translateX(40px)';
+                            setTimeout(function() { t.remove(); }, 350);
+                        }, 3000);
+                    })();
+                </script>
+            <?php endif; ?>
 
-        <?php if ('cleared' === $rss_cache_status) : ?>
-            <div class="notice notice-success is-dismissible">
-                <p><?php echo esc_html(sprintf(__('RSS 缓存已刷新，清理 %d 个缓存文件。', 'lared'), $rss_cache_removed)); ?></p>
+            <!-- RSS cache notices -->
+            <?php if ('cleared' === $rss_cache_status) : ?>
+                <div class="notice notice-success is-dismissible" style="margin:12px 16px;">
+                    <p><?php echo esc_html(sprintf(__('RSS 缓存已刷新，清理 %d 个缓存文件。', 'lared'), $rss_cache_removed)); ?></p>
+                </div>
+            <?php elseif ('failed' === $rss_cache_status) : ?>
+                <div class="notice notice-error is-dismissible" style="margin:12px 16px;">
+                    <p><?php esc_html_e('RSS 缓存刷新失败，请检查 data/rss 目录权限。', 'lared'); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <!-- Tab Panel -->
+            <div class="lr-tab-panel is-active">
+                <div class="lr-tab-panel-inner">
+                    <?php
+                    match ($active_tab) {
+                        'about' => lared_render_tab_about(),
+                        'image' => lared_render_tab_image(),
+                        'rss'   => lared_render_tab_rss(),
+                        'ai'    => lared_render_tab_ai(),
+                        'email' => lared_render_tab_email(),
+                        'data'  => lared_render_tab_data(),
+                        default => lared_render_tab_general(),
+                    };
+                    ?>
+                </div>
             </div>
-        <?php elseif ('failed' === $rss_cache_status) : ?>
-            <div class="notice notice-error is-dismissible">
-                <p><?php esc_html_e('RSS 缓存刷新失败，请检查 data/rss 目录权限。', 'lared'); ?></p>
-            </div>
-        <?php endif; ?>
-
-        <nav class="nav-tab-wrapper">
-            <?php foreach ($tabs as $tab_key => $tab_label) : ?>
-                <a href="<?php echo esc_url(add_query_arg(['page' => 'lared-theme-settings', 'tab' => $tab_key], admin_url('themes.php'))); ?>"
-                    class="nav-tab <?php echo $active_tab === $tab_key ? 'nav-tab-active' : ''; ?>">
-                    <?php echo esc_html($tab_label); ?>
-                </a>
-            <?php endforeach; ?>
-        </nav>
-
-        <?php
-        match ($active_tab) {
-            'about' => lared_render_tab_about(),
-            'image' => lared_render_tab_image(),
-            'rss'   => lared_render_tab_rss(),
-            'ai'    => lared_render_tab_ai(),
-            'email' => lared_render_tab_email(),
-            'data'  => lared_render_tab_data(),
-            default => lared_render_tab_general(),
-        };
-        ?>
+        </div><!-- .lr-shell -->
     </div>
 <?php
 }
@@ -830,17 +863,6 @@ function lared_render_tab_general(): void
             });
         })();
     </script>
-    <style>
-        @keyframes rotation {
-            from {
-                transform: rotate(0deg);
-            }
-
-            to {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
 <?php
 }
 
@@ -1381,31 +1403,6 @@ function lared_render_tab_ai(): void
             </div>
         </div>
     </div>
-    <style>
-        @keyframes laredDialogIn {
-            from {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(.92);
-            }
-
-            to {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1);
-            }
-        }
-
-        #lared-ai-dialog-ok.is-danger {
-            background: #d63638 !important;
-            border-color: #d63638 !important;
-            color: #fff !important;
-        }
-
-        #lared-ai-dialog-ok.is-danger:hover {
-            background: #b32d2e !important;
-            border-color: #b32d2e !important;
-        }
-    </style>
-
     <script>
         (function() {
             var ajaxUrl = '<?php echo esc_url(admin_url('admin-ajax.php')); ?>';
@@ -2082,131 +2079,37 @@ function lared_render_tab_data(): void
             </div>
             <div class="lared-dm-card-result" style="display:none;"></div>
         </div>
+
+        <!-- 7. 评论 Meta 合并迁移 -->
+        <div class="lared-dm-card" id="dm-comment-meta-merge">
+            <div class="lared-dm-card-header">
+                <div>
+                    <h3>评论 Meta 合并迁移</h3>
+                    <p class="description">将旧版 10 个 comment_meta 字段（_browser_name、_os_name、_geo_country 等）合并为 1 条 _comment_info JSON，减少 90% 数据库行数</p>
+                </div>
+                <div class="lared-dm-card-actions">
+                    <button type="button" class="button" onclick="laredDM.scan('comment_meta_merge')">扫描</button>
+                    <button type="button" class="button button-primary" onclick="laredDM.execute('comment_meta_merge')" disabled>执行迁移</button>
+                </div>
+            </div>
+            <div class="lared-dm-card-result" style="display:none;"></div>
+        </div>
+
+        <!-- 8. 清理 Akismet 残留数据 -->
+        <div class="lared-dm-card" id="dm-akismet-cleanup">
+            <div class="lared-dm-card-header">
+                <div>
+                    <h3>清理垃圾评论 &amp; Akismet 残留</h3>
+                    <p class="description">删除所有垃圾评论（spam）及其 meta 数据，同时清理 Akismet 插件残留的 meta（akismet_result、akismet_history 等）</p>
+                </div>
+                <div class="lared-dm-card-actions">
+                    <button type="button" class="button" onclick="laredDM.scan('akismet_cleanup')">扫描</button>
+                    <button type="button" class="button" onclick="if(confirm('确定要删除所有 Akismet 残留数据？此操作不可恢复。')) laredDM.execute('akismet_cleanup')" style="color:#b32d2e;">清理</button>
+                </div>
+            </div>
+            <div class="lared-dm-card-result" style="display:none;"></div>
+        </div>
     </div>
-
-    <style>
-        .lared-dm-card {
-            background: #fff;
-            border: 1px solid #d9d9d9;
-            margin-bottom: 12px;
-        }
-
-        .lared-dm-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px 20px;
-        }
-
-        .lared-dm-card-header h3 {
-            margin: 0 0 4px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .lared-dm-card-header .description {
-            margin: 0;
-            font-size: 12px;
-        }
-
-        .lared-dm-card-actions {
-            display: flex;
-            gap: 6px;
-            flex-shrink: 0;
-            align-items: center;
-            white-space: nowrap;
-        }
-
-        .lared-dm-card-result {
-            padding: 14px 20px;
-            border-top: 1px solid #eee;
-            font-size: 13px;
-            line-height: 1.6;
-            background: #fafafa;
-        }
-
-        .lared-dm-card-result table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 8px 0;
-        }
-
-        .lared-dm-card-result th,
-        .lared-dm-card-result td {
-            text-align: left;
-            padding: 6px 10px;
-            border-bottom: 1px solid #eee;
-            font-size: 13px;
-        }
-
-        .lared-dm-card-result th {
-            font-weight: 600;
-            background: #f5f5f5;
-        }
-
-        .lared-dm-merge-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin: 4px 0;
-        }
-
-        .lared-dm-merge-row label {
-            font-size: 13px;
-            cursor: pointer;
-        }
-
-        .lared-dm-tag {
-            display: inline-block;
-            padding: 1px 8px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .lared-dm-tag--ok {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .lared-dm-tag--warn {
-            background: #fef3cd;
-            color: #856404;
-        }
-
-        .lared-dm-tag--count {
-            background: #e8f0fe;
-            color: #1a56db;
-        }
-
-        .lared-dm-loading {
-            color: #999;
-        }
-
-        .lared-dm-card-result code {
-            background: #f0f0f0;
-            padding: 1px 5px;
-            font-size: 12px;
-        }
-
-        .lared-dm-card-result input[type="checkbox"] {
-            margin-right: 4px;
-            vertical-align: middle;
-        }
-
-        .lared-dm-loading::after {
-            content: '';
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid #ddd;
-            border-top-color: #666;
-            border-radius: 50%;
-            animation: lared-loading-spin 1s linear infinite;
-            margin-left: 6px;
-            vertical-align: middle;
-        }
-    </style>
 
     <script>
         (function() {
@@ -2279,7 +2182,9 @@ function lared_render_tab_data(): void
                         home_views: 'dm-home-views',
                         home_views_reset: 'dm-home-views',
                         heatmap_cache: 'dm-heatmap-cache',
-                        heatmap_cache_rebuild: 'dm-heatmap-cache'
+                        heatmap_cache_rebuild: 'dm-heatmap-cache',
+                        comment_meta_merge: 'dm-comment-meta-merge',
+                        akismet_cleanup: 'dm-akismet-cleanup'
                     };
                     return document.getElementById(map[type] || ('dm-' + type));
                 },
@@ -2667,6 +2572,70 @@ function lared_ajax_dm_scan(): void
             wp_send_json_success(['html' => $html, 'can_execute' => false]);
             break;
 
+        case 'comment_meta_merge':
+            // 旧格式：有 _browser_name 但没有 _comment_info 的评论
+            $old_keys = ['_browser_name', '_browser_version', '_browser_icon', '_os_name', '_os_version', '_os_icon', '_geo_country', '_geo_country_name', '_geo_city', '_geo_region'];
+
+            $old_format_count = (int) $wpdb->get_var(
+                "SELECT COUNT(DISTINCT cm.comment_id)
+                 FROM {$wpdb->commentmeta} cm
+                 WHERE cm.meta_key IN ('" . implode("','", $old_keys) . "')
+                   AND cm.comment_id NOT IN (
+                       SELECT comment_id FROM {$wpdb->commentmeta} WHERE meta_key = '_comment_info'
+                   )"
+            );
+
+            $new_format_count = (int) $wpdb->get_var(
+                "SELECT COUNT(DISTINCT comment_id) FROM {$wpdb->commentmeta} WHERE meta_key = '_comment_info'"
+            );
+
+            $old_rows_count = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->commentmeta} WHERE meta_key IN ('" . implode("','", $old_keys) . "')"
+            );
+
+            $html = '<table><tr><th>项目</th><th>数值</th></tr>'
+                . '<tr><td>已用新格式 (_comment_info) 的评论</td><td><span class="lared-dm-tag lared-dm-tag--ok">' . $new_format_count . '</span></td></tr>'
+                . '<tr><td>待迁移的旧格式评论</td><td>' . ($old_format_count > 0 ? '<span class="lared-dm-tag lared-dm-tag--warn">' . $old_format_count . '</span>' : '<span class="lared-dm-tag lared-dm-tag--ok">0</span>') . '</td></tr>'
+                . '<tr><td>旧格式 meta 总行数</td><td>' . ($old_rows_count > 0 ? '<span class="lared-dm-tag lared-dm-tag--count">' . $old_rows_count . '</span> 行（迁移后将删除）' : '0') . '</td></tr>'
+                . '</table>';
+
+            if ($old_format_count === 0 && $old_rows_count === 0) {
+                $html .= '<p><span class="lared-dm-tag lared-dm-tag--ok">无需迁移</span> 所有评论已使用新格式</p>';
+            }
+
+            wp_send_json_success(['html' => $html, 'can_execute' => $old_format_count > 0]);
+            break;
+
+        case 'akismet_cleanup':
+            // 垃圾评论（spam）
+            $spam_count = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = 'spam'"
+            );
+            // 回收站评论（trash）
+            $trash_count = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = 'trash'"
+            );
+            // Akismet meta
+            $akismet_count = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->commentmeta} WHERE meta_key LIKE 'akismet_%'"
+            );
+
+            $html = '<table><tr><th>项目</th><th>数值</th></tr>'
+                . '<tr><td>垃圾评论 (spam)</td><td>' . ($spam_count > 0 ? '<span class="lared-dm-tag lared-dm-tag--warn">' . $spam_count . ' 条</span>' : '<span class="lared-dm-tag lared-dm-tag--ok">0</span>') . '</td></tr>'
+                . '<tr><td>回收站评论 (trash)</td><td>' . ($trash_count > 0 ? '<span class="lared-dm-tag lared-dm-tag--warn">' . $trash_count . ' 条</span>' : '<span class="lared-dm-tag lared-dm-tag--ok">0</span>') . '</td></tr>'
+                . '<tr><td>Akismet meta 行数</td><td>' . ($akismet_count > 0 ? '<span class="lared-dm-tag lared-dm-tag--warn">' . $akismet_count . ' 行</span>' : '<span class="lared-dm-tag lared-dm-tag--ok">0</span>') . '</td></tr>'
+                . '</table>';
+
+            $total_junk = $spam_count + $trash_count + $akismet_count;
+            if ($total_junk === 0) {
+                $html .= '<p><span class="lared-dm-tag lared-dm-tag--ok">干净</span> 无垃圾评论和 Akismet 残留</p>';
+            } else {
+                $html .= '<p>清理将删除：垃圾/回收站评论及其 meta + Akismet meta</p>';
+            }
+
+            wp_send_json_success(['html' => $html, 'can_execute' => $total_junk > 0]);
+            break;
+
         default:
             wp_send_json_error(['message' => '未知类型']);
     }
@@ -2874,6 +2843,126 @@ function lared_ajax_dm_execute(): void
             $cells = lared_build_heatmap_cache();
             $cells_count = count($cells);
             $html = '<p><span class="lared-dm-tag lared-dm-tag--ok">完成</span> 热力图缓存已刷新，共 ' . $cells_count . ' 个热力格</p>';
+            wp_send_json_success(['html' => $html]);
+            break;
+
+        case 'comment_meta_merge':
+            $old_keys = ['_browser_name', '_browser_version', '_browser_icon', '_os_name', '_os_version', '_os_icon', '_geo_country', '_geo_country_name', '_geo_city', '_geo_region'];
+
+            // 找出有旧格式但没有新格式的评论 ID
+            $comment_ids = $wpdb->get_col(
+                "SELECT DISTINCT cm.comment_id
+                 FROM {$wpdb->commentmeta} cm
+                 WHERE cm.meta_key IN ('" . implode("','", $old_keys) . "')
+                   AND cm.comment_id NOT IN (
+                       SELECT comment_id FROM {$wpdb->commentmeta} WHERE meta_key = '_comment_info'
+                   )"
+            );
+
+            $migrated = 0;
+            $deleted_rows = 0;
+            foreach ($comment_ids as $cid) {
+                $cid = (int) $cid;
+                $info = [];
+
+                $b_name = (string) get_comment_meta($cid, '_browser_name', true);
+                $b_ver  = (string) get_comment_meta($cid, '_browser_version', true);
+                if ('' !== $b_name) {
+                    $info['browser']     = $b_name;
+                    $info['browser_ver'] = $b_ver;
+                }
+
+                $o_name = (string) get_comment_meta($cid, '_os_name', true);
+                $o_ver  = (string) get_comment_meta($cid, '_os_version', true);
+                if ('' !== $o_name) {
+                    $info['os']     = $o_name;
+                    $info['os_ver'] = $o_ver;
+                }
+
+                $g_country = (string) get_comment_meta($cid, '_geo_country', true);
+                if ('' !== $g_country) {
+                    $info['geo'] = [
+                        'country'      => $g_country,
+                        'country_name' => (string) get_comment_meta($cid, '_geo_country_name', true),
+                        'city'         => (string) get_comment_meta($cid, '_geo_city', true),
+                        'region'       => (string) get_comment_meta($cid, '_geo_region', true),
+                    ];
+                }
+
+                if (!empty($info)) {
+                    update_comment_meta($cid, '_comment_info', $info);
+                    $migrated++;
+                }
+            }
+
+            // 删除所有旧格式 meta 行
+            $deleted_rows = (int) $wpdb->query(
+                "DELETE FROM {$wpdb->commentmeta} WHERE meta_key IN ('" . implode("','", $old_keys) . "')"
+            );
+
+            wp_cache_flush();
+
+            $html = '<p><span class="lared-dm-tag lared-dm-tag--ok">完成</span></p>'
+                . '<ul style="margin:8px 0;list-style:disc;padding-left:20px;">'
+                . '<li>迁移了 <strong>' . $migrated . '</strong> 条评论到新格式 (_comment_info)</li>'
+                . '<li>删除了 <strong>' . $deleted_rows . '</strong> 行旧格式 meta</li>'
+                . '</ul>';
+            wp_send_json_success(['html' => $html]);
+            break;
+
+        case 'akismet_cleanup':
+            $results = [];
+
+            // 1. 删除垃圾评论（spam）及其 meta
+            $spam_ids = $wpdb->get_col(
+                "SELECT comment_ID FROM {$wpdb->comments} WHERE comment_approved = 'spam'"
+            );
+            if (!empty($spam_ids)) {
+                $ids_str = implode(',', array_map('intval', $spam_ids));
+                $del_spam_meta = (int) $wpdb->query("DELETE FROM {$wpdb->commentmeta} WHERE comment_id IN ({$ids_str})");
+                $del_spam = (int) $wpdb->query("DELETE FROM {$wpdb->comments} WHERE comment_approved = 'spam'");
+                $results[] = '删除了 <strong>' . $del_spam . '</strong> 条垃圾评论 + <strong>' . $del_spam_meta . '</strong> 行 meta';
+            }
+
+            // 2. 删除回收站评论（trash）及其 meta
+            $trash_ids = $wpdb->get_col(
+                "SELECT comment_ID FROM {$wpdb->comments} WHERE comment_approved = 'trash'"
+            );
+            if (!empty($trash_ids)) {
+                $ids_str = implode(',', array_map('intval', $trash_ids));
+                $del_trash_meta = (int) $wpdb->query("DELETE FROM {$wpdb->commentmeta} WHERE comment_id IN ({$ids_str})");
+                $del_trash = (int) $wpdb->query("DELETE FROM {$wpdb->comments} WHERE comment_approved = 'trash'");
+                $results[] = '删除了 <strong>' . $del_trash . '</strong> 条回收站评论 + <strong>' . $del_trash_meta . '</strong> 行 meta';
+            }
+
+            // 3. 清理剩余的 Akismet meta（正常评论上的）
+            $del_akismet = (int) $wpdb->query(
+                "DELETE FROM {$wpdb->commentmeta} WHERE meta_key LIKE 'akismet_%'"
+            );
+            if ($del_akismet > 0) {
+                $results[] = '删除了 <strong>' . $del_akismet . '</strong> 行 Akismet 残留 meta';
+            }
+
+            // 4. 清理孤立 meta（comment_id 指向不存在的评论）
+            $orphan_meta = (int) $wpdb->query(
+                "DELETE cm FROM {$wpdb->commentmeta} cm LEFT JOIN {$wpdb->comments} c ON cm.comment_id = c.comment_ID WHERE c.comment_ID IS NULL"
+            );
+            if ($orphan_meta > 0) {
+                $results[] = '清理了 <strong>' . $orphan_meta . '</strong> 行孤立 meta';
+            }
+
+            wp_cache_flush();
+
+            if (empty($results)) {
+                $html = '<p><span class="lared-dm-tag lared-dm-tag--ok">干净</span> 没有需要清理的数据</p>';
+            } else {
+                $html = '<p><span class="lared-dm-tag lared-dm-tag--ok">完成</span></p>'
+                    . '<ul style="margin:8px 0;list-style:disc;padding-left:20px;">';
+                foreach ($results as $r) {
+                    $html .= '<li>' . $r . '</li>';
+                }
+                $html .= '</ul>';
+            }
             wp_send_json_success(['html' => $html]);
             break;
 

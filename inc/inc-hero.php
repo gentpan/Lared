@@ -1,5 +1,11 @@
 <?php
 
+if (!defined("ABSPATH")) {
+    exit;
+}
+
+
+
 /**
  * Hero 区域逻辑
  * - 文章排序类型定义

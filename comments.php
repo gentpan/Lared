@@ -141,7 +141,7 @@ if (post_password_required()) {
             'comment_notes_before' => '',
             'comment_notes_after' => '',
             'label_submit' => __('提交评论', 'lared'),
-            'submit_field' => '<p class="form-submit">%1$s %2$s</p>',
+            'submit_field' => '<p class="form-submit">%1$s %2$s<input type="hidden" name="lared_comment_submit_nonce" value="' . esc_attr(wp_create_nonce('lared_comment_submit')) . '"></p>',
             'submit_button' => '<button name="%1$s" type="submit" id="%2$s" class="%3$s">%4$s</button>',
             'fields' => $current_user->ID > 0 ? [] : array_filter([
                 'author' => '<p class="comment-form-author lared-comment-field lared-comment-field--author"><label class="screen-reader-text" for="author">' . esc_html__('昵称', 'lared') . '</label><span class="lared-comment-field__icon" aria-hidden="true"><i class="fa-regular fa-user"></i></span><input id="author" name="author" type="text" value="' . esc_attr($name_value) . '" size="30" maxlength="245" autocomplete="name" placeholder="' . esc_attr__('昵称*', 'lared') . '" required /></p>',

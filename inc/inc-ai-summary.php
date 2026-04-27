@@ -1,4 +1,10 @@
 <?php
+
+if (!defined("ABSPATH")) {
+    exit;
+}
+
+
 /**
  * AI 摘要功能
  *
