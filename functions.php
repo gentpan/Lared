@@ -1912,6 +1912,11 @@ function lared_format_number(int $num): string
 function lared_track_home_views_ajax(): void
 {
     global $wpdb;
+    // option 可能不存在（新站或 wp_options 清理过），先 add_option 确保 row 在
+    // 否则 UPDATE 影响 0 行，永远不会创建，views 永远是 0
+    if (false === get_option('lared_home_views', false)) {
+        add_option('lared_home_views', 0, '', 'no');
+    }
     $wpdb->query(
         "UPDATE {$wpdb->options} SET option_value = option_value + 1 WHERE option_name = 'lared_home_views'"
     );
