@@ -11980,9 +11980,13 @@ img[data-img-animation].img-error {
 }
 
 /* 主题 .img-loading-target 默认 opacity:0，靠 JS 加 .is-loaded 才显示。
-   .lared-photos 内由我们自己的 .lazyload blur 控制可见性，强制 opacity 1。 */
-.lared-photos figure img.img-loading-target {
+   主题 img[data-img-animation] 也设 opacity:0，靠 keyframes animation 触发可见。
+   .lared-photos 内统一由我们自己的 .lazyload blur 控制可见性，强制 opacity 1
+   并禁用 animation，避免与 fade-in 冲突。 */
+.lared-photos figure img.img-loading-target,
+.lared-photos figure img[data-img-animation] {
   opacity: 1 !important;
+  animation: none !important;
 }
     aspect-ratio: 1 / 1;
   }
