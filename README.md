@@ -173,6 +173,6 @@ define('LARED_CDN_FONTAWESOME', 'https://your-cdn.example/fontawesome-pro/css/al
 
 ## 许可
 
-GPL-2.0-or-later · Copyright © 2025 [西风](https://xifeng.net)
+GPL-2.0-or-later · Copyright © 2026 [西风](https://xifeng.net)
 
 允许商用、修改、分发，二次分发须保留版权声明并采用同等许可。
