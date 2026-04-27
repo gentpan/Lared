@@ -11977,21 +11977,6 @@ img[data-img-animation].img-error {
   }
 }
 
-/* 兼容主题 .img-loading-wrapper spinner 壳 */
-.lared-photos figure > figure,
-.lared-photos figure .img-loading-wrapper,
-.lared-photos figure .img-loading-media {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  display: block;
-}
-.lared-photos figure .img-loading-wrapper {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
 
 /* 主题 .img-loading-target 默认 opacity:0，靠 JS 加 .is-loaded 才显示。
    主题 img[data-img-animation] 也设 opacity:0，靠 keyframes animation 触发可见。
@@ -12001,18 +11986,6 @@ img[data-img-animation].img-error {
 .lared-photos figure img[data-img-animation] {
   opacity: 1 !important;
   animation: none !important;
-}
-
-/* 强力覆盖主题 .is-loaded 把 img 改成 height:auto + object-fit:initial 的行为
-   （否则图片自然比例 ≠ 16:9 时上下/左右会漏出灰色背景）
-   specificity (0,4,2) 高于主题 .single-article-content .img-loading-wrapper.is-loaded .img-loading-target (0,4,1) */
-.lared-photos figure img.img-loading-target,
-.lared-photos figure .img-loading-wrapper.is-loaded .img-loading-target {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
 }
     aspect-ratio: 1 / 1;
   }

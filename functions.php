@@ -2911,3 +2911,25 @@ add_action('admin_init', function () {
         'default' => '0',
     ]);
 });
+
+// ==================== .lared-photos 内剥掉 .img-loading-wrapper 壳（patched 2026-04-27）====================
+//   主题的 wrap_images_with_loader 给所有 img 包 figure.img-loading-wrapper > div > spinner > img
+//   壳，在 .lared-photos 内多余且引发 specificity 冲突。我们这一步把"figure>figure.wrapper>...<img>"
+//   嵌套展平为"figure><img>"，外层 figure 保留以承载 figcaption。
+add_filter('the_content', 'lared_strip_loader_in_photos', 30);
+function lared_strip_loader_in_photos(string $content): string
+{
+    if (false === strpos($content, 'lared-photos')) {
+        return $content;
+    }
+    return preg_replace_callback(
+        '/(<figure\b[^>]*>\s*)<figure\b[^>]*\bimg-loading-wrapper\b[^>]*>([\s\S]*?)<\/figure>/i',
+        function ($m) {
+            if (preg_match('/<img\b[^>]*>/i', $m[2], $img)) {
+                return $m[1] . $img[0];
+            }
+            return $m[0];
+        },
+        $content
+    ) ?? $content;
+}
