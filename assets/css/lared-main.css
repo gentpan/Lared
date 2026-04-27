@@ -15326,13 +15326,15 @@ body.single-post::before {
 
 /* === 图片淡入（oneblog 风格 blur → clear）=== */
 .lared-photos figure img.lazyload,
-.lared-photos figure img.lazyloaded {
+.lared-photos figure img.lazyloaded,
+.lared-photos figure img.ls-is-cached {
   transition: filter .5s linear, opacity .5s ease-in-out;
 }
 .lared-photos figure img.lazyload {
   filter: blur(20px);
 }
-.lared-photos figure img.lazyloaded {
+.lared-photos figure img.lazyloaded,
+.lared-photos figure img.ls-is-cached {
   filter: blur(0);
   opacity: 1;
 }
