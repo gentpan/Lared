@@ -11978,6 +11978,12 @@ img[data-img-animation].img-error {
   inset: 0;
   overflow: hidden;
 }
+
+/* 主题 .img-loading-target 默认 opacity:0，靠 JS 加 .is-loaded 才显示。
+   .lared-photos 内由我们自己的 .lazyload blur 控制可见性，强制 opacity 1。 */
+.lared-photos figure img.img-loading-target {
+  opacity: 1 !important;
+}
     aspect-ratio: 1 / 1;
   }
 }
