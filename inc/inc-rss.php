@@ -814,6 +814,12 @@ function lared_render_feed_card(array $item): void
                 <p class="rss-feed-card-excerpt"><?php echo esc_html($item_excerpt); ?></p>
             <?php endif; ?>
             <footer class="rss-feed-card-meta">
+                <?php
+                // 友链卡片头像 fallback：RSS feed 没自带 site_avatar 时，从 favicon.im (经本地缓存) 取
+                if ('' === $item_site_avatar && '' !== (string) ($item['site_host'] ?? '') && function_exists('lared_get_cached_link_icon')) {
+                    $item_site_avatar = lared_get_cached_link_icon((string) $item['site_host']);
+                }
+                ?>
                 <?php if ('' !== $item_site_name) : ?>
                     <span class="rss-feed-card-site">
                         <?php if ('' !== $item_site_avatar) : ?>

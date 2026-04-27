@@ -452,6 +452,14 @@ function lared_clear_heatmap_cache(): void
 // ====== Gravatar 本地缓存 — 减少外部请求 ======
 
 /**
+ * 检查是否禁用了所有本地缓存（后台「缓存管理」开关）
+ */
+function lared_is_cache_disabled(): bool
+{
+    return '1' === (string) get_option('lared_disable_cache', '0');
+}
+
+/**
  * 获取 Gravatar 缓存目录路径（uploads/lared-cache/gravatar/）
  */
 function lared_get_gravatar_cache_dir(): string
@@ -479,6 +487,10 @@ function lared_get_gravatar_cache_url(): string
  */
 function lared_cache_gravatar(string $url): string
 {
+    // 缓存全局关闭：直接返回 (已经过 lared_gravatar_cdn 替换为 bluecdn) URL
+    if (lared_is_cache_disabled()) {
+        return $url;
+    }
     // 仅处理 Gravatar URL
     if (false === strpos($url, 'gravatar') && false === strpos($url, '/avatar/')) {
         return $url;
@@ -597,6 +609,11 @@ function lared_get_cached_link_icon(string $host): string
         return '';
     }
 
+    // 缓存全局关闭：直接返回 favicon.im 远端 URL
+    if (lared_is_cache_disabled()) {
+        return 'https://favicon.im/' . urlencode($host) . '?larger=true';
+    }
+
     $safe_name  = preg_replace('/[^a-z0-9.\-]/i', '_', $host);
     $cache_dir  = lared_get_link_ico_cache_dir();
     $cache_file = $cache_dir . '/' . $safe_name . '.ico';
@@ -618,8 +635,8 @@ function lared_get_cached_link_icon(string $host): string
         wp_mkdir_p($cache_dir);
     }
 
-    // 尝试从 ico.bluecdn.com 获取
-    $ico_url  = 'https://ico.bluecdn.com/' . urlencode($host);
+    // 从 favicon.im 获取（larger=true 拿大尺寸版本）
+    $ico_url  = 'https://favicon.im/' . urlencode($host) . '?larger=true';
     $response = wp_remote_get($ico_url, [
         'timeout'   => 5,
         'sslverify' => false,
@@ -633,14 +650,12 @@ function lared_get_cached_link_icon(string $host): string
     $body         = wp_remote_retrieve_body($response);
     $content_type = wp_remote_retrieve_header($response, 'content-type');
 
-    // 检查是否为有效图标（非文字占位图）
-    // ico.bluecdn.com 对无 favicon 的站点返回 SVG 文字占位图（包含 <text> 标签）
+    // favicon.im 对无 favicon 的站点返回 image/svg+xml 占位 (~257 bytes)
     $is_placeholder = false;
-    if (false !== stripos($content_type, 'svg') || (strlen($body) < 2000 && false !== stripos($body, '<text'))) {
+    if (false !== stripos($content_type, 'svg')) {
         $is_placeholder = true;
     }
-    // 过小的文件（< 100 字节）也视为无效
-    if (strlen($body) < 100) {
+    if (strlen($body) < 500) {
         $is_placeholder = true;
     }
 
@@ -2823,3 +2838,76 @@ function lared_build_photo_layout($figures) {
     return $html;
 }
 
+
+// ==================== 缓存管理 AJAX（patched 2026-04-27）====================
+
+function lared_clear_cache_dirs(): int
+{
+    $count = 0;
+    foreach ([lared_get_link_ico_cache_dir(), lared_get_gravatar_cache_dir()] as $dir) {
+        if (!is_dir($dir)) {
+            continue;
+        }
+        $files = glob($dir . '/*');
+        foreach ((array) $files as $f) {
+            if (is_file($f) && @unlink($f)) {
+                $count++;
+            }
+        }
+    }
+    return $count;
+}
+
+function lared_ajax_clear_all_cache(): void
+{
+    check_ajax_referer('lared_cache_nonce', 'nonce');
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(['message' => '权限不足'], 403);
+    }
+    $deleted = lared_clear_cache_dirs();
+    wp_send_json_success([
+        'deleted' => $deleted,
+        'message' => sprintf('已清空 %d 个缓存文件', $deleted),
+    ]);
+}
+add_action('wp_ajax_lared_clear_all_cache', 'lared_ajax_clear_all_cache');
+
+function lared_ajax_refresh_all_cache(): void
+{
+    check_ajax_referer('lared_cache_nonce', 'nonce');
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(['message' => '权限不足'], 403);
+    }
+
+    // 强制重新拉：先把缓存关掉绕过本地命中，循环 wp_remote_get 重新拉所有友链 favicon
+    $deleted = lared_clear_cache_dirs();
+
+    $warmed = 0;
+    $bookmarks = get_bookmarks(['orderby' => 'name', 'hide_invisible' => 0]);
+    foreach ($bookmarks as $b) {
+        $host = wp_parse_url((string) ($b->link_url ?? ''), PHP_URL_HOST);
+        if (!$host) {
+            continue;
+        }
+        $url = lared_get_cached_link_icon($host);
+        if ('' !== $url) {
+            $warmed++;
+        }
+    }
+
+    wp_send_json_success([
+        'deleted' => $deleted,
+        'warmed'  => $warmed,
+        'message' => sprintf('已清空 %d 个缓存，预热 %d 个友链图标', $deleted, $warmed),
+    ]);
+}
+add_action('wp_ajax_lared_refresh_all_cache', 'lared_ajax_refresh_all_cache');
+
+// 注册「关闭缓存」开关
+add_action('admin_init', function () {
+    register_setting('lared_settings_cache', 'lared_disable_cache', [
+        'type' => 'string',
+        'sanitize_callback' => 'lared_sanitize_toggle_option',
+        'default' => '0',
+    ]);
+});

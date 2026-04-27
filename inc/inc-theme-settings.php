@@ -387,6 +387,7 @@ function lared_render_theme_settings_page(): void
         'rss'     => ['label' => __('RSS 缓存', 'lared'), 'icon' => 'dashicons-rss'],
         'ai'      => ['label' => __('AI 摘要', 'lared'), 'icon' => 'dashicons-welcome-learn-more'],
         'email'   => ['label' => __('邮件设置', 'lared'), 'icon' => 'dashicons-email-alt'],
+        'cache'   => ['label' => __('缓存管理', 'lared'), 'icon' => 'dashicons-database-view'],
         'data'    => ['label' => __('数据维护', 'lared'), 'icon' => 'dashicons-database'],
     ];
 
@@ -475,6 +476,7 @@ function lared_render_theme_settings_page(): void
                         'rss'   => lared_render_tab_rss(),
                         'ai'    => lared_render_tab_ai(),
                         'email' => lared_render_tab_email(),
+                        'cache' => lared_render_tab_cache(),
                         'data'  => lared_render_tab_data(),
                         default => lared_render_tab_general(),
                     };
@@ -2971,3 +2973,119 @@ function lared_ajax_dm_execute(): void
     }
 }
 add_action('wp_ajax_lared_dm_execute', 'lared_ajax_dm_execute');
+
+// ====================================================================
+// 缓存管理 tab（patched 2026-04-27）
+// ====================================================================
+
+function lared_render_tab_cache(): void
+{
+    settings_errors('lared_settings_cache');
+    $cache_disabled = '1' === (string) get_option('lared_disable_cache', '0');
+    $nonce = wp_create_nonce('lared_cache_nonce');
+
+    $favicon_dir = function_exists('lared_get_link_ico_cache_dir') ? lared_get_link_ico_cache_dir() : '';
+    $gravatar_dir = function_exists('lared_get_gravatar_cache_dir') ? lared_get_gravatar_cache_dir() : '';
+    $favicon_count = ($favicon_dir && is_dir($favicon_dir)) ? count((array) glob($favicon_dir . '/*')) : 0;
+    $gravatar_count = ($gravatar_dir && is_dir($gravatar_dir)) ? count((array) glob($gravatar_dir . '/*')) : 0;
+    $favicon_size = ($favicon_dir && is_dir($favicon_dir)) ? array_sum(array_map('filesize', glob($favicon_dir . '/*') ?: [])) : 0;
+    $gravatar_size = ($gravatar_dir && is_dir($gravatar_dir)) ? array_sum(array_map('filesize', glob($gravatar_dir . '/*') ?: [])) : 0;
+    ?>
+    <div class="lr-card">
+        <div class="lr-card-head">
+            <h2><?php esc_html_e('缓存管理', 'lared'); ?></h2>
+            <p class="lr-card-sub"><?php esc_html_e('管理友链图标 (favicon.im) 和 Gravatar 头像 (gravatar.bluecdn.com) 本地缓存', 'lared'); ?></p>
+        </div>
+
+        <div class="lr-card-body">
+            <p>
+                <strong><?php esc_html_e('当前缓存：', 'lared'); ?></strong>
+                Favicon <code><?php echo (int) $favicon_count; ?></code> 个 (<?php echo size_format($favicon_size); ?>)
+                · Gravatar <code><?php echo (int) $gravatar_count; ?></code> 个 (<?php echo size_format($gravatar_size); ?>)
+            </p>
+
+            <hr style="margin:16px 0;" />
+
+            <form method="post" action="options.php" style="margin-bottom:20px;">
+                <?php settings_fields('lared_settings_cache'); ?>
+                <p>
+                    <label>
+                        <input type="checkbox" name="lared_disable_cache" value="1" <?php checked($cache_disabled); ?> />
+                        <strong><?php esc_html_e('关闭本地缓存（直接代理远端服务）', 'lared'); ?></strong>
+                    </label>
+                </p>
+                <p class="description" style="margin-left:24px;">
+                    <?php esc_html_e('开启后：友链图标直接走 favicon.im，Gravatar 头像直接走 gravatar.bluecdn.com，不写本地缓存文件。', 'lared'); ?>
+                </p>
+                <?php submit_button(__('保存设置', 'lared')); ?>
+            </form>
+
+            <hr style="margin:16px 0;" />
+
+            <p>
+                <button type="button" id="lared-cache-refresh-btn" class="button button-primary">
+                    <?php esc_html_e('强制刷新缓存（清空 + 预热友链图标）', 'lared'); ?>
+                </button>
+                <button type="button" id="lared-cache-clear-btn" class="button">
+                    <?php esc_html_e('清空所有缓存', 'lared'); ?>
+                </button>
+                <span id="lared-cache-msg" style="margin-left:12px;font-weight:500;"></span>
+            </p>
+            <p class="description">
+                <?php esc_html_e('「强制刷新」会清空全部缓存后立刻拉取所有友链书签的 favicon 重建。「清空」只删文件，访问时再按需重建。', 'lared'); ?>
+            </p>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        var nonce = '<?php echo esc_js($nonce); ?>';
+        var ajaxUrl = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
+        var msg = document.getElementById('lared-cache-msg');
+
+        function setBusy(btn, busy) {
+            btn.disabled = busy;
+            if (busy && !btn.dataset.original) btn.dataset.original = btn.textContent;
+            btn.textContent = busy ? '处理中…' : (btn.dataset.original || btn.textContent);
+        }
+
+        function call(action, btn) {
+            setBusy(btn, true);
+            msg.textContent = '';
+            msg.style.color = '#00a32a';
+            var fd = new FormData();
+            fd.append('action', action);
+            fd.append('nonce', nonce);
+            fetch(ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    setBusy(btn, false);
+                    if (j && j.success) {
+                        msg.textContent = '✓ ' + ((j.data && j.data.message) || '完成');
+                        setTimeout(function () { window.location.reload(); }, 1200);
+                    } else {
+                        msg.style.color = '#d63638';
+                        msg.textContent = '✗ ' + ((j && j.data && j.data.message) || '失败');
+                    }
+                })
+                .catch(function () {
+                    setBusy(btn, false);
+                    msg.style.color = '#d63638';
+                    msg.textContent = '✗ 请求失败';
+                });
+        }
+
+        var refreshBtn = document.getElementById('lared-cache-refresh-btn');
+        var clearBtn = document.getElementById('lared-cache-clear-btn');
+        if (refreshBtn) refreshBtn.addEventListener('click', function () {
+            if (!confirm('清空所有缓存并预热友链图标？')) return;
+            call('lared_refresh_all_cache', this);
+        });
+        if (clearBtn) clearBtn.addEventListener('click', function () {
+            if (!confirm('清空所有 favicon + Gravatar 缓存？')) return;
+            call('lared_clear_all_cache', this);
+        });
+    })();
+    </script>
+    <?php
+}
