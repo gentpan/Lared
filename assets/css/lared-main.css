@@ -1704,10 +1704,15 @@
 /* ===== Custom Theme Styles ===== */
 
 @font-face {
-  font-family: "PaperMono";
+  font-family: "Google Sans Code";
+  src: url("https://static.utterlog.com/fonts/google-sans-code-400.woff2") format("woff2");
   font-weight: 400;
-  font-style: normal;
-  src: url("../fonts/PaperMono-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Google Sans Code";
+  src: url("https://static.utterlog.com/fonts/google-sans-code-700.woff2") format("woff2");
+  font-weight: 700;
   font-display: swap;
 }
 
@@ -1724,10 +1729,10 @@ html {
     system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol", "Noto Color Emoji";
   --font-mono:
-    "PaperMono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+    "Google Sans Code", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
   --font-code:
-    "PaperMono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+    "Google Sans Code", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
   --radius-xs: 0.125rem;
   --default-transition-duration: 0.15s;

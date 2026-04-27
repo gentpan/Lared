@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 // ====== CDN 配置常量 ======
 // 可在 wp-config.php 中使用 define() 覆盖这些值
 if (!defined('LARED_CDN_FONTAWESOME')) {
-    define('LARED_CDN_FONTAWESOME', 'https://icons.bluecdn.com/fontawesome-pro/css/all.css');
+    define('LARED_CDN_FONTAWESOME', 'https://static.utterlog.com/libs/fontawesome/7.2.0/css/all.min.css');
 }
 if (!defined('LARED_CDN_STATIC')) {
     define('LARED_CDN_STATIC', 'https://jsd.bluecdn.com/npm');
@@ -815,12 +815,13 @@ function lared_assets(): void
 
     // Google Fonts 已移除 — 全部使用系统字体
 
-    // Font Awesome Sharp 变体（补充 all.css 缺失的 sharp 字体定义）
-    $fa_sharp_base = str_replace('/css/all.css', '', $cdn_icons);
+    // Font Awesome Sharp 变体（补充 all.min.css 缺失的 sharp 字体定义）
+    // 兼容 all.css 和 all.min.css 两种 base URL
+    $fa_dir = dirname($cdn_icons);
     foreach (['sharp-thin', 'sharp-light', 'sharp-solid'] as $sharp_variant) {
         wp_enqueue_style(
             'lared-fa-' . $sharp_variant,
-            $fa_sharp_base . '/css/' . $sharp_variant . '.css',
+            $fa_dir . '/' . $sharp_variant . '.min.css',
             ['lared-fontawesome'],
             null
         );
