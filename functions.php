@@ -2934,11 +2934,11 @@ function lared_strip_loader_in_photos(string $content): string
     ) ?? $content;
 }
 
-// ==================== ViewImage 防重复打开 patch（patched 2026-04-27）====================
-//   主题的 ViewImage 库不防止重复打开 → 多次点击或事件冒泡会叠加多个 overlay，
-//   关闭时需要点很多次才能全关。在 footer 注入 patch：
-//   1. 已有 viewer 时拦住新打开
-//   2. 点关闭/背景一次就 remove 所有 .view-image overlay
+// ==================== ViewImage 防重复打开 + 列表去重 patch（patched 2026-04-27）====================
+//   主题 ViewImage 库的问题：
+//   1. 不防止重复打开 → 叠加多个 overlay，关闭要点很多次
+//   2. 不去重 images 列表 → 灯箱底部 1/N 计数虚高，左右切换出现重复同张图
+//   都在 footer 注入 patch 修复，不动 lared-app.js
 add_action('wp_footer', 'lared_view_image_patch', 100);
 function lared_view_image_patch(): void
 {
@@ -2950,21 +2950,32 @@ function lared_view_image_patch(): void
 (function () {
     function patch() {
         if (!window.ViewImage || window.ViewImage.__patched) return;
-        var orig = window.ViewImage.listener;
+
+        // 1. wrap listener：已有 viewer 时拦住新打开
+        var origListener = window.ViewImage.listener;
         window.ViewImage.listener = function (a) {
             if (document.querySelector('.view-image')) {
                 a.stopPropagation();
                 a.preventDefault();
                 return;
             }
-            return orig.call(this, a);
+            return origListener.call(this, a);
         };
-        // 兜底：document 级 click，关闭按钮/背景一次清掉所有 overlay
+
+        // 2. wrap display：去重 images 列表（防止 1/N 计数虚高、切换重复图）
+        var origDisplay = window.ViewImage.display;
+        window.ViewImage.display = function (images, current) {
+            var deduped = Array.from(new Set((images || []).filter(Boolean)));
+            return origDisplay.call(this, deduped, current);
+        };
+
+        // 3. 兜底：document 级捕获 click，关闭按钮一次清掉所有 .view-image overlay
         document.addEventListener('click', function (a) {
             if (a.target.closest && a.target.closest('.view-image-close')) {
                 document.querySelectorAll('.view-image').forEach(function (o) { o.remove(); });
             }
-        }, true); // 捕获阶段，确保比 overlay.onclick 早
+        }, true);
+
         window.ViewImage.__patched = true;
     }
     if (window.ViewImage) patch();
