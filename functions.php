@@ -2760,11 +2760,12 @@ function lared_auto_photo_layout($content) {
         return $key;
     };
 
-    // 1) 旧手动 .lared-grid-2/3/4
+    // 1) 旧手动 .lared-grid-2/3/4 —— 合并相邻的 grid div（仅空白/空段落分隔）成单一组
+    //    例如两个 lared-grid-3 紧挨 → 6 图组 → 自动 split 成 [3,3] 一个 .lared-photos
     $content = preg_replace_callback(
-        '/<div\b[^>]*\bclass\s*=\s*["\'][^"\']*\blared-grid-[234]\b[^"\']*["\'][^>]*>([\s\S]*?)<\/div>/i',
+        '/(?:<div\b[^>]*\bclass\s*=\s*["\'][^"\']*\blared-grid-[234]\b[^"\']*["\'][^>]*>[\s\S]*?<\/div>\s*(?:<p>\s*<\/p>\s*)*)+/i',
         function ($m) use ($store) {
-            preg_match_all('/<figure\b[^>]*>[\s\S]*?<\/figure>|<img\b[^>]*\/?>/i', $m[1], $items);
+            preg_match_all('/<figure\b[^>]*>[\s\S]*?<\/figure>|<img\b[^>]*\/?>/i', $m[0], $items);
             if (empty($items[0])) return $m[0];
             $figures = array_map(function ($item) {
                 if (stripos($item, '<figure') === 0) return $item;
