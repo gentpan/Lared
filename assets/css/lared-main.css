@@ -12002,6 +12002,18 @@ img[data-img-animation].img-error {
   opacity: 1 !important;
   animation: none !important;
 }
+
+/* 强力覆盖主题 .is-loaded 把 img 改成 height:auto + object-fit:initial 的行为
+   （否则图片自然比例 ≠ 16:9 时上下/左右会漏出灰色背景）
+   specificity (0,4,2) 高于主题 .single-article-content .img-loading-wrapper.is-loaded .img-loading-target (0,4,1) */
+.lared-photos figure img.img-loading-target,
+.lared-photos figure .img-loading-wrapper.is-loaded .img-loading-target {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
     aspect-ratio: 1 / 1;
   }
 }
