@@ -11912,8 +11912,11 @@ img[data-img-animation].img-error {
   filter: brightness(1.03);
 }
 
+/* 单图：flex:none + width:100% 跳出 flex column 主轴算法（flex:1 1 0 会让 flex-basis:0 强制 height 为 0） */
 .lared-photos[data-count="1"] > figure {
   aspect-ratio: 16 / 9;
+  flex: none;
+  width: 100%;
 }
 
 .lared-photos-row[data-cols="2"] > figure {
