@@ -15325,11 +15325,11 @@ body.single-post::before {
 }
 
 /* === 图片淡入（oneblog 风格 blur → clear）=== */
-.lared-photos figure img.lazy-load {
+.lared-photos figure img.lazyload {
   filter: blur(20px);
   transition: filter .5s linear, opacity .5s ease-in-out;
 }
-.lared-photos figure img.lazy-load.loaded {
+.lared-photos figure img.lazyloaded {
   filter: blur(0);
   opacity: 1;
 }

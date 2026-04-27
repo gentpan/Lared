@@ -2823,32 +2823,3 @@ function lared_build_photo_layout($figures) {
     return $html;
 }
 
-// ==================== 文章图片淡入效果（patched 2026-04-27）====================
-add_action('wp_footer', 'lared_photo_fade_in_script', 99);
-function lared_photo_fade_in_script() {
-    if (!is_singular()) return;
-    ?>
-<script>
-(function(){
-    function apply() {
-        document.querySelectorAll('.lared-photos figure img').forEach(function(img){
-            if (img.dataset.laredFade) return;
-            img.dataset.laredFade = '1';
-            img.classList.add('lazy-load');
-            function done() {
-                requestAnimationFrame(function(){ img.classList.add('loaded'); });
-            }
-            if (img.complete && img.naturalWidth > 0) done();
-            else img.addEventListener('load', done, { once: true });
-        });
-    }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', apply);
-    } else {
-        apply();
-    }
-    document.addEventListener('lared:pjax:loaded', apply);
-})();
-</script>
-    <?php
-}
